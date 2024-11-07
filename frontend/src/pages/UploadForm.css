@@ -1,0 +1,99 @@
+/* src/UploadForm.css */
+
+/* Main container styling for the upload form */
+.upload-container {
+    max-width: 400px;
+    margin: 20px auto; /* Centered with some vertical spacing */
+    padding: 20px;
+    text-align: left;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    background-color: #fff;
+    position: relative;
+    width: 50%; /* Default width for larger screens */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+    transition: margin-left 0.3s ease; /* Smooth transition for sidebar opening */
+}
+
+/* Centered title */
+.upload-container h2 {
+    text-align: center;
+    font-size: 1.5em;
+    color: #333;
+}
+
+/* Each form field section */
+.upload-container form div {
+    margin-bottom: 15px;
+}
+
+/* Input field styling */
+.upload-container input,
+.upload-container select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+    font-size: 1em;
+    color: #333;
+}
+
+/* Button styling */
+.upload-container button {
+    width: 100%;
+    padding: 10px;
+    background-color: #9d2503;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+    font-weight: bold;
+}
+
+.upload-container button:hover {
+    background-color: #0056b3;
+}
+
+/* Message styling */
+.upload-container p {
+    margin-top: 20px;
+    text-align: center;
+    color: green;
+    font-size: 1em;
+}
+
+
+/* Extra small screen adjustments */
+@media (max-width: 480px) {
+    .upload-container {
+        width: 90%; /* Adjust to fit within the mobile view */
+        margin: 10px auto; /* Center the form */
+        padding: 15px;
+        box-shadow: none; /* Remove shadow on small screens */
+    }
+
+    /* Adjust font and padding on extra small screens */
+    .upload-container h2 {
+        font-size: 1.3em;
+    }
+
+    .upload-container button {
+        font-size: 0.9em;
+        padding: 8px;
+    }
+
+    /* Center form fields */
+    .upload-container input,
+    .upload-container select {
+        font-size: 1em;
+        padding: 8px;
+        border: 1px solid #901c1c;
+    }
+
+    /* Each form field section */
+.upload-container form div {
+    margin-bottom: 1px;
+}
+}

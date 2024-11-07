@@ -1,0 +1,72 @@
+/* Centered container for MapArea */
+.map-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 70vh;
+  width: 80vw;
+  box-sizing: border-box;
+  position: relative;
+}
+
+/* Zoom circle styles */
+.zoom-circle {
+  position: absolute;
+  bottom: 20px; /* Position them 20px from the bottom */
+  width: 60px; /* Default width for larger screens */
+  height: 60px; /* Default height for larger screens */
+  border-radius: 50%;
+  background-color: rgba(0, 0, 0, 0.3); /* Transparent background */
+  color: white;
+  font-size: 1.5rem;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.zoom-out {
+  left: 20px; /* Position for the zoom-out circle on the left */
+  z-index: 999;
+}
+
+.zoom-in {
+  right: 20px; /* Position for the zoom-in circle on the right */
+  z-index: 999;
+}
+
+/* Optional hover effect for desktop users */
+.zoom-circle:hover {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+/* Adjustments for mobile screens */
+@media (max-width: 480px) {
+
+  .map-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 65vh; /* Full viewport height */
+    width: 100vw; /* Full viewport width */
+    margin-top: 50px;
+    box-sizing: border-box;
+    padding: 0;
+    margin-top: -20px;
+    background-color: #ffffff;
+    position: absolute;
+  }
+
+  /* Smaller zoom circles for mobile */
+  .zoom-circle {
+    width: 100px; /* Smaller width for mobile */
+    height: 100px; /* Smaller height for mobile */
+    margin-left: -50px;
+    margin-right: -50px;
+    margin-top: 100px;   
+    font-size: .2rem; /* Smaller font size */
+    bottom: 0px; /* Adjust bottom position for mobile */
+  }
+}
