@@ -1,5 +1,6 @@
-// src/pages/MapArea.js
-import React, {useRef } from 'react';
+// src/MapArea.js
+
+import React from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -8,10 +9,9 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import './MapArea.css';
 
-
 const defaultPosition = [55.7, 12.57];
 
-// Set up the default icon for Leaflet
+// Set up default icon for Leaflet
 const defaultIcon = L.icon({
   iconUrl: markerIcon,
   iconRetinaUrl: markerIcon2x,
@@ -22,48 +22,21 @@ const defaultIcon = L.icon({
   shadowSize: [41, 41],
 });
 
-L.Marker.prototype.options.icon = defaultIcon;
-
-// Component to handle zoom controls on mobile
-const MobileZoomControl = () => {
+const FitBounds = ({ bounds }) => {
   const map = useMap();
-  const zoomInterval = useRef(null);
-
-  const startZooming = (zoomIn = true) => {
-    clearInterval(zoomInterval.current);
-    zoomInterval.current = setInterval(() => {
-      map.setZoom(map.getZoom() + (zoomIn ? 1 : -1));
-    }, 200);
-  };
-
-  const stopZooming = () => {
-    clearInterval(zoomInterval.current);
-  };
-
-  return (
-    <>
-      {/* Circle for zooming out on the bottom-left corner */}
-      <div
-        className="zoom-circle zoom-out"
-        onTouchStart={() => startZooming(false)}
-        onTouchEnd={stopZooming}
-      >
-        -
-      </div>
-
-      {/* Circle for zooming in on the bottom-right corner */}
-      <div
-        className="zoom-circle zoom-in"
-        onTouchStart={() => startZooming(true)}
-        onTouchEnd={stopZooming}
-      >
-        +
-      </div>
-    </>
-  );
+  if (bounds.length > 0) {
+    map.fitBounds(bounds);
+  }
+  return null;
 };
 
-const MapArea = () => {
+const MapArea = ({ searchResults = [] }) => {
+  console.log("Search Results:", searchResults); // Check data in console
+
+  const bounds = searchResults
+    .filter((result) => result.lat && result.lon) // Ensure only valid lat/lon pairs are used
+    .map((result) => [result.lat, result.lon]);
+
   return (
     <div className="map-container">
       <MapContainer center={defaultPosition} zoom={10} style={{ height: '100%', width: '100%' }} zoomControl={false}>
@@ -72,15 +45,20 @@ const MapArea = () => {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
 
-        {/* Mobile Zoom Controls */}
-        <MobileZoomControl />
+        <FitBounds bounds={bounds} />
 
-        <Marker position={defaultPosition}>
-          <Popup>
-            <strong>Default Marker</strong>
-            <p>This is a marker at the map's center.</p>
-          </Popup>
-        </Marker>
+        {Array.isArray(searchResults) &&
+          searchResults.map((result) => (
+            result.lat && result.lon && (
+              <Marker key={result.id} position={[result.lat, result.lon]} icon={defaultIcon}>
+                <Popup>
+                  <h3><em>Title: </em>{result.title}</h3>
+                  <strong><em></em>{result.country}, <em></em>{result.city}</strong>
+                  <p>Latitude: {result.lat}, Longitude: {result.lon}</p>
+                </Popup>
+              </Marker>
+            )
+          ))}
       </MapContainer>
     </div>
   );

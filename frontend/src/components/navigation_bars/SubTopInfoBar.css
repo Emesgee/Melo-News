@@ -1,0 +1,65 @@
+.sup-top-info{
+    padding: 6px;
+}
+
+.headline {
+    flex-grow: 1;
+    font-size: 16px;
+    color: #333;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    position: relative;
+  }
+
+
+
+/* Extra small screen adjustments */
+@media (max-width: 480px) {
+    .sup-top-info {
+        padding: 0px;
+        width: 100%;
+        margin-top:5px;
+        background-color: rgb(167, 71, 12);
+        
+    }
+
+    .headline {
+        flex-grow: 1;
+        font-size: 12px;
+        color: #333;
+        text-align: center;
+        white-space: nowrap;
+        overflow-x: auto; /* Enable horizontal scrolling */
+        text-overflow:initial;
+        position: relative;
+        text-decoration: none;
+        cursor: pointer;
+        padding: 5px;
+      }
+      /* Tooltip styling */
+/* Tooltip styling */
+.headline:hover::after {
+    content: attr(data-fulltext);
+    position: absolute;
+    top: 100%; /* Position the tooltip below the headline */
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #333;
+    color: #fff;
+    padding: 5px 10px;
+    border-radius: 5px;
+    white-space: nowrap;
+    font-size: 10px;
+    z-index: 1;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    margin-top: 5px;
+  }
+
+  .source-logo {
+    max-height: 40px; /* Adjust size of logo */
+    width: auto;
+  }
+  
+  }

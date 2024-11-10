@@ -6,24 +6,31 @@ import './TopInfoBar.css';
 const TopInfoBar = () => {
   const navigate = useNavigate();
 
+  const handleNavigateLeft = () => {
+    // Add any navigation logic for the left arrow here
+    console.log('Navigate Left');
+  };
+
+  const handleNavigateRight = () => {
+    // Add any navigation logic for the right arrow here
+    console.log('Navigate Right');
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('token');
-    navigate('/login');  // Navigate to the login page
+    navigate('/login');
   };
 
   const handleUpload = () => {
-    navigate('/upload');  // Navigate to the upload page
+    navigate('/upload');
   };
 
   return (
     <div className="top-infobar">
-      <h1 className="welcome">Welcome</h1>
-
-      {/* Button for Logout with SVG Icon */}
+      {/* Logout Button */}
       <button className="icon-button" onClick={handleLogout}>
         <svg
           className="icon icon--account icon--grey icon--24"
-          viewBox="0 24 24"
           version="1.1"
           aria-hidden="true"
         >
@@ -42,7 +49,7 @@ const TopInfoBar = () => {
         </svg>
       </button>
 
-      {/* Button for Upload with SVG Icon */}
+      {/* Upload Button */}
       <button className="icon-button" onClick={handleUpload}>
         <svg
           xmlns="http://www.w3.org/2000/svg"

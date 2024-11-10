@@ -72,6 +72,7 @@ def search():
     file_list = [
         {
             "id": file.id,
+            "title":file.title,
             "filename": file.filename,
             "file_path": file.file_path,
             "tags": file.tags,
@@ -80,10 +81,15 @@ def search():
             "country": file.country,
             "upload_date": file.upload_date,
             "lat": file.lat,
-            "lon": file.lon
+            "lon": file.lon,
+            "term":term
         }
         for file in results
     ]
+
+    # Print search results to terminal
+    print("Search Data:", data)
+    print("Generated Search Results:", file_list)
 
     return jsonify({
         "message": "Search and input recorded successfully.",
