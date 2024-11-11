@@ -18,17 +18,21 @@
 /* Extra small screen adjustments */
 @media (max-width: 480px) {
     .sup-top-info {
-        padding: 0px;
+        padding: 2px;
+        padding-bottom: 25px;
         width: 100%;
         margin-top:5px;
-        background-color: rgb(167, 71, 12);
+        background-color: rgb(241, 8, 8);
         
     }
 
     .headline {
         flex-grow: 1;
-        font-size: 12px;
-        color: #333;
+        font-size: 15px;
+        font-family:Helvetica;
+        font-style:normal;
+        font: bolder;
+        color: #000000;
         text-align: center;
         white-space: nowrap;
         overflow-x: auto; /* Enable horizontal scrolling */
@@ -36,13 +40,14 @@
         position: relative;
         text-decoration: none;
         cursor: pointer;
-        padding: 5px;
+        padding: 2px;
+        padding-bottom: 25px;
       }
       /* Tooltip styling */
 /* Tooltip styling */
 .headline:hover::after {
     content: attr(data-fulltext);
-    position: absolute;
+    /*position: absolute;'*/
     top: 100%; /* Position the tooltip below the headline */
     left: 50%;
     transform: translateX(-50%);
@@ -51,15 +56,34 @@
     padding: 5px 10px;
     border-radius: 5px;
     white-space: nowrap;
-    font-size: 10px;
+    font-size: 14px;
     z-index: 1;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
     margin-top: 5px;
+    
+    
   }
 
-  .source-logo {
-    max-height: 40px; /* Adjust size of logo */
-    width: auto;
+  /* Define the slide-in animation */
+@keyframes slideInFromLeft {
+  0% {
+    transform: translateX(-100%); /* Start off-screen to the left */
+    opacity: 0; /* Start transparent */
   }
+  100% {
+    transform: translateX(0); /* End at the final position */
+    opacity: 1; /* Fully visible */
+  }
+}
+
+/* Apply animation to .source-logo */
+.source-logo {
+  max-height: 40px; /* Adjust size of logo */
+  width: auto;
+  position: relative; /* Allows for positioning with translate */
+  overflow-x: hidden; /* Hide overflow */
+  animation: slideInFromLeft 1s ease-out; /* Apply animation */
+  padding-right: 17px;
+}
   
   }

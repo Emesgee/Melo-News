@@ -10,10 +10,6 @@ file_upload_bp = Blueprint('file_upload', __name__, url_prefix='/api/file_upload
 @file_upload_bp.route('/upload', methods=['POST'])
 @jwt_required()
 def upload_file():
-    """
-    Endpoint for file upload.
-    Expects a file along with metadata such as title, tags, subject, city, country, and file_type_id.
-    """
     user_id = get_jwt_identity()
 
     # Check for 'file' in request
@@ -40,6 +36,8 @@ def upload_file():
     subject = request.form.get('subject')
     city = request.form.get('city')
     country = request.form.get('country')
+    lat = request.form.get('lat')
+    lon = request.form.get('lon')
 
     # Validate the file extension
     file_extension = file.filename.split('.')[-1].lower()
@@ -49,8 +47,9 @@ def upload_file():
 
     # Use a secure filename and set the path for saving the file
     secure_name = secure_filename(file.filename)
+    unique_filename = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{secure_name}"
     upload_folder = current_app.config['UPLOAD_FOLDER']
-    file_path = os.path.join(upload_folder, secure_name)
+    file_path = os.path.join(upload_folder, unique_filename)
 
     try:
         # Ensure the upload directory exists
@@ -59,12 +58,12 @@ def upload_file():
         # Save the file to the upload directory
         file.save(file_path)
 
-        # Dummy values for latitude and longitude (if needed, replace with actual EXIF data extraction)
-        latitude, longitude = None, None
+        # Log upload details
+        current_app.logger.info(f"File {unique_filename} uploaded by user {user_id} with metadata: title={title}, city={city}, country={country}")
 
         # Save file information to the database
         new_upload = FileUpload(
-            filename=secure_name,
+            filename=unique_filename,
             file_path=file_path,
             title=title,
             tags=tags,
@@ -74,14 +73,14 @@ def upload_file():
             upload_date=datetime.utcnow(),
             user_id=user_id,
             file_type_id=file_type_id,
-            lat=latitude,
-            lon=longitude
+            lat=lat,
+            lon=lon
         )
         db.session.add(new_upload)
         db.session.commit()
 
         # Generate a public URL for the uploaded file
-        file_url = url_for('static', filename=f'uploads/{secure_name}', _external=True)
+        file_url = url_for('static', filename=f'uploads/{unique_filename}', _external=True)
 
         return jsonify({
             'message': f'File {secure_name} uploaded successfully!',

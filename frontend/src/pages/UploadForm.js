@@ -1,7 +1,7 @@
-// src/pages/UploadForms.js
 import React, { useState, useEffect } from 'react';
-import Sidebar from '../components/navigation_bars/Sidebar'; // Ensure correct path to Sidebar component
+import Sidebar from '../components/navigation_bars/Sidebar';
 import './UploadForm.css';
+import axios from 'axios';
 
 const GeneralInfoForm = ({ title, setTitle, tags, setTags, subject, setSubject }) => (
   <div className="general-info-form">
@@ -12,11 +12,11 @@ const GeneralInfoForm = ({ title, setTitle, tags, setTags, subject, setSubject }
     </div>
     <div>
       <label>Tags:</label>
-      <input type="text" placeholder='Enter tags (e.g., breaking news, climate change)' value={tags} onChange={(e) => setTags(e.target.value)} />
+      <input type="text" placeholder='Enter tags' value={tags} onChange={(e) => setTags(e.target.value)} />
     </div>
     <div>
       <label>Subject:</label>
-      <input type="text" placeholder='Topic summary (e.g., Global Climate Summit Highlights)' value={subject} onChange={(e) => setSubject(e.target.value)} />
+      <input type="text" placeholder='Topic summary' value={subject} onChange={(e) => setSubject(e.target.value)} />
     </div>
   </div>
 );
@@ -26,11 +26,11 @@ const LocationForm = ({ city, setCity, country, setCountry }) => (
     <h3>Location Information</h3>
     <div>
       <label>City:</label>
-      <input type="text" placeholder='Type the city (e.g., London)' value={city} onChange={(e) => setCity(e.target.value)} />
+      <input type="text" placeholder='Type the city' value={city} onChange={(e) => setCity(e.target.value)} />
     </div>
     <div>
       <label>Country:</label>
-      <input type="text" placeholder='Type the country (e.g., United Kingdom' value={country} onChange={(e) => setCountry(e.target.value)} />
+      <input type="text" placeholder='Type the country' value={country} onChange={(e) => setCountry(e.target.value)} />
     </div>
   </div>
 );
@@ -62,42 +62,58 @@ const FileUpload = () => {
   const [subject, setSubject] = useState('');
   const [city, setCity] = useState('');
   const [country, setCountry] = useState('');
+  const [lat, setLat] = useState(null);
+  const [lon, setLon] = useState(null);
   const [fileTypeId, setFileTypeId] = useState('');
   const [fileTypes, setFileTypes] = useState([]);
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-
-  // Toggle sidebar visibility
-  const toggleSidebar = () => {
-    setIsSidebarVisible((prev) => !prev);
-  };
-
   const MAX_FILE_SIZE = 60 * 1024 * 1024;
-  const ALLOWED_FILE_TYPES = [
-    'image/jpeg', 'image/png', 'image/gif',
-    'video/mp4', 'video/mpeg', 'video/ogg',
-    'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4', 'audio/x-m4a',
-    'application/pdf', 'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
-  ];
+  const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'video/mp4', 'video/mpeg', 'video/ogg',
+    'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4', 'audio/x-m4a', 'application/pdf', 'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-powerpoint', 
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation'];
 
   const API_URL = 'http://127.0.0.1:5000';
+  const GEODATA_API_URL = 'https://api.opencagedata.com/geocode/v1/json';
+  const GEODATA_API_KEY = 'YOUR_GEODATA_API_KEY'; // Replace with your actual API key
+
+  const toggleSidebar = () => setIsSidebarVisible((prev) => !prev);
 
   useEffect(() => {
     const fetchFileTypes = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/file-types`);
-        if (!response.ok) throw new Error('Failed to fetch file types');
-        const data = await response.json();
-        setFileTypes(data);
+        const response = await axios.get(`${API_URL}/api/file-types`);
+        setFileTypes(response.data);
       } catch (error) {
         setMessage('Error fetching file types');
       }
     };
     fetchFileTypes();
   }, []);
+
+  useEffect(() => {
+    if (city.trim() && country.trim()) {
+      const fetchGeolocation = async () => {
+        try {
+          const response = await axios.get(GEODATA_API_URL, {
+            params: { q: `${city.trim()}, ${country.trim()}`, key: GEODATA_API_KEY },
+          });
+          if (response.data.results?.length > 0) {
+            const { lat, lng } = response.data.results[0].geometry;
+            setLat(lat);
+            setLon(lng);
+          } else {
+            setMessage('Location not found.');
+          }
+        } catch (error) {
+          setMessage('Error fetching location data.');
+        }
+      };
+      fetchGeolocation();
+    }
+  }, [city, country]);
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -121,31 +137,49 @@ const FileUpload = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!selectedFile || !fileTypeId) {
+    if (!fileTypeId || !selectedFile) {
       setMessage('Please select a file and file type.');
       return;
     }
-    
+    setIsLoading(true);
+
     const formData = new FormData();
-    formData.append('file', selectedFile);
-    formData.append('title', title);
-    formData.append('tags', tags);
-    formData.append('subject', subject);
-    formData.append('city', city);
-    formData.append('country', country);
-    formData.append('file_type_id', fileTypeId);
+    formData.append("file", selectedFile);
+    formData.append("file_type_id", fileTypeId);
+    formData.append("title", title || '');
+    formData.append("tags", tags || '');
+    formData.append("subject", subject || '');
+    formData.append("city", city || '');
+    formData.append("country", country || '');
+    formData.append("lat", lat ? lat.toString() : '');
+    formData.append("lon", lon ? lon.toString() : '');
 
     try {
-      setIsLoading(true);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setMessage('User not authenticated. Please log in.');
+        setIsLoading(false);
+        return;
+      }
+
       const response = await fetch(`${API_URL}/api/file_upload/upload`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          "Authorization": `Bearer ${token}`, // Explicitly attach token here
         },
         body: formData,
       });
-      setMessage(response.ok ? 'File uploaded successfully!' : 'Failed to upload file.');
+
+      const responseData = await response.json();
+
+      if (response.ok) {
+        setMessage('File uploaded successfully!');
+      } else {
+        console.error('Upload error:', responseData);
+        setMessage(responseData.message || 'Failed to upload file.');
+      }
     } catch (error) {
+      console.error("Error during upload:", error);
       setMessage('An error occurred while uploading the file.');
     } finally {
       setIsLoading(false);
@@ -154,13 +188,11 @@ const FileUpload = () => {
 
   return (
     <div className="app-container">
-      {/* Render the Sidebar component */}
       <Sidebar isSidebarVisible={isSidebarVisible} toggleSidebar={toggleSidebar} />
-
       <div className={`upload-container ${isSidebarVisible ? 'sidebar-active' : ''}`}>
         <h2>File Upload</h2>
         <form onSubmit={handleSubmit}>
-          <FileUploadForm fileTypes={fileTypes} fileTypeId={fileTypeId} setFileTypeId={setFileTypeId} handleFileChange={handleFileChange} />  
+          <FileUploadForm fileTypes={fileTypes} fileTypeId={fileTypeId} setFileTypeId={setFileTypeId} handleFileChange={handleFileChange} />
           <GeneralInfoForm title={title} setTitle={setTitle} tags={tags} setTags={setTags} subject={subject} setSubject={setSubject} />
           <LocationForm city={city} setCity={setCity} country={country} setCountry={setCountry} />
           <button type="submit" disabled={isLoading}>
@@ -168,6 +200,7 @@ const FileUpload = () => {
           </button>
         </form>
         {message && <p>{message}</p>}
+        {lat && lon && <p>Latitude: {lat}, Longitude: {lon}</p>}
       </div>
     </div>
   );

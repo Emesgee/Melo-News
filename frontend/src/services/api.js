@@ -1,26 +1,33 @@
-//api.js
-
 import axios from 'axios';
 
-// Set API URL based on environment
-const API_URL = 'http://172.25.84.144:5000';  // Temporary hardcoded URL
+// Base API URL, hardcoded for this environment
+const API_URL = 'http://172.25.84.144:5000';
 console.log("API URL is set to:", API_URL);
 
-// Setting up an Axios instance with the base URL
+// Axios instance with base URL and default headers
 const api = axios.create({
   baseURL: API_URL,
   headers: {
-    'Content-Type':'application/json'
+    'Content-Type': 'application/json'
   },
   withCredentials: true
 });
 
+// Set Authorization token from localStorage if available
 export const setAuthToken = () => {
-  const token = localStorage.getItem('token');  // Retrieve the token from storage
+  const token = localStorage.getItem('token'); // Retrieve token from localStorage
   if (token) {
     api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
   } else {
     delete api.defaults.headers.common['Authorization'];
+  }
+};
+
+// Example function to ensure token is applied before making a request
+const ensureAuthToken = () => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
   }
 };
 
@@ -34,17 +41,19 @@ export const loginUser = async (credentials) => {
   return api.post('/auth/login', credentials);
 };
 
-//Get Profile Data
-export const ProfilData = async (userData) => {
-  return api.get('/api/profile')
+// Get Profile Data
+export const ProfilData = async () => {
+  ensureAuthToken(); // Ensure the token is set before making this request
+  return api.get('/api/profile');
 };
- 
 
 // Fetch Available File Types
 export const fetchFileTypes = async () => {
+  ensureAuthToken(); // Ensure token for this authenticated request
   return api.get('/api/file-types');
 };
 
+// Test API URL for connectivity
 export const testApiUrl = async () => {
   try {
     const response = await api.get('/api/test');
