@@ -15,6 +15,8 @@ from .file_types.routes import file_types_bp
 from .templates.routes import templates_bp
 from .search.routes import search_bp
 from .output.routes import output_bp
+from .testjson.routes import testjson_bp
+
 
 def create_app():
     app = Flask(__name__)
@@ -67,6 +69,7 @@ def create_app():
     # Register the blueprint with the /api prefix
     app.register_blueprint(search_bp, url_prefix='/api')
     app.register_blueprint(output_bp)
+    app.register_blueprint(testjson_bp, url_prefix='/api/testjson')
 
     # Swagger Configuration
     swagger_config = {
