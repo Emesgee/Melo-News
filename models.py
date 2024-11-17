@@ -114,19 +114,20 @@ class Output(db.Model):
 
 
 
-class TestJson(db.Model):
-     __tablename__ = 'testjson' 
+class TestJson(db.secondary.Model):
+    __bind_key__ = 'secondary'  # Specify the database bind
+    __tablename__ = 'testjson'
 
-     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-     time = db.Column(db.DateTime)
-     total_views = db.Column(db.Integer) 
-     message = db.Column(db.String) 
-     video_links = db.Column(db.String)
-     video_durations = db.Column(db.String)
-     image_links = db.Column(db.String)
-     tags = db.Column(db.String)
-     subject = db.Column(db.String)
-     matched_city = db.Column(db.String)
-     city_result = db.Column(db.String)
-     latitude = db.Column(db.Float)
-     longitude = db.Column(db.Float)
+    id = db.secondary.Column(db.secondary.Integer, primary_key=True, autoincrement=True)
+    time = db.secondary.Column(db.secondary.DateTime)
+    total_views = db.secondary.Column(db.secondary.Integer)
+    message = db.secondary.Column(db.secondary.String)
+    video_links = db.secondary.Column(db.secondary.String)
+    video_durations = db.secondary.Column(db.secondary.String)
+    image_links = db.secondary.Column(db.secondary.String)
+    tags = db.secondary.Column(db.secondary.String)
+    subject = db.secondary.Column(db.secondary.String)
+    matched_city = db.secondary.Column(db.secondary.String)
+    city_result = db.secondary.Column(db.secondary.String)
+    latitude = db.secondary.Column(db.secondary.Float)
+    longitude = db.secondary.Column(db.secondary.Float)

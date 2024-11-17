@@ -32,7 +32,15 @@ def create_app():
 
     # Database Configuration
     app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:admin@localhost:5432/postgres'
+     #Defining multiple databases with SQLALCHEMY_BINDS configuration
+    app.config['SQLALCHEMY_BINDS'] = {
+    'default': 'postgresql://postgres:admin@localhost:5432/postgres',
+    'secondary': 'postgresql://postgres:admin@localhost:5432/telegramdb'
+    }
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    
+   
+
 
     # JWT Manager
     jwt = JWTManager(app)
