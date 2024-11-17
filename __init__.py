@@ -5,8 +5,10 @@ from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from flasgger import Swagger
 import os
+from datetime import datetime
 from datetime import timedelta
-from .models import db, InputTemplate, OutputTemplate, FileType, TestJson
+from sqlalchemy import MetaData
+from .models import db, InputTemplate, OutputTemplate, FileType, TestJson  # Add TestJson
 from .auth.routes import auth_bp
 from .profile.routes import profile_bp
 from .file_upload.routes import file_upload_bp
@@ -14,7 +16,8 @@ from .file_types.routes import file_types_bp
 from .templates.routes import templates_bp
 from .search.routes import search_bp
 from .output.routes import output_bp
-from .testjson.routes import testjson_bp  # Import TestJson routes
+from .testjson.routes import testjson_bp  # Add TestJson routes
+
 
 def create_app():
     app = Flask(__name__)
@@ -62,7 +65,8 @@ def create_app():
     app.register_blueprint(templates_bp, url_prefix='/api')
     app.register_blueprint(search_bp, url_prefix='/api')
     app.register_blueprint(output_bp)
-    app.register_blueprint(testjson_bp, url_prefix='/api/testjson')  # Register TestJson blueprint
+    app.register_blueprint(testjson_bp, url_prefix='/api/testjson')
+
 
     # Swagger Configuration
     swagger_config = {
@@ -96,9 +100,16 @@ def create_app():
         return jsonify({"error": "Server error"}), 500
 
     # Populate initial data for templates, file types, and secondary database
+    # Populate initial data for templates, file types, and secondary database
     with app.app_context():
-        db.create_all(bind='default')  # Create tables in the default database
-        db.create_all(bind='secondary')  # Create tables in the secondary database
+        # Default database
+        db.create_all()
+
+        # Secondary database
+        engine_secondary = db.get_engine(app, bind='secondary')
+        metadata_secondary = MetaData()
+        metadata_secondary.create_all(engine_secondary)  # Bind the engine here during table creation
+
         populate_input_templates()
         populate_output_templates()
         populate_file_types()
@@ -109,6 +120,7 @@ def create_app():
         print(f"Endpoint: {rule.endpoint}, Route: {rule}")
 
     return app
+
 
 # Functions to populate initial data for InputTemplate, OutputTemplate, FileType, and TestJson
 def populate_file_types():
@@ -123,6 +135,7 @@ def populate_file_types():
         db.session.bulk_save_objects(templates)
         db.session.commit()
 
+
 def populate_input_templates():
     if not InputTemplate.query.first():
         templates = [
@@ -135,6 +148,7 @@ def populate_input_templates():
         db.session.bulk_save_objects(templates)
         db.session.commit()
 
+
 def populate_output_templates():
     if not OutputTemplate.query.first():
         templates = [
@@ -145,6 +159,7 @@ def populate_output_templates():
         ]
         db.session.bulk_save_objects(templates)
         db.session.commit()
+
 
 def populate_testjson():
     if not TestJson.query.first():

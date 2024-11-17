@@ -1,29 +1,34 @@
 from flask import Blueprint, jsonify, request
 from app.models import TestJson, db
 
+# Define the blueprint
 testjson_bp = Blueprint('testjson', __name__)
 
-@testjson_bp.route('/testjson', methods=['GET'])
-def get_all_testjson():
-    records = TestJson.query.all()
+# GET route to fetch all TestJson records
+@testjson_bp.route('/', methods=['GET'])
+def get_testjson():
+    # Query all records from the TestJson table
+    results = TestJson.query.all()
     return jsonify([{
-        'id': record.id,
-        'time': record.time,
-        'total_views': record.total_views,
-        'message': record.message,
-        'video_links': record.video_links,
-        'video_durations': record.video_durations,
-        'image_links': record.image_links,
-        'tags': record.tags,
-        'subject': record.subject,
-        'matched_city': record.matched_city,
-        'city_result': record.city_result,
-        'latitude': record.latitude,
-        'longitude': record.longitude
-    } for record in records])
+        "id": record.id,
+        "time": record.time,
+        "total_views": record.total_views,
+        "message": record.message,
+        "video_links": record.video_links,
+        "video_durations": record.video_durations,
+        "image_links": record.image_links,
+        "tags": record.tags,
+        "subject": record.subject,
+        "matched_city": record.matched_city,
+        "city_result": record.city_result,
+        "latitude": record.latitude,
+        "longitude": record.longitude
+    } for record in results])
 
-@testjson_bp.route('/testjson', methods=['POST'])
+# POST route to create a new TestJson record
+@testjson_bp.route('/', methods=['POST'])
 def create_testjson():
+    # Parse JSON request data
     data = request.json
     new_record = TestJson(
         time=data.get('time'),
@@ -39,6 +44,7 @@ def create_testjson():
         latitude=data.get('latitude'),
         longitude=data.get('longitude')
     )
+    # Add and commit the new record to the database
     db.session.add(new_record)
     db.session.commit()
     return jsonify({'message': 'TestJson record created'}), 201
