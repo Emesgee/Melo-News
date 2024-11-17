@@ -1,4 +1,3 @@
-# app/__init__.py
 from flask import Flask, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -7,7 +6,7 @@ from flask_cors import CORS
 from flasgger import Swagger
 import os
 from datetime import timedelta
-from .models import db, InputTemplate, OutputTemplate, FileType
+from .models import db, InputTemplate, OutputTemplate, FileType, TestJson
 from .auth.routes import auth_bp
 from .profile.routes import profile_bp
 from .file_upload.routes import file_upload_bp
@@ -15,8 +14,7 @@ from .file_types.routes import file_types_bp
 from .templates.routes import templates_bp
 from .search.routes import search_bp
 from .output.routes import output_bp
-from .testjson.routes import testjson_bp
-
+from .testjson.routes import testjson_bp  # Import TestJson routes
 
 def create_app():
     app = Flask(__name__)
@@ -24,9 +22,9 @@ def create_app():
 
     # CORS Configuration
     CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}}, supports_credentials=True,
-    methods=["GET", "POST", "OPTIONS", "PUT", "DELETE"],
-    allow_headers=["Content-Type", "Authorization"])
-    
+         methods=["GET", "POST", "OPTIONS", "PUT", "DELETE"],
+         allow_headers=["Content-Type", "Authorization"])
+
     # JWT Configuration
     app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'supersecretkey')
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=3)
@@ -34,15 +32,11 @@ def create_app():
 
     # Database Configuration
     app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:admin@localhost:5432/postgres'
-     #Defining multiple databases with SQLALCHEMY_BINDS configuration
     app.config['SQLALCHEMY_BINDS'] = {
-    'default': 'postgresql://postgres:admin@localhost:5432/postgres',
-    'secondary': 'postgresql://postgres:admin@localhost:5432/telegramdb'
+        'default': 'postgresql://postgres:admin@localhost:5432/postgres',
+        'secondary': 'postgresql://postgres:admin@localhost:5432/telegramdb'
     }
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    
-   
-
 
     # JWT Manager
     jwt = JWTManager(app)
@@ -66,10 +60,9 @@ def create_app():
     app.register_blueprint(file_upload_bp)
     app.register_blueprint(file_types_bp)
     app.register_blueprint(templates_bp, url_prefix='/api')
-    # Register the blueprint with the /api prefix
     app.register_blueprint(search_bp, url_prefix='/api')
     app.register_blueprint(output_bp)
-    app.register_blueprint(testjson_bp, url_prefix='/api/testjson')
+    app.register_blueprint(testjson_bp, url_prefix='/api/testjson')  # Register TestJson blueprint
 
     # Swagger Configuration
     swagger_config = {
@@ -102,12 +95,14 @@ def create_app():
     def server_error(error):
         return jsonify({"error": "Server error"}), 500
 
-    # Populate initial data for templates and file types if needed
+    # Populate initial data for templates, file types, and secondary database
     with app.app_context():
-        db.create_all()
+        db.create_all(bind='default')  # Create tables in the default database
+        db.create_all(bind='secondary')  # Create tables in the secondary database
         populate_input_templates()
         populate_output_templates()
         populate_file_types()
+        populate_testjson()  # Populate data in the TestJson table
 
     # Print registered routes for debugging
     for rule in app.url_map.iter_rules():
@@ -115,7 +110,7 @@ def create_app():
 
     return app
 
-# Functions to populate initial data for InputTemplate, OutputTemplate, and FileType tables
+# Functions to populate initial data for InputTemplate, OutputTemplate, FileType, and TestJson
 def populate_file_types():
     if not FileType.query.first():
         templates = [
@@ -149,4 +144,25 @@ def populate_output_templates():
             OutputTemplate(template_type="CSV Export", description="Exports data in CSV format")
         ]
         db.session.bulk_save_objects(templates)
+        db.session.commit()
+
+def populate_testjson():
+    if not TestJson.query.first():
+        records = [
+            TestJson(
+                time=datetime.utcnow(),
+                total_views=100,
+                message="Initial message",
+                video_links="http://example.com/video",
+                video_durations="10:00",
+                image_links="http://example.com/image",
+                tags="example, test",
+                subject="Initial Test",
+                matched_city="Sample City",
+                city_result="Matched",
+                latitude=12.3456,
+                longitude=78.9012
+            )
+        ]
+        db.session.bulk_save_objects(records)
         db.session.commit()
