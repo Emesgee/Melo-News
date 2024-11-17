@@ -111,3 +111,22 @@ class Output(db.Model):
     searchid = db.Column(db.Integer, db.ForeignKey('searches.searchid'), nullable=False)
     filetypeid = db.Column(db.Integer, db.ForeignKey('file_types.filetypeid'), nullable=True)
     templateid = db.Column(db.Integer, db.ForeignKey('output_templates.templateid'), nullable=False)
+
+
+
+class TestJson(db.Model):
+     __tablename__ = 'testjson' 
+
+     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+     time = db.Column(db.DateTime)
+     total_views = db.Column(db.Integer) 
+     message = db.Column(db.String) 
+     video_links = db.Column(db.String)
+     video_durations = db.Column(db.String)
+     image_links = db.Column(db.String)
+     tags = db.Column(db.String)
+     subject = db.Column(db.String)
+     matched_city = db.Column(db.String)
+     city_result = db.Column(db.String)
+     latitude = db.Column(db.Float)
+     longitude = db.Column(db.Float)
