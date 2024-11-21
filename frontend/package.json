@@ -11,7 +11,7 @@
     "@mui/material": "^6.1.6",
     "@mui/x-date-pickers": "^7.22.1",
     "@testing-library/jest-dom": "^5.17.0",
-    "@testing-library/react": "^13.4.0",
+    "@testing-library/react": "^16.0.1",
     "@testing-library/user-event": "^13.5.0",
     "@use-gesture/react": "^10.3.1",
     "axios": "^1.7.7",
@@ -31,15 +31,21 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "test": "react-scripts test",
+    "test": "jest",
     "eject": "react-scripts eject"
   },
-  "proxy": "http://127.0.0.1:5000",
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
+    "jest": {
+      "transform": {
+        "^.+\\.[tj]sx?$": "babel-jest"
+      },
+      "transformIgnorePatterns": [
+        "/node_modules/(?!axios)"
+      ],
+      "moduleFileExtensions": ["js", "jsx", "ts", "tsx", "json", "node"],
+      "moduleNameMapper": {
+      "\\.(css|less|scss|sass)$": "<rootDir>/__mocks__/styleMock.js"
+      },
+      "testEnvironment": "jsdom"
   },
   "browserslist": {
     "production": [
@@ -52,5 +58,14 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "@babel/core": "^7.26.0",
+    "@babel/preset-env": "^7.26.0",
+    "@babel/preset-react": "^7.25.9",
+    "@testing-library/dom": "^10.4.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "babel-jest": "^29.7.0"
   }
 }

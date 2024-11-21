@@ -5,7 +5,7 @@ from app.models import db, Search, Input, FileUpload, InputTemplate, TestJson
 
 search_bp = Blueprint('search', __name__, url_prefix='/api')
 
-@search_bp.route('/search', methods=['POST'])
+@search_bp.route('/search', methods=['GET', 'POST'])
 def search():
     data = request.get_json()
     user_id = data.get('user_id')

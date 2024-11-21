@@ -18,56 +18,47 @@ CORS(auth_bp, origins="http://localhost:3000", supports_credentials=True)
 @cross_origin(origins="http://localhost:3000", supports_credentials=True)
 def register_user():
     """
-    User Registration
-    ---
-    tags:
-      - Authentication
-    requestBody:
-      required: true
-      content:
-        application/json:
-          schema:
-            type: object
-            properties:
-              name:
-                type: string
-                example: "Mo Doe"
-              email:
-                type: string
-                example: "mo.doe@example.com"
-              password:
-                type: string
-                example: "securePassword123"
-    responses:
-      201:
-        description: User registered successfully
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                message:
-                  type: string
-                  example: "User registered successfully!"
-      400:
-        description: Missing or invalid parameters
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                message:
-                  type: string
-                  example: "Missing required fields"
-    """
+User Registration
+---
+tags:
+  - Authentication
+requestBody:
+  required: true
+  content:
+    application/json:
+      schema:
+        type: object
+        properties:
+          username:
+            type: string
+            example: testuser
+          email:
+            type: string
+            example: testuser@example.com
+          password:
+            type: string
+            example: securepassword
+responses:
+  201:
+    description: Registration successful
+  415:
+    description: Request body must be JSON
+  400:
+    description: Bad request
+"""
+  
+    if not request.is_json:
+          return jsonify({"error": "Request body must be JSON"}), 415
+
+
     # Rest of your registration code remains the same
     data = request.get_json()
     name = data.get('name')
     email = data.get('email')
     password = data.get('password')
 
-    if not name or not email or not password:
-        return jsonify({"message": "Missing required fields"}), 400
+    if not all([name, email, password]):
+        return jsonify({"error": "All fields are required"}), 400
 
     hashed_password = generate_password_hash(password)
     new_user = User(username=name, email=email, password=hashed_password)

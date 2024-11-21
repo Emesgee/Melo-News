@@ -1,7 +1,6 @@
-// src/pages/Register.js
 import React, { useState } from 'react';
-import { registerUser } from '../services/api'
-import './Register.css'
+import { registerUser } from '../services/api';
+import './Register.css';
 
 const Register = () => {
   const [name, setName] = useState('');
@@ -24,8 +23,9 @@ const Register = () => {
       <h2>Register</h2>
       <form onSubmit={handleSubmit}>
         <div>
-          <label>Name</label>
+          <label htmlFor="name">Name</label>
           <input
+            id="name"
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -33,8 +33,9 @@ const Register = () => {
           />
         </div>
         <div>
-          <label>Email</label>
+          <label htmlFor="email">Email</label>
           <input
+            id="email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -42,8 +43,9 @@ const Register = () => {
           />
         </div>
         <div>
-          <label>Password</label>
+          <label htmlFor="password">Password</label>
           <input
+            id="password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
