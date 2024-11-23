@@ -5,6 +5,7 @@ import Register from '../src/pages/Register';
 
 import { registerUser } from '../src/services/api';
 
+
 // Mocking the API call
 jest.mock('../src/services/api', () => ({
   registerUser: jest.fn(),

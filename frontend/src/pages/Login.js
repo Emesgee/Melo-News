@@ -18,6 +18,7 @@ const Login = () => {
 
       // Store the token in localStorage
       localStorage.setItem('token', token);
+        
 
       // Set token for future requests
       setAuthToken(token);

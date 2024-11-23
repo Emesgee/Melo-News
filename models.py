@@ -112,8 +112,6 @@ class Output(db.Model):
     filetypeid = db.Column(db.Integer, db.ForeignKey('file_types.filetypeid'), nullable=True)
     templateid = db.Column(db.Integer, db.ForeignKey('output_templates.templateid'), nullable=False)
 
-
-
 class TestJson(db.Model):
     __bind_key__ = 'secondary'  # Bind to the secondary database
     __tablename__ = 'testjson'
@@ -121,15 +119,15 @@ class TestJson(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     time = db.Column(db.DateTime)
     total_views = db.Column(db.Integer)
-    message = db.Column(db.String)
-    video_links = db.Column(db.String)
-    video_durations = db.Column(db.String)
-    image_links = db.Column(db.String)
-    tags = db.Column(db.String)
-    subject = db.Column(db.String)
-    matched_city = db.Column(db.String)
-    city_result = db.Column(db.String)
+    message = db.Column(db.String(255))  # Specify a max length for the string
+    video_links = db.Column(db.String(255))
+    video_durations = db.Column(db.String(255))
+    image_links = db.Column(db.String(255))
+    tags = db.Column(db.String(255))
+    subject = db.Column(db.String(255))
+    matched_city = db.Column(db.String(255))
+    city_result = db.Column(db.String(255))
     latitude = db.Column(db.Float)
-    longitude = db.Column(db.Float)
+
 
 

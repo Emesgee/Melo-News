@@ -19,14 +19,14 @@ from .output.routes import output_bp
 from .testjson.routes import testjson_bp  # Add TestJson routes
 
 
+
 def create_app():
     app = Flask(__name__)
     app.config['DEBUG'] = True
 
-    # CORS Configuration
-    CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}}, supports_credentials=True,
-         methods=["GET", "POST", "OPTIONS", "PUT", "DELETE"],
-         allow_headers=["Content-Type", "Authorization"])
+    CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True,
+     methods=["GET", "POST", "OPTIONS", "PUT", "DELETE"],
+     allow_headers=["Content-Type", "Authorization"])
 
     # JWT Configuration
     app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'supersecretkey')
@@ -34,10 +34,10 @@ def create_app():
     app.config['JWT_TOKEN_LOCATION'] = ['headers']
 
     # Database Configuration
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:admin@localhost:5432/postgres'
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:admin@192.168.0.96:5432/postgres'
     app.config['SQLALCHEMY_BINDS'] = {
-        'default': 'postgresql://postgres:admin@localhost:5432/postgres',
-        'secondary': 'postgresql://postgres:admin@localhost:5432/telegramdb'
+        'default': 'postgresql://postgres:admin@192.168.0.96:5432/postgres',
+        'secondary': 'postgresql://postgres:admin@192.168.0.96:5432/telegramdb'
     }
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 

@@ -1,11 +1,11 @@
 import axios from 'axios';
 
 // Base API URL, hardcoded for this environment
-const API_URL = 'http://172.25.84.144:5000';
-console.log("API URL is set to:", API_URL);
+const API_URL = process.env.REACT_APP_API_URL;
+console.log('API_URL:', API_URL);
 
 // Axios instance with base URL and default headers
-const api = axios.create({
+export const api = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json'
@@ -42,15 +42,20 @@ export const loginUser = async (credentials) => {
 };
 
 // Get Profile Data
-export const ProfilData = async () => {
+export const ProfileData = async () => {
   ensureAuthToken(); // Ensure the token is set before making this request
   return api.get('/api/profile');
+  params: {
+    userData: 'name'
+  }
+  
 };
 
 // Fetch Available File Types
 export const fetchFileTypes = async () => {
   ensureAuthToken(); // Ensure token for this authenticated request
   return api.get('/api/file-types');
+  
 };
 
 // Test API URL for connectivity

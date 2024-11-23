@@ -8,8 +8,17 @@ profile_bp = Blueprint('profile', __name__, url_prefix='/api')
 @profile_bp.route('/profile', methods=['GET'])
 @jwt_required()
 def get_user_profile():
-    user_id = get_jwt_identity()
-    user = db.session.get(User, user_id)
-    if not user:
-        return jsonify({"message": "User not found"}), 404
-    return jsonify({"id": user.userid, "name": user.username, "email": user.email, "created_date": user.created_date}), 200
+    try:
+        user_id = get_jwt_identity()
+        user = db.session.get(User, user_id)
+        if not user:
+            return jsonify({"message": "User not found"}), 404
+
+        return jsonify({
+            "id": str(user.userid),
+            "name": str(user.username),
+            "email": str(user.email),
+            "created_date": str(user.created_date)
+        }), 200
+    except Exception as e:
+        return jsonify({"message": "An error occurred", "error": str(e)}), 500

@@ -37,21 +37,21 @@ const LocationForm = ({ city, setCity, country, setCountry }) => (
 
 const FileUploadForm = ({ fileTypes, fileTypeId, setFileTypeId, handleFileChange }) => (
   <div className="file-upload-form">
-    <h3>File Upload</h3>
-    <div>
-      <label>File Type:</label>
-      <select value={fileTypeId} onChange={(e) => setFileTypeId(e.target.value)} required>
-        <option value="" disabled>Select a file type</option>
-        {fileTypes.map((type) => (
-          <option key={type.id} value={type.id}>{type.type_name}</option>
-        ))}
-      </select>
-    </div>
-    <div>
-      <label>File:</label>
-      <input type="file" onChange={handleFileChange} required />
-    </div>
+  <h3>File Upload</h3>
+  <div>
+    <label htmlFor="fileTypeSelect">File Type:</label>
+    <select id="fileTypeSelect" value={fileTypeId} onChange={(e) => setFileTypeId(e.target.value)} required>
+      <option value="" disabled>Select a file type</option>
+      {fileTypes.map((type) => (
+        <option key={type.id} value={type.id}>{type.type_name}</option>
+      ))}
+    </select>
   </div>
+  <div>
+    <label htmlFor="fileInput">File:</label>
+    <input id="fileInput" type="file" onChange={handleFileChange} required />
+  </div>
+</div>
 );
 
 const FileUpload = () => {
@@ -75,7 +75,7 @@ const FileUpload = () => {
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-powerpoint', 
     'application/vnd.openxmlformats-officedocument.presentationml.presentation'];
 
-  const API_URL = 'http://127.0.0.1:5000';
+  const API_URL = 'http://127.0.0.1:8000';
   const GEODATA_API_URL = 'https://api.opencagedata.com/geocode/v1/json';
   const GEODATA_API_KEY = 'YOUR_GEODATA_API_KEY'; // Replace with your actual API key
 
