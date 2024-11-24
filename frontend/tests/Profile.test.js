@@ -1,16 +1,17 @@
 import React from 'react';
-import { render, screen, fireEvent, profileDataElement } from '@testing-library/react';
+import { render, screen} from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { MemoryRouter } from 'react-router-dom';
-import Login from '../src/pages/Profile';
-import { loginUser, setAuthToken, ProfieData } from '../src/services/api';
-import Profile from '../src/pages/Profile';
+import Profile from '../src/pages/Profile.js';
 
 // Mocking the API call
 jest.mock('../src/services/api', () => ({
-    ProfilData: jest.fn(),
     setAuthToken: jest.fn(),
+    ProfileData: jest.fn().mockResolvedValue(),
+    api: {
+      defaults: { headers: { common: {} } },
+    },
   }));
+  
 
 describe('ProfileTest Component', () => {
     beforeEach(() => {

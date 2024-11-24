@@ -16,14 +16,14 @@ const Profile = () => {
     console.log("Axios Authorization Header:", api.defaults.headers.common['Authorization']);  // Should be 'Bearer <token>'
 
     const fetchProfile = async () => {
-      try {
-        const response = await ProfileData(); // Fetch profile data
-        setProfile(response.data); // Set the profile state with fetched data
-        console.log("Profile Data:", response.data); // Log the fetched profile data
-      } catch (error) {
-        console.error("Failed to fetch profile:", error.response ? error.response.data : error.message);
-      }
-    };
+  try {
+    const response = await ProfileData(); // Fetch profile data
+    setProfile(response.data); // Set the profile state with fetched data
+    console.log("Profile Data:", response.data); // Log the fetched profile data
+  } catch (error) {
+    console.error("Failed to fetch profile:", error.response ? error.response.data : error.message);
+  }
+};
 
     fetchProfile(); // Call the function to fetch profile data
   }, []);
