@@ -6,6 +6,8 @@ import Search from '../components/search_bar/Search'; // Ensure path is correct
 import TopInfoBar from '../components/navigation_bars/TopInfoBar'; // Ensure path is correct
 import SubTopInfoBar from '../components/navigation_bars/SubTopInfoBar'; // Ensure path is correct
 import InfoBottomBar from '../components/navigation_bars/InfoBottomBar';
+import InfoSidebar from '../components/navigation_bars/InfoSidebar';
+
 import './Home.css';
 
 const Home = () => {
@@ -26,10 +28,15 @@ const Home = () => {
         <TopInfoBar />
       </div>
 
-      <div className='sup-top-info'>
+      <div className='top-sub-infobar'>
         <SubTopInfoBar />
       </div>
 
+      <div className='info-sidebar'>
+       <InfoSidebar />
+      </div>
+
+     
       <div className='search-container'>
         {/* Pass setSearchResults to Search to update search results */}
         <Search onSearchResult={setSearchResults} />

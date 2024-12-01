@@ -3,10 +3,21 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 70vh;
+  height: 67vh;
   width: 80vw;
   box-sizing: border-box;
   position: relative;
+}
+
+ /* Dropdown styles */
+ .map-dropdown {
+  position: absolute;
+  top: 10px; /* Adjust as needed */
+  right: 10px; /* Adjust as needed */
+  z-index: 1000; /* Ensure it appears above the map tiles */
+  background: rgba(255, 255, 255, 0.8); /* Semi-transparent background */
+  padding: 10px;
+  border-radius: 4px;
 }
 
 /* Zoom circle styles */

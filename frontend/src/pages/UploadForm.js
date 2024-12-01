@@ -77,7 +77,7 @@ const FileUpload = () => {
 
   const API_URL = 'http://127.0.0.1:8000';
   const GEODATA_API_URL = 'https://api.opencagedata.com/geocode/v1/json';
-  const GEODATA_API_KEY = 'YOUR_GEODATA_API_KEY'; // Replace with your actual API key
+  const GEODATA_API_KEY = '7cd865e461ab42649e823aea9ebe05a4'; // Replace with your actual API key
 
   const toggleSidebar = () => setIsSidebarVisible((prev) => !prev);
 

@@ -112,9 +112,8 @@ class Output(db.Model):
     filetypeid = db.Column(db.Integer, db.ForeignKey('file_types.filetypeid'), nullable=True)
     templateid = db.Column(db.Integer, db.ForeignKey('output_templates.templateid'), nullable=False)
 
-class TestJson(db.Model):
-    __bind_key__ = 'secondary'  # Bind to the secondary database
-    __tablename__ = 'testjson'
+class Telegram(db.Model):
+    __tablename__ = 'telegram'
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     time = db.Column(db.DateTime)
@@ -127,7 +126,9 @@ class TestJson(db.Model):
     subject = db.Column(db.String(255))
     matched_city = db.Column(db.String(255))
     city_result = db.Column(db.String(255))
-    latitude = db.Column(db.Float)
+    lat = db.Column(db.Float)
+    lon = db.Column(db.Float)
+    
 
 
 

@@ -3,7 +3,7 @@ import { registerUser } from '../services/api';
 import './Register.css';
 
 const Register = () => {
-  const [name, setName] = useState('');
+  const [username, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
@@ -11,7 +11,7 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await registerUser({ name, email, password });
+      const response = await registerUser({ username, email, password });
       setMessage(response.message); // Show success message
     } catch (error) {
       setMessage(error.response?.data?.message || 'Registration failed');
@@ -25,9 +25,9 @@ const Register = () => {
         <div>
           <label htmlFor="name">Name</label>
           <input
-            id="name"
+            id="username"
             type="text"
-            value={name}
+            value={username}
             onChange={(e) => setName(e.target.value)}
             required
           />

@@ -1,14 +1,16 @@
+#app/search/routes.py
+
 from flask import Blueprint, jsonify, request
 from datetime import datetime
 from sqlalchemy import or_
-from app.models import db, Search, Input, FileUpload, InputTemplate, TestJson
+from app.models import db, Search, Input, FileUpload, InputTemplate, Telegram
 
 search_bp = Blueprint('search', __name__, url_prefix='/api')
 
 @search_bp.route('/search', methods=['GET', 'POST'])
 def search():
     data = request.get_json()
-    user_id = data.get('user_id')
+    user_id = 56 #data.get('user_id')
     term = data.get('term')
     template_ids = data.get('template_ids')
     filters = data.get('filters', {})
@@ -38,9 +40,9 @@ def search():
     db.session.add(new_input)
     db.session.commit()  # Commit both search and input records
 
-    # Build queries for FileUpload and TestJson tables
+    # Build queries for FileUpload and Telegram tables
     file_query = FileUpload.query
-    testjson_query = TestJson.query
+    telegram_query = Telegram.query
 
     for template_id in template_ids:
         template = InputTemplate.query.get(template_id)
@@ -52,29 +54,29 @@ def search():
                     FileUpload.tags.ilike(f'%{term}%'),
                     FileUpload.subject.ilike(f'%{term}%')
                 ))
-                testjson_query = testjson_query.filter(or_(
-                    TestJson.message.ilike(f'%{term}%'),
-                    TestJson.tags.ilike(f'%{term}%'),
-                    TestJson.subject.ilike(f'%{term}%')
+                telegram_query = telegram_query.filter(or_(
+                    Telegram.message.ilike(f'%{term}%'),
+                    Telegram.tags.ilike(f'%{term}%'),
+                    Telegram.subject.ilike(f'%{term}%')
                 ))
             elif template.template_type == "Date Range Search":
                 if filters.get("from_date"):
                     file_query = file_query.filter(FileUpload.upload_date >= filters["from_date"])
-                    testjson_query = testjson_query.filter(TestJson.time >= filters["from_date"])
+                    telegram_query = telegram_query.filter(Telegram.time >= filters["from_date"])
                 if filters.get("to_date"):
                     file_query = file_query.filter(FileUpload.upload_date <= filters["to_date"])
-                    testjson_query = testjson_query.filter(TestJson.time <= filters["to_date"])
+                    telegram_query = telegram_query.filter(Telegram.time <= filters["to_date"])
             elif template.template_type == "Location-Based Search":
                 if filters.get("city"):
                     file_query = file_query.filter(FileUpload.city.ilike(f'%{filters["city"]}%'))
-                    testjson_query = testjson_query.filter(TestJson.matched_city.ilike(f'%{filters["city"]}%'))
+                    telegram_query = telegram_query.filter(Telegram.matched_city.ilike(f'%{filters["city"]}%'))
                 if filters.get("country"):
                     file_query = file_query.filter(FileUpload.country.ilike(f'%{filters["country"]}%'))
-                    testjson_query = testjson_query.filter(TestJson.city_result.ilike(f'%{filters["country"]}%'))
+                    telegram_query = telegram_query.filter(Telegram.city_result.ilike(f'%{filters["country"]}%'))
 
     # Execute queries and combine results
     file_results = file_query.all()
-    testjson_results = testjson_query.all()
+    telegram_results = telegram_query.all()
 
     combined_results = []
 
@@ -89,13 +91,13 @@ def search():
             "city": file.city,
         })
 
-    for record in testjson_results:
+    for record in telegram_results:
         combined_results.append({
-            "source": "TestJson",
+            "source": "Telegram",
             "id": record.id,
             "title": record.subject,
-            "lat": record.latitude,
-            "lon": record.longitude,
+            "lat": record.lat,
+            "lon": record.lon,
             "country": record.city_result,
             "city": record.matched_city,
             "message": record.message,

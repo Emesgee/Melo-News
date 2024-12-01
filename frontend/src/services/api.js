@@ -1,12 +1,16 @@
 import axios from 'axios';
 
 // Base API URL, hardcoded for this environment
-const API_URL = process.env.REACT_APP_API_URL;
+
+//const API_URL = process.env.REACT_APP_API_URL;
+const API_URL = process.env.REACT_APP_API_URL || 'http://192.168.0.96:8000';
+
 console.log('API_URL:', API_URL);
 
 // Axios instance with base URL and default headers
 export const api = axios.create({
-  baseURL: API_URL,
+  baseURL: API_URL, // Ensure this matches your backend's address
+
   headers: {
     'Content-Type': 'application/json'
   },

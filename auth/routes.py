@@ -1,4 +1,5 @@
-# app/auth/routes.py
+#/app/routes.py
+
 from flask import Blueprint, jsonify, request
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import create_access_token
@@ -27,53 +28,31 @@ def validate_user_data(data, required_fields):
 # User Registration Route
 @auth_bp.route('/register', methods=['POST'])
 def register_user():
-    """
-    User Registration
-    ---
-    tags:
-      - Authentication
-    requestBody:
-      required: true
-      content:
-        application/json:
-          schema:
-            type: object
-            properties:
-              username:
-                type: string
-                example: testuser
-              email:
-                type: string
-                example: testuser@example.com
-              password:
-                type: string
-                example: securepassword
-    responses:
-      201:
-        description: Registration successful
-      415:
-        description: Request body must be JSON
-      400:
-        description: Bad request
-    """
     if not request.is_json:
         return jsonify({"error": "Request body must be JSON"}), 415
 
     data = request.get_json()
-    name = data.get('name')
-    email = data.get('email')
-    password = data.get('password')
 
-    if not all([name, email, password]):
-        return jsonify({"error": "All fields are required"}), 400
+    # Validate required fields using the utility function
+    is_valid, error_message = validate_user_data(data, ['username', 'email', 'password'])
+    if not is_valid:
+        return jsonify({"error": error_message}), 400
+
+    username = data['username']
+    email = data['email']
+    password = data['password']
 
     # Check if email already exists
+    print(f"Checking email: {email}")
     existing_user = User.query.filter_by(email=email).first()
+    print(f"Existing user: {existing_user}")
     if existing_user:
         return jsonify({"error": "Email is already registered"}), 409
 
+
+    # Generate hashed password and save user
     hashed_password = generate_password_hash(password)
-    new_user = User(username=name, email=email, password=hashed_password)
+    new_user = User(username=username, email=email, password=hashed_password)
     db.session.add(new_user)
     db.session.commit()
 

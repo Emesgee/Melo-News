@@ -1,50 +1,24 @@
 /* src/pages/InfoSidebar.css */
 
 .info-sidebar {
-  position:absolute; /* Keep it fixed to the left */
-  top: 0;
+  position:fixed; /* Keep it fixed to the left */
+  top: 10;
+  font-size: large;
   right: 0%;
   margin-right: 100px;
-  width: 10%; /* Fixed width for the sidebar */
-  height: 88.5vh;
-  background-color: #f9f9f9;
+  width:15%; /* Fixed width for the sidebar */
+  height: 59.5vh;
+  
+  background-color: #c81515;
   padding: 20px;
+  margin-right: 20px;
   box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1); /* Shadow on the right */
   z-index: 1000; /* Ensure it appears above other elements like the map */
 }
 
-.info-sidebar h2 {/* InfoSidebar styling */
+/* Hide on smaller screens (mobile devices) */
+@media (max-width: 768px) {
   .info-sidebar {
-    position: fixed;
-    top: 0;
-    right: 0;
-    width: 200px;
-    height: 100vh;
-    background-color: #f9f9f9;
-    padding: 20px;
-    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
-    z-index: 1000;
-    overflow-y: auto;
+    display: none; /* Completely hides the sidebar */
   }
-  
-  /* Responsive width adjustments */
-  @media (max-width: 768px) {
-    .info-sidebar {
-      width: 150px;
-    }
-  }
-  
-  @media (max-width: 480px) {
-    .info-sidebar {
-      width: 100px; /* Smaller sidebar for mobile */
-    }
-  }
-  
-  font-size: 1.5rem;
-  margin-bottom: 1rem;
-}
-
-.info-sidebar p {
-  font-size: 1rem;
-  line-height: 1.5;
 }

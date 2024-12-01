@@ -3,30 +3,21 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
-from flasgger import Swagger
 import os
-from datetime import datetime
+import json
+from datetime import datetime  # Ensure this import is at the top of your script
 from datetime import timedelta
-from sqlalchemy import MetaData
-from .models import db, InputTemplate, OutputTemplate, FileType, TestJson  # Add TestJson
-from .auth.routes import auth_bp
-from .profile.routes import profile_bp
-from .file_upload.routes import file_upload_bp
-from .file_types.routes import file_types_bp
-from .templates.routes import templates_bp
-from .search.routes import search_bp
-from .output.routes import output_bp
-from .testjson.routes import testjson_bp  # Add TestJson routes
-
-
+from sqlalchemy.exc import SQLAlchemyError
+from .models import db, InputTemplate, OutputTemplate, FileType, Telegram
 
 def create_app():
     app = Flask(__name__)
     app.config['DEBUG'] = True
 
+    # CORS Configuration
     CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True,
-     methods=["GET", "POST", "OPTIONS", "PUT", "DELETE"],
-     allow_headers=["Content-Type", "Authorization"])
+         methods=["GET", "POST", "OPTIONS", "PUT", "DELETE"],
+         allow_headers=["Content-Type", "Authorization"])
 
     # JWT Configuration
     app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'supersecretkey')
@@ -34,30 +25,40 @@ def create_app():
     app.config['JWT_TOKEN_LOCATION'] = ['headers']
 
     # Database Configuration
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:admin@192.168.0.96:5432/postgres'
-    app.config['SQLALCHEMY_BINDS'] = {
-        'default': 'postgresql://postgres:admin@192.168.0.96:5432/postgres',
-        'secondary': 'postgresql://postgres:admin@192.168.0.96:5432/telegramdb'
-    }
+    #app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'postgresql://postgres:admin@192.168.0.96:5432/postgres')
+    #app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'postgresql://postgres:admin@192.168.48.62:5432/postgres')
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        "pool_pre_ping": True,
+        "pool_recycle": 280
+    }
 
-    # JWT Manager
+    # Log database URI for debugging
+    print(f"Connected to database: {app.config['SQLALCHEMY_DATABASE_URI']}")
+
+    # Initialize extensions
+    db.init_app(app)
+    migrate = Migrate(app, db)
     jwt = JWTManager(app)
 
-    # Set up directories for file uploads and exports
+    # Directories for uploads and exports
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
     EXPORT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'exports')
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
     os.makedirs(EXPORT_DIR, exist_ok=True)
-
     app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
     app.config['EXPORT_DIR'] = EXPORT_DIR
 
-    # Initialize the database and migration
-    db.init_app(app)
-    migrate = Migrate(app, db)
+    # Register Blueprints
+    from .auth.routes import auth_bp
+    from .profile.routes import profile_bp
+    from .file_upload.routes import file_upload_bp
+    from .file_types.routes import file_types_bp
+    from .templates.routes import templates_bp
+    from .search.routes import search_bp
+    from .output.routes import output_bp
 
-    # Register Blueprints for various modules with /api prefix where needed
     app.register_blueprint(auth_bp)
     app.register_blueprint(profile_bp)
     app.register_blueprint(file_upload_bp)
@@ -65,30 +66,6 @@ def create_app():
     app.register_blueprint(templates_bp, url_prefix='/api')
     app.register_blueprint(search_bp, url_prefix='/api')
     app.register_blueprint(output_bp)
-    app.register_blueprint(testjson_bp, url_prefix='/api/testjson')
-
-
-    # Swagger Configuration
-    swagger_config = {
-        "headers": [],
-        "specs": [
-            {
-                "endpoint": 'apispec',
-                "route": '/apispec.json',
-                "rule_filter": lambda rule: True,
-                "model_filter": lambda tag: True,
-            }
-        ],
-        "static_url_path": "/flasgger_static",
-        "swagger_ui": True,
-        "specs_route": "/apidocs/",
-        "swagger_ui_config": {
-            "defaultModelsExpandDepth": -1
-        },
-        "consumes": ["application/json"],
-        "produces": ["application/json"]
-    }
-    swagger = Swagger(app, config=swagger_config)
 
     # Error Handlers
     @app.errorhandler(404)
@@ -99,30 +76,40 @@ def create_app():
     def server_error(error):
         return jsonify({"error": "Server error"}), 500
 
-    # Populate initial data for templates, file types, and secondary database
-    # Populate initial data for templates, file types, and secondary database
+    # Initialize Database and Populate Data
     with app.app_context():
-        # Default database
-        db.create_all()
+        try:
+            # Create tables
+            print("Creating database tables...")
+            db.create_all()
 
-        # Secondary database
-        engine_secondary = db.get_engine(app, bind='secondary')
-        metadata_secondary = MetaData()
-        metadata_secondary.create_all(engine_secondary)  # Bind the engine here during table creation
+            # Populate initial data
+            print("Populating initial data...")
+            populate_initial_data()
+            print("Initial data populated successfully.")
+             # Insert telegram data from the JSON file
+            #insert_telegram_data_from_json()
+        except SQLAlchemyError as e:
+            print(f"Database error during initialization: {e}")
+            db.session.rollback()  # Rollback any changes if error occurs
+        finally:
+            db.session.close()  # Close the session
 
-        populate_input_templates()
-        populate_output_templates()
-        populate_file_types()
-        populate_testjson()  # Populate data in the TestJson table
-
-    # Print registered routes for debugging
-    for rule in app.url_map.iter_rules():
-        print(f"Endpoint: {rule.endpoint}, Route: {rule}")
+    # Ensure proper session cleanup at the end of each request
+    @app.teardown_appcontext
+    def shutdown_session(exception=None):
+        if exception:
+            db.session.rollback()  # Rollback if an exception occurred
+        db.session.remove()  # Remove the session from the context
 
     return app
 
+# Populate Initial Data
+def populate_initial_data():
+    populate_file_types()
+    populate_input_templates()
+    populate_output_templates()
 
-# Functions to populate initial data for InputTemplate, OutputTemplate, FileType, and TestJson
 def populate_file_types():
     if not FileType.query.first():
         templates = [
@@ -132,9 +119,13 @@ def populate_file_types():
             FileType(type_name="Documents", allowed_extensions="docx, pdf, ppt"),
             FileType(type_name="Data Files", allowed_extensions="csv")
         ]
-        db.session.bulk_save_objects(templates)
-        db.session.commit()
-
+        try:
+            db.session.bulk_save_objects(templates)
+            db.session.commit()
+            print("FileTypes populated successfully.")
+        except SQLAlchemyError as e:
+            print(f"Error populating FileType: {e}")
+            db.session.rollback()
 
 def populate_input_templates():
     if not InputTemplate.query.first():
@@ -145,9 +136,13 @@ def populate_input_templates():
             InputTemplate(template_type="Tag and Date Search", template_description="Searches by image tags within a specific date range"),
             InputTemplate(template_type="Advanced Search", template_description="Comprehensive search using keywords, tags, date, and location filters")
         ]
-        db.session.bulk_save_objects(templates)
-        db.session.commit()
-
+        try:
+            db.session.bulk_save_objects(templates)
+            db.session.commit()
+            print("InputTemplates populated successfully.")
+        except SQLAlchemyError as e:
+            print(f"Error populating InputTemplate: {e}")
+            db.session.rollback()
 
 def populate_output_templates():
     if not OutputTemplate.query.first():
@@ -157,27 +152,10 @@ def populate_output_templates():
             OutputTemplate(template_type="Location Map View", description="Shows location data for mapping"),
             OutputTemplate(template_type="CSV Export", description="Exports data in CSV format")
         ]
-        db.session.bulk_save_objects(templates)
-        db.session.commit()
-
-
-def populate_testjson():
-    if not TestJson.query.first():
-        records = [
-            TestJson(
-                time=datetime.utcnow(),
-                total_views=100,
-                message="Initial message",
-                video_links="http://example.com/video",
-                video_durations="10:00",
-                image_links="http://example.com/image",
-                tags="example, test",
-                subject="Initial Test",
-                matched_city="Sample City",
-                city_result="Matched",
-                latitude=12.3456,
-                longitude=78.9012
-            )
-        ]
-        db.session.bulk_save_objects(records)
-        db.session.commit()
+        try:
+            db.session.bulk_save_objects(templates)
+            db.session.commit()
+            print("OutputTemplates populated successfully.")
+        except SQLAlchemyError as e:
+            print(f"Error populating OutputTemplate: {e}")
+            db.session.rollback()
