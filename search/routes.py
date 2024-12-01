@@ -89,6 +89,7 @@ def search():
             "lon": file.lon,
             "country": file.country,
             "city": file.city,
+            "file": file.file_path,
         })
 
     for record in telegram_results:
@@ -102,6 +103,9 @@ def search():
             "city": record.matched_city,
             "message": record.message,
             "tags": record.tags,
+            "imageUrl": record.image_links,  # Include image links
+            "videoUrl": record.video_links,  # Include video links
+            "description": record.message,
         })
 
     return jsonify({

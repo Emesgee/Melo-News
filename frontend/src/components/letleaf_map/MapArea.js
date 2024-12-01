@@ -1,6 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import MarkerClusterGroup from 'react-leaflet-markercluster';
 import 'leaflet/dist/leaflet.css';
+import 'react-leaflet-markercluster/dist/styles.min.css';
 import L from 'leaflet';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
@@ -52,8 +54,15 @@ const defaultIcon = L.icon({
   shadowSize: [41, 41],
 });
 
-// Set the default icon globally
-L.Marker.prototype.options.icon = defaultIcon;
+// Function to get custom marker icon
+const getMarkerIcon = (type) => {
+  return L.icon({
+    iconUrl: `/icons/${type || 'default'}-icon.png`,
+    iconSize: [30, 45],
+    iconAnchor: [15, 45],
+    popupAnchor: [0, -45],
+  });
+};
 
 // Zoom Circles Component
 const ZoomCircles = () => {
@@ -118,7 +127,7 @@ const MapArea = ({ searchResults = [] }) => {
   const bounds = searchResults
     .filter((result) => result.lat && result.lon)
     .map((result) => [result.lat, result.lon]);
-    
+
   return (
     <div className="map-container">
       <MapContainer
@@ -153,25 +162,35 @@ const MapArea = ({ searchResults = [] }) => {
         <FitBounds bounds={bounds} />
 
         {/* Markers */}
-        {searchResults.map(
-          (result) =>
-            result.lat &&
-            result.lon && (
-              <Marker key={result.id} position={[result.lat, result.lon]} icon={defaultIcon}>
-                <Popup>
-                  <h3>{result.title}</h3>
-                  <p>
-                    <strong>City:</strong> {result.city}, <strong>Country:</strong>{' '}
-                    {result.country}
-                  </p>
-                  <p>
-                    <strong>Latitude:</strong> {result.lat}, <strong>Longitude:</strong>{' '}
-                    {result.lon}
-                  </p>
-                </Popup>
-              </Marker>
-            )
-        )}
+        <MarkerClusterGroup>
+          {searchResults.map((result) => (
+            <Marker
+              key={result.id}
+              position={[result.lat, result.lon]}
+              icon={getMarkerIcon(result.type)}
+            >
+              <Popup>
+                <h3>{result.title || 'No Title Available'}</h3>
+                <h4>Country: {result.country || 'Unknown'}</h4>
+                <h5>City: {result.city || 'Unknown'}</h5>
+                {result.imageUrl ? (
+                  <img src={result.imageUrl} alt={result.title} style={{ width: '100%' }} />
+                ) : (
+                  <p>No image available</p>
+                )}
+                {result.videoUrl ? (
+                  <video controls style={{ width: '100%' }}>
+                    <source src={result.videoUrl} type="video/mp4" />
+                    Your browser does not support the video tag.
+                  </video>
+                ) : (
+                  <p>No video available</p>
+                )}
+                <p>{result.description || 'No description available.'}</p>
+              </Popup>
+            </Marker>
+          ))}
+        </MarkerClusterGroup>
       </MapContainer>
     </div>
   );
