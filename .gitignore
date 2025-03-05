@@ -1,0 +1,17 @@
+# Ignore Python virtual environments
+venv/
+melonewsenv/
+
+# Ignore compiled Python files
+*.pyc
+__pycache__/
+
+# Ignore environment variables
+.env
+
+# Ignore database files
+*.sqlite3
+
+# Ignore logs
+logs/
+*.log
