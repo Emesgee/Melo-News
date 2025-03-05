@@ -5,12 +5,12 @@ from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 import os
 import json
-from datetime import datetime  # Ensure this import is at the top of your script
-from datetime import timedelta
+from datetime import datetime, timedelta
 from sqlalchemy.exc import SQLAlchemyError
 from .models import db, InputTemplate, OutputTemplate, FileType, Telegram
 
 def create_app():
+    """Create and configure the Flask app."""
     app = Flask(__name__)
     app.config['DEBUG'] = True
 
@@ -25,10 +25,8 @@ def create_app():
     app.config['JWT_TOKEN_LOCATION'] = ['headers']
 
     # Database Configuration
-    #app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'postgresql://postgres:admin@localhost:5432/postgres')
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'postgresql://postgres:admin@192.168.0.96:5432/postgres')
-    #app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'postgresql://postgres:admin@192.168.48.62:5432/postgres')
-    #app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
+        'DATABASE_URL', 'postgresql://postgres:admin@192.168.1.68:5432/postgres')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
         "pool_pre_ping": True,
@@ -36,7 +34,7 @@ def create_app():
     }
 
     # Log database URI for debugging
-    print(f"Connected to database: {app.config['SQLALCHEMY_DATABASE_URI']}")
+    print(f"🔹 Connected to database: {app.config['SQLALCHEMY_DATABASE_URI']}")
 
     # Initialize extensions
     db.init_app(app)
@@ -59,6 +57,7 @@ def create_app():
     from .templates.routes import templates_bp
     from .search.routes import search_bp
     from .output.routes import output_bp
+    from .telegram.routes import telegram_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(profile_bp)
@@ -67,6 +66,7 @@ def create_app():
     app.register_blueprint(templates_bp, url_prefix='/api')
     app.register_blueprint(search_bp, url_prefix='/api')
     app.register_blueprint(output_bp)
+    app.register_blueprint(telegram_bp, url_prefix='/telegram')
 
     # Error Handlers
     @app.errorhandler(404)
@@ -80,18 +80,20 @@ def create_app():
     # Initialize Database and Populate Data
     with app.app_context():
         try:
-            # Create tables
-            print("Creating database tables...")
+            print("🔹 Creating database tables...")
             db.create_all()
 
-            # Populate initial data
-            print("Populating initial data...")
+            print("🔹 Populating initial data...")
             populate_initial_data()
-            print("Initial data populated successfully.")
-             # Insert telegram data from the JSON file
-            #insert_telegram_data_from_json()
+            print("✅ Initial data populated successfully.")
+
+            # Insert Telegram JSON Data Automatically
+            print("\n🔹 Inserting Telegram data from JSON...")
+            insert_telegram_data_from_json()
+            print("✅ Telegram data inserted successfully.")
+
         except SQLAlchemyError as e:
-            print(f"Database error during initialization: {e}")
+            print(f"❌ Database error during initialization: {e}")
             db.session.rollback()  # Rollback any changes if error occurs
         finally:
             db.session.close()  # Close the session
@@ -105,7 +107,7 @@ def create_app():
 
     return app
 
-# Populate Initial Data
+# 📌 Populate Initial Data
 def populate_initial_data():
     populate_file_types()
     populate_input_templates()
@@ -123,9 +125,9 @@ def populate_file_types():
         try:
             db.session.bulk_save_objects(templates)
             db.session.commit()
-            print("FileTypes populated successfully.")
+            print("✅ FileTypes populated successfully.")
         except SQLAlchemyError as e:
-            print(f"Error populating FileType: {e}")
+            print(f"❌ Error populating FileType: {e}")
             db.session.rollback()
 
 def populate_input_templates():
@@ -140,9 +142,9 @@ def populate_input_templates():
         try:
             db.session.bulk_save_objects(templates)
             db.session.commit()
-            print("InputTemplates populated successfully.")
+            print("✅ InputTemplates populated successfully.")
         except SQLAlchemyError as e:
-            print(f"Error populating InputTemplate: {e}")
+            print(f"❌ Error populating InputTemplate: {e}")
             db.session.rollback()
 
 def populate_output_templates():
@@ -156,7 +158,26 @@ def populate_output_templates():
         try:
             db.session.bulk_save_objects(templates)
             db.session.commit()
-            print("OutputTemplates populated successfully.")
+            print("✅ OutputTemplates populated successfully.")
         except SQLAlchemyError as e:
-            print(f"Error populating OutputTemplate: {e}")
+            print(f"❌ Error populating OutputTemplate: {e}")
             db.session.rollback()
+
+# 📌 Insert Telegram JSON Data on Startup
+def insert_telegram_data_from_json():
+    """Automatically loads Telegram data from a JSON file on startup."""
+    file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../app/test_with_lat_lon.json'))
+
+    print(f"\n🔹 Checking for Telegram JSON file at: {file_path}")
+
+    if not os.path.exists(file_path):
+        print(f"\n❌ Telegram JSON file not found at: {file_path}")
+        return
+
+    from app.telegram.routes import load_telegram_data
+    response, _ = load_telegram_data(file_path)
+
+    if "error" in response:
+        print(f"\n❌ Error loading Telegram data: {response['error']}")
+    else:
+        print("\n✅ Telegram data successfully loaded.")

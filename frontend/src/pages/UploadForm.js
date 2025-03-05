@@ -76,7 +76,7 @@ const FileUpload = () => {
     'application/vnd.openxmlformats-officedocument.presentationml.presentation'];
 
 
-  const API_URL = process.env.REACT_APP_API_URL || 'http://192.168.0.96:5000';
+  const API_URL = process.env.REACT_APP_API_URL || 'http://192.168.1.188:5000';
 
   const GEODATA_API_URL = 'https://api.opencagedata.com/geocode/v1/json';
   const GEODATA_API_KEY = '7cd865e461ab42649e823aea9ebe05a4'; // Replace with your actual API key

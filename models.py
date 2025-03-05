@@ -112,22 +112,26 @@ class Output(db.Model):
     filetypeid = db.Column(db.Integer, db.ForeignKey('file_types.filetypeid'), nullable=True)
     templateid = db.Column(db.Integer, db.ForeignKey('output_templates.templateid'), nullable=False)
 
+# Telegram model
 class Telegram(db.Model):
     __tablename__ = 'telegram'
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     time = db.Column(db.DateTime)
     total_views = db.Column(db.Integer)
-    message = db.Column(db.String(255))  # Specify a max length for the string
-    video_links = db.Column(db.String(255))
+    message = db.Column(db.Text)  # Change from VARCHAR(255) to TEXT
+    video_links = db.Column(db.Text)  # Change from VARCHAR(255) to TEXT
     video_durations = db.Column(db.String(255))
-    image_links = db.Column(db.String(255))
+    image_links = db.Column(db.Text)  # Change from VARCHAR(255) to TEXT
     tags = db.Column(db.String(255))
     subject = db.Column(db.String(255))
     matched_city = db.Column(db.String(255))
     city_result = db.Column(db.String(255))
     lat = db.Column(db.Float)
     lon = db.Column(db.Float)
+    date = db.Column(db.Date)
+    summary = db.Column(db.Text)  # Change from VARCHAR(255) to TEXT
+
     
 
 
