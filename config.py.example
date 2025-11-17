@@ -1,0 +1,58 @@
+import os
+
+class Config:
+    # Flask Configuration
+    SECRET_KEY = os.environ.get('SECRET_KEY', 'your-secret-key-here-change-in-production')
+    
+    # Database Configuration
+    SQLALCHEMY_DATABASE_URI = os.environ.get(
+        'DATABASE_URL', 
+        "postgresql://admin:admin@localhost:5432/melo_news"
+    )
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    
+    # AI API Keys
+    OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
+    ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
+    THAURA_AI_API_KEY = os.environ.get('THAURA_AI_API_KEY', '')
+    
+    # Telegram Configuration
+    TELEGRAM_CHANNELS = [
+        "https://t.me/your_channel_1",
+        "https://t.me/your_channel_2"
+        # Add your Telegram channels here
+    ]
+    
+    # Geographic Configuration (Palestine/Israel region by default)
+    DEFAULT_CENTER_LAT = 31.7683
+    DEFAULT_CENTER_LNG = 35.2137
+    MAX_ZOOM_LEVEL = 16  # Privacy protection - prevents too detailed location viewing
+    
+    # Regional Boundaries for City History
+    REGION_BOUNDS = {
+        'min_lat': 31.2,
+        'max_lat': 33.3,
+        'min_lon': 34.2,
+        'max_lon': 35.9
+    }
+    
+    # Kafka Configuration
+    KAFKA_BOOTSTRAP_SERVERS = os.environ.get('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092')
+    
+    # Redis Configuration (for caching)
+    REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379')
+    
+    # File Upload Configuration
+    UPLOAD_FOLDER = 'app/uploads'
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
+    
+    # Chrome/Selenium Configuration
+    CHROME_HEADLESS = os.environ.get('CHROME_HEADLESS', 'True').lower() == 'true'
+    CHROME_NO_SANDBOX = os.environ.get('CHROME_NO_SANDBOX', 'False').lower() == 'true'
+    
+    # API Configuration
+    API_RATE_LIMIT = os.environ.get('API_RATE_LIMIT', '1000 per hour')
+    
+    # Development vs Production
+    DEBUG = os.environ.get('FLASK_ENV') == 'development'
+    TESTING = False

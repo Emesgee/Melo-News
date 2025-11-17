@@ -1,0 +1,24 @@
+/* src/pages/InfoSidebar.css */
+
+.info-sidebar {
+  position:fixed; /* Keep it fixed to the left */
+  top: 5;
+  font-size: large;
+  right: 0%;
+  margin-right: 100px;
+  width:15%; /* Fixed width for the sidebar */
+  height: 59.5vh;
+  
+  background-color: #c81515;
+  padding: 20px;
+  margin-right: 20px;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1); /* Shadow on the right */
+  z-index: 1000; /* Ensure it appears above other elements like the map */
+}
+
+/* Hide on smaller screens (mobile devices) */
+@media (max-width: 768px) {
+  .info-sidebar {
+    display: none; /* Completely hides the sidebar */
+  }
+}

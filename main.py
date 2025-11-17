@@ -1,7 +1,22 @@
-# app/main.py
 from app import create_app
+from app.models import db
+from dotenv import load_dotenv
+import os
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Create the app instance
+app = create_app()
+
+# Create tables within the application context
+with app.app_context():
+    try:
+        # Create all tables in the PostgreSQL database
+        db.create_all()  
+        print("Tables created successfully.")
+    except Exception as e:
+        print(f"An error occurred while creating tables: {e}")
 
 if __name__ == "__main__":
-    app = create_app()
-    # This line allows the Flask app to listen on all interfaces (0.0.0.0) on port 5000
-    app.run(host='0.0.0.0', port=8000, debug=True)
+    app.run(host="0.0.0.0", port=8000, debug=True)

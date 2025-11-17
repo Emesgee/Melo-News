@@ -1,0 +1,52 @@
+
+# Core Flask Application
+Flask==2.3.3
+Flask-CORS==4.0.0
+
+# Database
+psycopg2-binary==2.9.7
+SQLAlchemy==2.0.21
+
+# Web Scraping
+selenium==4.11.2
+beautifulsoup4==4.12.2
+requests==2.31.0
+
+# Data Processing
+kafka-python==2.0.2
+pandas==2.0.3
+numpy==1.24.3
+
+# AI Integration
+openai==0.28.1
+anthropic==0.3.11
+requests>=2.31.0  # For Thaura.ai
+
+# Environment Management
+python-dotenv==1.0.0
+
+# Utility Libraries
+click==8.1.7
+python-dateutil==2.8.2
+pytz==2023.3
+
+# Development Dependencies (optional)
+pytest==7.4.2
+pytest-flask==1.2.0
+black==23.7.0
+flake8==6.0.0
+
+# Geographic Processing
+geopy==2.3.0
+
+# JSON Processing
+jsonschema==4.19.0
+
+# HTTP Client
+httpx==0.24.1
+
+# Cache (Redis client)
+redis==4.6.0
+
+# WebDriver Management
+webdriver-manager==4.0.0
