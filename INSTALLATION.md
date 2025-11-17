@@ -17,7 +17,7 @@
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/melo-news.git
+   git clone https://github.com/Emesgee/Melo-News.git
    cd melo-news
    ```
 
