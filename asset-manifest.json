@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/Melo-News/static/css/main.e00541a5.css",
+    "main.js": "/Melo-News/static/js/main.f3ba78bc.js",
+    "index.html": "/Melo-News/index.html",
+    "main.e00541a5.css.map": "/Melo-News/static/css/main.e00541a5.css.map",
+    "main.f3ba78bc.js.map": "/Melo-News/static/js/main.f3ba78bc.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.e00541a5.css",
+    "static/js/main.f3ba78bc.js"
+  ]
+}
