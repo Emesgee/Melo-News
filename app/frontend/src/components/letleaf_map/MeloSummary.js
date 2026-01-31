@@ -3,14 +3,17 @@ import axios from 'axios';
 import './MeloSummary.css';
 import { resolveStoryId } from '../../utils/storyUtils';
 
-const MeloSummary = ({ searchResults = [] }) => {
-  const [isOpen, setIsOpen] = useState(false);
+const API_URL = process.env.REACT_APP_API_URL || 'http://192.168.0.96:8000';
+
+const MeloSummary = ({ searchResults = [], onClose, initialOpen = false }) => {
+  const [isOpen, setIsOpen] = useState(initialOpen);
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [metadata, setMetadata] = useState(null);
-  const [filterMode, setFilterMode] = useState('all'); // 'all' | 'visible' | 'search'
+  const [filterMode, setFilterMode] = useState('all');
   const [visibleStories, setVisibleStories] = useState([]);
+  const [mediaModal, setMediaModal] = useState({ isOpen: false, url: '', type: '' }); // New state for media modal
 
   const searchStoryIds = useMemo(() => {
     if (!Array.isArray(searchResults)) return [];
@@ -34,12 +37,45 @@ const MeloSummary = ({ searchResults = [] }) => {
 
   const fetchMetadata = useCallback(async () => {
     try {
-      const response = await axios.get('http://localhost:8000/api/summary-metadata');
+      const response = await axios.get(`${API_URL}/api/summary-metadata`);
       setMetadata(response.data);
     } catch (err) {
       console.error('Error fetching metadata:', err);
     }
   }, []);
+
+  // Open media viewer modal
+  const openMediaViewer = (url, type) => {
+    setMediaModal({ isOpen: true, url, type });
+  };
+
+  // Close media viewer modal
+  const closeMediaViewer = () => {
+    setMediaModal({ isOpen: false, url: '', type: '' });
+  };
+
+  // Convert Markdown links to clickable links that open in modal
+  const formatSummaryText = (text) => {
+    if (!text) return '';
+    
+    // Convert [Video](url) to clickable span that opens video modal
+    let formatted = text.replace(/\[Video\]\((https?:\/\/[^\)]+)\)/g, (match, url) => {
+      return `<span class="media-link video-link" onclick="window.openMeloMedia('${url}', 'video')">📹 Video</span>`;
+    });
+    
+    // Convert [Image](url) to clickable span that opens image modal
+    formatted = formatted.replace(/\[Image\]\((https?:\/\/[^\)]+)\)/g, (match, url) => {
+      return `<span class="media-link image-link" onclick="window.openMeloMedia('${url}', 'image')">🖼️ Image</span>`;
+    });
+    
+    // Convert markdown bold **text** to HTML
+    formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    
+    // Convert newlines to <br>
+    formatted = formatted.replace(/\n/g, '<br/>');
+    
+    return formatted;
+  };
 
   const generateSummary = async () => {
     setLoading(true);
@@ -54,7 +90,6 @@ const MeloSummary = ({ searchResults = [] }) => {
     try {
       const payload = {};
       
-      // If visible stories filter is enabled and we have visible stories
       if (filterMode === 'visible') {
         const resolvedVisibleStoryIds = visibleStories
           .map(resolveStoryId)
@@ -73,10 +108,9 @@ const MeloSummary = ({ searchResults = [] }) => {
         payload.story_ids = searchStoryIds;
       } else {
         console.log('Generating summary from all stories');
-        // filterMode === 'all' will fetch all stories from backend
       }
 
-      const response = await axios.post('http://localhost:8000/api/generate-melo-summary', payload);
+      const response = await axios.post(`${API_URL}/api/generate-melo-summary`, payload);
       if (response.data.status === 'success') {
         setSummary(response.data);
       } else {
@@ -119,6 +153,9 @@ const MeloSummary = ({ searchResults = [] }) => {
 
   const closeModal = () => {
     setIsOpen(false);
+    if (onClose) {
+      onClose();
+    }
   };
 
   const downloadPDF = () => {
@@ -164,10 +201,25 @@ const MeloSummary = ({ searchResults = [] }) => {
               font-size: 14px;
             }
             .summary-content {
-              white-space: pre-wrap;
               word-wrap: break-word;
               font-size: 14px;
               line-height: 1.8;
+            }
+            .media-link {
+              color: #3498db;
+              text-decoration: none;
+              font-weight: 500;
+              padding: 2px 6px;
+              border-radius: 3px;
+              background: #ecf0f1;
+            }
+            .video-link {
+              color: #e74c3c;
+              background: rgba(231, 76, 60, 0.1);
+            }
+            .image-link {
+              color: #9b59b6;
+              background: rgba(155, 89, 182, 0.1);
             }
             footer {
               margin-top: 40px;
@@ -202,7 +254,7 @@ const MeloSummary = ({ searchResults = [] }) => {
           </div>
           
           <div class="summary-content">
-${summary.summary}
+            ${summary.summary.replace(/\[Video\]\([^)]+\)/g, '[Video Link]').replace(/\[Image\]\([^)]+\)/g, '[Image Link]')}
           </div>
           
           <footer>
@@ -237,7 +289,33 @@ ${summary.summary}
       header { border-bottom: 3px solid #2c3e50; padding-bottom: 20px; margin-bottom: 30px; }
       .logo { font-size: 28px; font-weight: bold; color: #e74c3c; }
       .metadata { background: #ecf0f1; padding: 15px; margin: 20px 0; border-left: 4px solid #3498db; }
-      .summary-content { white-space: pre-wrap; line-height: 1.8; }
+      .summary-content { line-height: 1.8; }
+      .media-link {
+        color: #3498db;
+        text-decoration: none;
+        font-weight: 500;
+        padding: 2px 8px;
+        border-radius: 4px;
+        background: rgba(52, 152, 219, 0.1);
+      }
+      .media-link:hover {
+        background: #3498db;
+        color: white;
+      }
+      .video-link {
+        color: #e74c3c;
+        background: rgba(231, 76, 60, 0.1);
+      }
+      .video-link:hover {
+        background: #e74c3c;
+      }
+      .image-link {
+        color: #9b59b6;
+        background: rgba(155, 89, 182, 0.1);
+      }
+      .image-link:hover {
+        background: #9b59b6;
+      }
       footer { margin-top: 40px; text-align: center; color: #95a5a6; }
     </style>
   </head>
@@ -252,7 +330,7 @@ ${summary.summary}
       Service: ${summary.service}<br/>
       Filter: ${activeFilterLabel}
     </div>
-    <div class="summary-content">${summary.summary}</div>
+    <div class="summary-content">${formatSummaryText(summary.summary)}</div>
     <footer><p>Generated by Melo News Intelligence Platform</p></footer>
   </body>
 </html>`;
@@ -269,6 +347,11 @@ ${summary.summary}
   const downloadTXT = () => {
     if (!summary) return;
 
+    const plainText = summary.summary
+      .replace(/<[^>]*>/g, '')
+      .replace(/\[Video\]\([^)]+\)/g, '[Video]')
+      .replace(/\[Image\]\([^)]+\)/g, '[Image]');
+
     const textContent = `MELO NEWS SUMMARY
 Generated: ${new Date().toLocaleString()}
 Filter: ${activeFilterLabel}
@@ -277,7 +360,7 @@ Service: ${summary.service}
 
 ${'='.repeat(80)}
 
-${summary.summary}
+${plainText}
 
 ${'='.repeat(80)}
 Generated by Melo News Intelligence Platform`;
@@ -291,24 +374,18 @@ Generated by Melo News Intelligence Platform`;
     document.body.removeChild(element);
   };
 
-  // Export the openModal function so MapArea can call it
+  // Export functions to window for onclick handlers
   React.useLayoutEffect(() => {
     window.openMeloSummary = openModal;
+    window.openMeloMedia = openMediaViewer;
     return () => {
       delete window.openMeloSummary;
+      delete window.openMeloMedia;
     };
   }, [openModal]);
 
   return (
     <>
-      <button 
-        className="melo-summary-btn" 
-        onClick={() => openModal(visibleStories)}
-        title="Generate AI-powered news summary"
-      >
-        📄 Generate Melo Summary
-      </button>
-
       {isOpen && (
         <div className="melo-summary-modal-overlay" onClick={closeModal}>
           <div className="melo-summary-modal" onClick={(e) => e.stopPropagation()}>
@@ -323,7 +400,6 @@ Generated by Melo News Intelligence Platform`;
                   <div className="intro-section">
                     <p>Generate a professional, journalist-style news summary from stories on the map.</p>
                     
-                    {/* Filter Options */}
                     <div className="filter-options">
                       <label>
                         <input 
@@ -395,9 +471,10 @@ Generated by Melo News Intelligence Platform`;
                     </p>
                   </div>
 
-                  <div className="summary-content">
-                    {summary.summary}
-                  </div>
+                  <div 
+                    className="summary-content"
+                    dangerouslySetInnerHTML={{ __html: formatSummaryText(summary.summary) }}
+                  />
 
                   <div className="action-buttons">
                     <button className="action-btn download-html" onClick={downloadHTML}>
@@ -415,6 +492,43 @@ Generated by Melo News Intelligence Platform`;
                   </div>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Media Viewer Modal */}
+      {mediaModal.isOpen && (
+        <div className="media-modal-overlay" onClick={closeMediaViewer}>
+          <div className="media-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="media-modal-header">
+              <h3>{mediaModal.type === 'video' ? '📹 Video Player' : '🖼️ Image Viewer'}</h3>
+              <button className="close-btn" onClick={closeMediaViewer}>✕</button>
+            </div>
+            <div className="media-modal-content">
+              {mediaModal.type === 'video' ? (
+                <video controls autoPlay style={{ width: '100%', maxHeight: '70vh' }}>
+                  <source src={mediaModal.url} type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
+              ) : (
+                <img 
+                  src={mediaModal.url} 
+                  alt="Media content" 
+                  style={{ width: '100%', maxHeight: '70vh', objectFit: 'contain' }}
+                />
+              )}
+            </div>
+            <div className="media-modal-footer">
+              <a 
+                href={mediaModal.url} 
+                download 
+                className="download-media-btn"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                ⬇️ Download {mediaModal.type === 'video' ? 'Video' : 'Image'}
+              </a>
             </div>
           </div>
         </div>

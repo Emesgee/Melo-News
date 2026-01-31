@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import './NewsChat.css';
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://192.168.0.96:8000';
+
 const NewsChat = ({ newsId, newsData }) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -22,7 +24,7 @@ const NewsChat = ({ newsId, newsData }) => {
     const fetchHistory = async () => {
       try {
         const response = await axios.get(
-          `http://localhost:8000/api/news-chat/${newsId}`
+          `${API_URL}/api/news-chat/${newsId}`
         );
         setMessages(response.data.messages || []);
       } catch (err) {
@@ -51,7 +53,7 @@ const NewsChat = ({ newsId, newsData }) => {
 
     try {
       const response = await axios.post(
-        'http://localhost:8000/api/news-chat',
+        `${API_URL}/api/news-chat`,
         {
           news_id: newsId,
           message: input,
@@ -89,7 +91,7 @@ const NewsChat = ({ newsId, newsData }) => {
 
   const clearChat = async () => {
     try {
-      await axios.delete(`http://localhost:8000/api/news-chat/${newsId}`);
+      await axios.delete(`${API_URL}/api/news-chat/${newsId}`);
       setMessages([]);
       setError('');
     } catch (err) {

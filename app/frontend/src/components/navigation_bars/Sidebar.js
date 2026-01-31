@@ -3,7 +3,7 @@ import React from 'react';
 import { Link} from 'react-router-dom';
 import './Sidebar.css';
 
-const Sidebar = ({ isSidebarVisible, toggleSidebar }) => {
+const Sidebar = ({ isSidebarVisible, toggleSidebar, mapLayers, selectedLayer, onMapLayerChange }) => {
 
 
   return (
@@ -44,6 +44,24 @@ const Sidebar = ({ isSidebarVisible, toggleSidebar }) => {
               <span className="nav-text">Search</span>
             </Link>
           </li>
+          {/* Map Layer Selector */}
+          {mapLayers && mapLayers.length > 0 && (
+            <li className="sidebar-nav-item map-layer-selector">
+              <label className="map-layer-label">
+                <span className="nav-icon">🗺️</span>
+                <span className="nav-text">Map Style</span>
+              </label>
+              <select
+                value={selectedLayer?.name || ''}
+                onChange={(e) => onMapLayerChange?.(e.target.value)}
+                className="map-layer-select"
+              >
+                {mapLayers.map(layer => (
+                  <option key={layer.name} value={layer.name}>{layer.name}</option>
+                ))}
+              </select>
+            </li>
+          )}
         </ul>
 
         {/* User Section */}

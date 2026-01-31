@@ -10,6 +10,8 @@ import Intro from './pages/Intro';
 import ProfileTest from './pages/Profile';
 import Search from './components/search_bar/Search';
 import PrivateRoute from './components/PrivateRoute';
+import MapArea from './components/letleaf_map/MapArea';
+import MeloSummary from './components/letleaf_map/MeloSummary';
 import './App.css';
 import { dedupeStories } from './utils/storyUtils';
 
@@ -25,6 +27,8 @@ const AppContent = () => {
   const [searchResults, setSearchResults] = React.useState([]);
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
   const [isLoggedIn, setIsLoggedIn] = React.useState(!!localStorage.getItem('token'));
+  const [showMeloSummary, setShowMeloSummary] = React.useState(false);
+  const [searchOpen, setSearchOpen] = React.useState(false);
   const navigate = useNavigate();
 
   const handleTopbarSearchResult = React.useCallback((results = []) => {
@@ -69,9 +73,35 @@ const AppContent = () => {
             <span></span>
             <span></span>
           </button>
+
+          <button 
+            className="search-icon-btn"
+            onClick={() => setSearchOpen(!searchOpen)}
+            aria-label="Toggle search"
+            title="Search"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.35-4.35" />
+            </svg>
+          </button>
           
           {/* Right side action buttons - MOVED BEFORE SEARCH */}
-          <div className="topbar-actions" style={{position: 'absolute', right: '1rem'}}>
+          <div className="topbar-actions" style={{position: 'absolute', right: '0.5rem', display: 'flex', gap: '0.5rem'}}>
+            <button 
+              className="topbar-action-btn summary-btn"
+              onClick={() => setShowMeloSummary(true)}
+              title="Generate Melo Summary"
+              aria-label="Generate Melo Summary"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M4 3h16a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+            </button>
+
             <button 
               className="topbar-action-btn upload-btn"
               onClick={handleUploadClick}
@@ -108,7 +138,7 @@ const AppContent = () => {
             </button>
           </div>
 
-          <Search onSearchResult={handleTopbarSearchResult} showAsTopbar={true} />
+          {searchOpen && <Search onSearchResult={handleTopbarSearchResult} showAsTopbar={true} />}
 
           <nav className={`topbar-nav ${sidebarOpen ? 'open' : ''}`}>
             <Link to="/" className="nav-link">Home</Link>
@@ -121,12 +151,24 @@ const AppContent = () => {
 
         {/* Main content */}
         <main className="main">
+          {/* Melo Summary Modal - only render when showMeloSummary is true */}
+          {showMeloSummary && (
+            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999 }}>
+              <MeloSummary 
+                searchResults={searchResults}
+                onClose={() => setShowMeloSummary(false)}
+                initialOpen={true}
+              />
+            </div>
+          )}
+
           <Routes>
             <Route path="/" element={<Home searchResults={searchResults} onSearchResult={handleTopbarSearchResult} />} />
             <Route path="/register" element={<Register />} />
             <Route path="/login" element={<Login onLoginSuccess={() => setIsLoggedIn(true)} />} />
             <Route path="/intro" element={<Intro />} />
             <Route path="/search" element={<Search onSearchResult={handleTopbarSearchResult} />} />
+            <Route path="/map" element={<MapArea />} />
 
             <Route element={<PrivateRoute />}>
               <Route path="/profile" element={<ProfileTest />} />

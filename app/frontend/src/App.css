@@ -1,9 +1,15 @@
 /* App.css - Global layout and topbar styles */
 
+/* Global Reset */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
 .app-shell {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  background: transparent;
 }
 
 .topbar-fixed {
@@ -12,14 +18,14 @@
   left: 0;
   right: 0;
   z-index: 999;
-  background: rgba(255, 255, 255, 0.98);
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  width: 100%;
+  background: transparent;
+  backdrop-filter: none;
+  border-bottom: none;
+  box-shadow: none;
+  /* width: 100%;  -- Removing width: 100% as left/right:0 covers it and avoids padding overflow */
   display: flex;
   align-items: center;
-  padding: 0.75rem 1rem;
+  padding: 0.75rem 0.5rem; /* Reduced horizontal padding for mobile */
   gap: 0.75rem;
   height: 64px;
 }
@@ -52,6 +58,30 @@
 
 .menu-button:hover span {
   background: #c81515;
+}
+
+/* Search Icon Button */
+.search-icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #333;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.search-icon-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #c81515;
+}
+
+.search-icon-btn svg {
+  stroke: currentColor;
 }
 
 /* Top navigation menu */
@@ -162,6 +192,17 @@
   box-shadow: 0 4px 12px rgba(200, 21, 21, 0.4);
 }
 
+/* Summary button */
+.topbar-action-btn.summary-btn {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+}
+
+.topbar-action-btn.summary-btn:hover {
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+}
+
 /* Auth button - Login style */
 .topbar-action-btn.auth-btn {
   background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
@@ -186,8 +227,9 @@
 
 .main {
   flex: 1;
-  margin-top: 64px;
+  margin-top: 0;
   overflow-y: auto;
+  background: transparent;
 }
 
 /* When search overlay is expanded */

@@ -34,7 +34,9 @@
   padding-top: 0;
   display: flex;
   height: 100vh;
+  width: 100vw;
   overflow: hidden;
+  background: #ffffff;
 }
 
 /* Burger Menu Button */
@@ -261,9 +263,9 @@
   position: relative;
   height: 100%;
   width: 100%;
-  border-radius: var(--radius-xl);
+  border-radius: 0;
   overflow: hidden;
-  box-shadow: var(--shadow-xl);
+  box-shadow: none;
   border: none;
   margin-top: 0;
   flex: 1;
@@ -285,7 +287,9 @@
   left: 50%;
   transform: translateX(-50%);
   z-index: 1000;
-  width: min(500px, 90vw);
+  width: min(500px, 85vw);
+  max-width: calc(100% - 2rem);
+  pointer-events: auto;
 }
 
 /* Features Section */

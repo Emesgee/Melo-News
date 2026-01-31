@@ -40,7 +40,7 @@ const GeneralInfoForm = ({ title, setTitle, tags, setTags, subject, setSubject }
   </div>
 );
 
-const LocationForm = ({ city, setCity, country, setCountry, lat, lon }) => (
+const LocationForm = ({ city, setCity, country, setCountry, lat, lon, onUseMyLocation, isLocating }) => (
   <div className="form-section">
     <h3>📍 Location Information</h3>
     <div className="form-group">
@@ -63,6 +63,9 @@ const LocationForm = ({ city, setCity, country, setCountry, lat, lon }) => (
         onChange={(e) => setCountry(e.target.value)}
       />
     </div>
+    <button type="button" className="location-btn" onClick={onUseMyLocation} disabled={isLocating} style={{marginTop:8}}>
+      {isLocating ? 'Locating...' : '📡 Use My Location'}
+    </button>
     {lat && lon && (
       <div className="location-info">
         📍 Coordinates: {lat.toFixed(6)}, {lon.toFixed(6)}
@@ -136,6 +139,48 @@ const UploadForm = () => {
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [messageType, setMessageType] = useState(''); // 'success', 'error', 'info'
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState(null);
+  const [isLocating, setIsLocating] = useState(false);
+  // Handler for "Use My Location" button
+  const handleUseMyLocation = () => {
+    if (!navigator.geolocation) {
+      setMessage('Geolocation is not supported by your browser.');
+      setMessageType('error');
+      return;
+    }
+    setIsLocating(true);
+    setMessage('Getting your current location...');
+    setMessageType('info');
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        setLat(latitude);
+        setLon(longitude);
+        setMessage('Location detected!');
+        setMessageType('success');
+        // Optionally, reverse geocode to get city/country
+        try {
+          const response = await axios.get(GEODATA_API_URL, {
+            params: { q: `${latitude},${longitude}`, key: GEODATA_API_KEY },
+          });
+          if (response.data.results?.length > 0) {
+            const comp = response.data.results[0].components;
+            if (comp.city || comp.town || comp.village) setCity(comp.city || comp.town || comp.village);
+            if (comp.country) setCountry(comp.country);
+          }
+        } catch (e) {
+          // Ignore reverse geocode errors
+        }
+        setIsLocating(false);
+      },
+      (error) => {
+        setMessage('Unable to retrieve your location.');
+        setMessageType('error');
+        setIsLocating(false);
+      }
+    );
+  };
 
   const MAX_FILE_SIZE = 60 * 1024 * 1024; // 60MB
   const ALLOWED_FILE_TYPES = [
@@ -151,7 +196,7 @@ const UploadForm = () => {
     'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   ];
 
-  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+  const API_URL = process.env.REACT_APP_API_URL || 'http://192.168.0.96:8000';
   const GEODATA_API_URL = 'https://api.opencagedata.com/geocode/v1/json';
   const GEODATA_API_KEY = '0bc1962b58b7482ebe0507debae9a885';
 
@@ -225,6 +270,51 @@ const UploadForm = () => {
     setSelectedFile(file);
     setMessage(`File "${file.name}" selected successfully!`);
     setMessageType('success');
+    
+    // Auto-analyze if image or video
+    if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+      analyzeMedia(file);
+    }
+  };
+
+  const analyzeMedia = async (file) => {
+    setIsAnalyzing(true);
+    setMessage('🔍 Analyzing media with AI... This may take a moment.');
+    setMessageType('info');
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch(`${API_URL}/api/ai/analyze`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAnalysisResult(data);
+        
+        // Auto-fill form fields
+        if (data.title) setTitle(data.title);
+        if (data.tags) setTags(data.tags);
+        if (data.subject) setSubject(data.subject);
+        if (data.city) setCity(data.city);
+        if (data.country) setCountry(data.country);
+        
+        setMessage(`✅ AI Analysis complete! Confidence: ${(data.confidence * 100).toFixed(0)}% - Review and edit the fields before submitting.`);
+        setMessageType('success');
+      } else {
+        const error = await response.json();
+        setMessage(`⚠️ AI analysis unavailable: ${error.error || 'Service error'}. Please fill form manually.`);
+        setMessageType('error');
+      }
+    } catch (error) {
+      setMessage('⚠️ AI analysis failed. Please fill the form manually.');
+      setMessageType('error');
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -338,6 +428,25 @@ const UploadForm = () => {
 
       {/* Main Content */}
       <div className="upload-content">
+        {/* AI Analysis Banner */}
+        {isAnalyzing && (
+          <div className="ai-analysis-banner">
+            <div className="spinner"></div>
+            <div className="text">
+              🤖 AI is analyzing your media... Extracting title, tags, and location.
+            </div>
+          </div>
+        )}
+        
+        {analysisResult && !isAnalyzing && (
+          <div className="ai-analysis-banner" style={{background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)'}}>
+            <div className="icon">✨</div>
+            <div className="text">
+              AI Analysis Complete! Confidence: {(analysisResult.confidence * 100).toFixed(0)}% - Review and edit the fields below.
+            </div>
+          </div>
+        )}
+        
         <div className="upload-container">
           <form className="upload-form-content" onSubmit={handleSubmit}>
             <div className="form-columns">
@@ -370,6 +479,8 @@ const UploadForm = () => {
                   setCountry={setCountry}
                   lat={lat}
                   lon={lon}
+                  onUseMyLocation={handleUseMyLocation}
+                  isLocating={isLocating}
                 />
 
                 {/* Messages */}

@@ -1,0 +1,5 @@
+// This file is required for deploying React apps to GitHub Pages
+// It tells React Router to use hash history so routing works on static hosting
+// You can remove this if you don't use React Router
+
+// No code needed here for basic deployment, but file must exist for gh-pages

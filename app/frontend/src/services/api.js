@@ -1,10 +1,12 @@
 // filepath: [api.js](http://_vscodecontentref_/13)
 import axios from 'axios';
 
-// Base API URL, hardcoded for this environment
-//const API_URL = process.env.REACT_APP_API_URL || "http://10.107.224.62:8000";
-//const API_URL = process.env.REACT_APP_API_URL || 'http://192.168.77.62:8000';
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+const envApiUrl = process.env.REACT_APP_API_URL;
+const fallbackApiUrl = (typeof window !== 'undefined' && window.location?.hostname)
+  ? `${window.location.protocol}//${window.location.hostname}:8000`
+  : 'http://localhost:8000';
+
+const API_URL = envApiUrl || fallbackApiUrl;
 
 console.log('API_URL:', API_URL);
 
