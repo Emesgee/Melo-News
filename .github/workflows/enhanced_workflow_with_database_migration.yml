@@ -21,7 +21,7 @@ jobs:
           script: |
             echo "=== Starting deployment ==="
             
-            cd /path/to/your/app
+            cd /root/Melo-News
             
             # Pull latest changes
             git pull origin main
