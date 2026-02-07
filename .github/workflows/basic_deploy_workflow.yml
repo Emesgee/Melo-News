@@ -11,8 +11,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
-      # Frontend build
+
+          # Frontend build
       - name: Set up Node.js for frontend
         uses: actions/setup-node@v4
         with:
@@ -34,7 +34,6 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
-         
       
       - name: Install backend dependencies
         run: |
@@ -48,58 +47,4 @@ jobs:
           # Backend tests
           python -m pytest
         working-directory: './app/frontend'
-
-  deploy:
-    needs: build-and-test
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Install SSH key
-        uses: shimataro/ssh-key-action@v2
-        with:
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          name: id_rsa
-          known_hosts: ${{ secrets.KNOWN_HOSTS }}
-      
-      - name: Deploy to server
-        uses: appleboy/ssh-action@v0.1.0
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            echo "=== Starting deployment ==="
-            
-            # Navigate to app directory (use the correct path on your server)
-            cd /Melo-News
-            
-            # Pull latest changes
-            git pull origin main
-            
-            # Stop existing containers
-            docker-compose down
-            
-            # Build and start new containers
-            docker-compose up -d --build
-            
-            # Check status
-            echo "=== Container status ==="
-            docker-compose ps
-            
-            # Check logs
-            echo "=== Frontend logs ==="
-            docker-compose logs --tail=20 frontend
-            
-            echo "=== Backend logs ==="
-            docker-compose logs --tail=20 backend
-            
-            # Check application health
-            echo "=== Health check ==="
-            sleep 10
-            curl -f http://localhost:5000/api/health || echo "Backend health check failed"
-            curl -f http://localhost:3000 || echo "Frontend health check failed"
-            
-            echo "=== Deployment completed ==="
+    
