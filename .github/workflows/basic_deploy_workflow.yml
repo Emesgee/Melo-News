@@ -17,21 +17,21 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
-          working-directory: './Melo-News/app/frontend'
+          working-directory: './app/frontend'
       
       - name: Install frontend dependencies
         run: npm install
-        working-directory: './Melo-News/app/frontend'
+        working-directory: './app/frontend'
       
       - name: Build frontend
         run: npm run build
-        working-directory: './Melo-News/app/frontend'
+        working-directory: './app/frontend'
       
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
-          working-directory: './Melo-News/app'
+          working-directory: './app'
       
       - name: Install backend dependencies
         run: |
