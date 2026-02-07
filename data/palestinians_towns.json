@@ -1,0 +1,74 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+
+    /* ================= GREEN LINE ================= */
+
+    { "type":"Feature","geometry":{"type":"Point","coordinates":[34.971,32.109]},"properties":{"place_id":"pal_gl_kqs","town_name":"Kafr Qasim","arabic_name":"كفر قاسم","district":"Triangle","type":"city","status":"existing"}},
+
+    { "type":"Feature","geometry":{"type":"Point","coordinates":[34.971,32.284]},"properties":{"place_id":"pal_gl_qns","town_name":"Qalansuwa","arabic_name":"قلنسوة","district":"Triangle","type":"city","status":"existing"}},
+
+    { "type":"Feature","geometry":{"type":"Point","coordinates":[35.014,32.267]},"properties":{"place_id":"pal_gl_tyb","town_name":"Tayibe","arabic_name":"الطيبة","district":"Triangle","type":"city","status":"existing"}},
+
+    { "type":"Feature","geometry":{"type":"Point","coordinates":[34.987,32.127]},"properties":{"place_id":"pal_gl_tyr","town_name":"Tira","arabic_name":"الطيرة","district":"Triangle","type":"city","status":"existing"}},
+
+    { "type":"Feature","geometry":{"type":"Point","coordinates":[35.084,32.114]},"properties":{"place_id":"pal_gl_jlj","town_name":"Jaljuliya","arabic_name":"جلجولية","district":"Triangle","type":"town","status":"existing"}},
+
+    { "type":"Feature","geometry":{"type":"Point","coordinates":[35.095,32.141]},"properties":{"place_id":"pal_gl_jtt","town_name":"Jatt","arabic_name":"جت","district":"Triangle","type":"town","status":"existing"}},
+
+    { "type":"Feature","geometry":{"type":"Point","coordinates":[34.986,32.287]},"properties":{"place_id":"pal_gl_kbr","town_name":"Kafr Bara","arabic_name":"كفر برا","district":"Triangle","type":"town","status":"existing"}},
+
+    { "type":"Feature","geometry":{"type":"Point","coordinates":[35.103,32.407]},"properties":{"place_id":"pal_gl_umf","town_name":"Umm al-Fahm","arabic_name":"أم الفحم","district":"Wadi Ara","type":"city","status":"existing"}},
+
+    { "type":"Feature","geometry":{"type":"Point","coordinates":[35.092,32.417]},"properties":{"place_id":"pal_gl_kfq","town_name":"Kafr Qara","arabic_name":"كفر قرع","district":"Wadi Ara","type":"town","status":"existing"}},
+
+    { "type":"Feature","geometry":{"type":"Point","coordinates":[35.302,32.792]},"properties":{"place_id":"pal_gl_nsr","town_name":"Nazareth","arabic_name":"الناصرة","district":"Galilee","type":"city","status":"existing"}},
+
+    { "type":"Feature","geometry":{"type":"Point","coordinates":[35.346,32.964]},"properties":{"place_id":"pal_gl_skn","town_name":"Sakhnin","arabic_name":"سخنين","district":"Galilee","type":"city","status":"existing"}},
+
+    { "type":"Feature","geometry":{"type":"Point","coordinates":[35.305,32.916]},"properties":{"place_id":"pal_gl_arr","town_name":"Arraba","arabic_name":"عرابة","district":"Galilee","type":"city","status":"existing"}},
+
+    { "type":"Feature","geometry":{"type":"Point","coordinates":[35.316,32.889]},"properties":{"place_id":"pal_gl_dhn","town_name":"Deir Hanna","arabic_name":"دير حنا","district":"Galilee","type":"town","status":"existing"}},
+
+    /* ================= GAZA STRIP ================= */
+
+    /* ---- Cities & Towns ---- */
+
+    { "type":"Feature","geometry":{"type":"Point","coordinates":[34.466,31.501]},"properties":{"place_id":"pal_gz_gza","town_name":"Gaza City","arabic_name":"غزة","district":"Gaza","type":"city","status":"existing"}},
+
+    { "type":"Feature","geometry":{"type":"Point","coordinates":[34.540,31.531]},"properties":{"place_id":"pal_gz_jbl","town_name":"Jabalia","arabic_name":"جباليا","district":"North Gaza","type":"city","status":"existing"}},
+
+    { "type":"Feature","geometry":{"type":"Point","coordinates":[34.533,31.558]},"properties":{"place_id":"pal_gz_bhn","town_name":"Beit Hanoun","arabic_name":"بيت حانون","district":"North Gaza","type":"town","status":"existing"}},
+
+    { "type":"Feature","geometry":{"type":"Point","coordinates":[34.550,31.553]},"properties":{"place_id":"pal_gz_blh","town_name":"Beit Lahiya","arabic_name":"بيت لاهيا","district":"North Gaza","type":"town","status":"existing"}},
+
+    { "type":"Feature","geometry":{"type":"Point","coordinates":[34.403,31.416]},"properties":{"place_id":"pal_gz_dbl","town_name":"Deir al-Balah","arabic_name":"دير البلح","district":"Deir al-Balah","type":"city","status":"existing"}},
+
+    { "type":"Feature","geometry":{"type":"Point","coordinates":[34.306,31.340]},"properties":{"place_id":"pal_gz_kyn","town_name":"Khan Yunis","arabic_name":"خان يونس","district":"Khan Yunis","type":"city","status":"existing"}},
+
+    { "type":"Feature","geometry":{"type":"Point","coordinates":[34.250,31.287]},"properties":{"place_id":"pal_gz_rfh","town_name":"Rafah","arabic_name":"رفح","district":"Rafah","type":"city","status":"existing"}},
+
+    { "type":"Feature","geometry":{"type":"Point","coordinates":[34.355,31.346]},"properties":{"place_id":"pal_gz_bns","town_name":"Bani Suheila","arabic_name":"بني سهيلا","district":"Khan Yunis","type":"town","status":"existing"}},
+
+    { "type":"Feature","geometry":{"type":"Point","coordinates":[34.334,31.352]},"properties":{"place_id":"pal_gz_abk","town_name":"Abasan al-Kabira","arabic_name":"عبسان الكبيرة","district":"Khan Yunis","type":"town","status":"existing"}},
+
+    { "type":"Feature","geometry":{"type":"Point","coordinates":[34.343,31.368]},"properties":{"place_id":"pal_gz_abs","town_name":"Abasan al-Saghira","arabic_name":"عبسان الصغيرة","district":"Khan Yunis","type":"town","status":"existing"}},
+
+    /* ---- Refugee Camps (UNRWA) ---- */
+
+    { "type":"Feature","geometry":{"type":"Point","coordinates":[34.535,31.534]},"properties":{"place_id":"pal_gz_rc_jbl","town_name":"Jabalia Refugee Camp","arabic_name":"مخيم جباليا","district":"North Gaza","type":"refugee_camp","status":"existing"}},
+
+    { "type":"Feature","geometry":{"type":"Point","coordinates":[34.456,31.533]},"properties":{"place_id":"pal_gz_rc_sha","town_name":"Beach Refugee Camp","arabic_name":"مخيم الشاطئ","district":"Gaza","type":"refugee_camp","status":"existing"}},
+
+    { "type":"Feature","geometry":{"type":"Point","coordinates":[34.393,31.449]},"properties":{"place_id":"pal_gz_rc_nus","town_name":"Nuseirat Refugee Camp","arabic_name":"مخيم النصيرات","district":"Deir al-Balah","type":"refugee_camp","status":"existing"}},
+
+    { "type":"Feature","geometry":{"type":"Point","coordinates":[34.402,31.442]},"properties":{"place_id":"pal_gz_rc_bur","town_name":"Bureij Refugee Camp","arabic_name":"مخيم البريج","district":"Deir al-Balah","type":"refugee_camp","status":"existing"}},
+
+    { "type":"Feature","geometry":{"type":"Point","coordinates":[34.388,31.435]},"properties":{"place_id":"pal_gz_rc_mag","town_name":"Maghazi Refugee Camp","arabic_name":"مخيم المغازي","district":"Deir al-Balah","type":"refugee_camp","status":"existing"}},
+
+    { "type":"Feature","geometry":{"type":"Point","coordinates":[34.323,31.352]},"properties":{"place_id":"pal_gz_rc_kyn","town_name":"Khan Yunis Refugee Camp","arabic_name":"مخيم خان يونس","district":"Khan Yunis","type":"refugee_camp","status":"existing"}},
+
+    { "type":"Feature","geometry":{"type":"Point","coordinates":[34.257,31.283]},"properties":{"place_id":"pal_gz_rc_rfh","town_name":"Rafah Refugee Camp","arabic_name":"مخيم رفح","district":"Rafah","type":"refugee_camp","status":"existing"}}
+
+  ]
+}

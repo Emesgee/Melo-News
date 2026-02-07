@@ -7,7 +7,7 @@ The Melo-News API provides RESTful endpoints for news story management, AI-power
 ## Base URL
 
 ```
-Development: http://localhost:5000/api
+Development: http://localhost:8000/api
 Production: https://your-domain.com/api
 ```
 
@@ -505,7 +505,7 @@ X-RateLimit-Reset: 1642262400
 
 ```javascript
 const MeloNewsClient = {
-  baseURL: 'http://localhost:5000/api',
+  baseURL: 'http://localhost:8000/api',
   
   async getStories(limit = 100) {
     const response = await fetch(`${this.baseURL}/stories?limit=${limit}`);
@@ -532,10 +532,8 @@ const MeloNewsClient = {
 ### Python Example
 
 ```python
-import requests
-
 class MeloNewsClient:
-    def __init__(self, base_url='http://localhost:5000/api'):
+    def __init__(self, base_url='http://localhost:8000/api'):
         self.base_url = base_url
     
     def get_stories(self, limit=100):

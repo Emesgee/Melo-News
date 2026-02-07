@@ -131,6 +131,7 @@ def search():
                 "fileUrl": file.file_path,
                 "description": file.subject,
                 "tags": file.tags,
+                "time": file.upload_date.isoformat() if file.upload_date else None,
             } for file in file_results if file.lat is not None and file.lon is not None
         ] + [
             {
@@ -143,9 +144,12 @@ def search():
                 "city": record.matched_city,
                 "message": record.message,
                 "tags": record.tags,
-                "fileUrl": record.image_links,
-                "videoUrl": record.video_links,
+                "image_links": json.loads(record.image_links) if record.image_links and record.image_links.startswith('[') else (record.image_links.split('|') if record.image_links else []),
+                "video_links": json.loads(record.video_links) if record.video_links and record.video_links.startswith('[') else (record.video_links.split('|') if record.video_links else []),
+                "fileUrl": json.loads(record.image_links) if record.image_links and record.image_links.startswith('[') else record.image_links,
+                "videoUrl": json.loads(record.video_links) if record.video_links and record.video_links.startswith('[') else record.video_links,
                 "description": record.message,
+                "time": record.time.isoformat() if record.time else None,
             } for record in telegram_results if record.lat is not None and record.lon is not None
         ]
 

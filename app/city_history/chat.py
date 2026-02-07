@@ -23,17 +23,20 @@ def get_or_create_conversation(news_id):
 
 def chat_with_openai(messages, context):
     """
-    Chat with OpenAI ChatGPT (PRIMARY SERVICE)
+    Chat with Thaura AI (PRIMARY SERVICE)
     messages: list of {'role': 'user'/'assistant', 'content': 'text'}
     context: news story context {'title', 'description', 'city', 'lat', 'lon'}
     """
     try:
-        api_key = os.getenv('OPENAI_API_KEY')
+        api_key = os.getenv('THAURA_API_KEY')
+        api_base = os.getenv('THAURA_API_BASE', 'https://backend.thaura.ai/v1')
+        model = os.getenv('THAURA_DEFAULT_MODEL', 'thaura')
+        
         if not api_key:
-            print("DEBUG: OPENAI_API_KEY not found in environment")
+            print("DEBUG: THAURA_API_KEY not found in environment")
             return None
         
-        print(f"DEBUG: Using OpenAI API (key found, length: {len(api_key)})")
+        print(f"DEBUG: Using Thaura AI (key found, length: {len(api_key)})")
         
         headers = {
             'Authorization': f'Bearer {api_key}',
@@ -58,17 +61,17 @@ If asked about related topics, connect them back to this news story."""
         ] + messages
         
         payload = {
-            'model': 'gpt-3.5-turbo',  # or 'gpt-4' for better quality
+            'model': model,
             'messages': api_messages,
-            'temperature': 0.7,
-            'max_tokens': 500
+            'temperature': float(os.getenv('THAURA_TEMPERATURE', '0.7')),
+            'max_tokens': int(os.getenv('THAURA_MAX_TOKENS', '2048'))
         }
         
         response = requests.post(
-            'https://api.openai.com/v1/chat/completions',
+            f'{api_base}/chat/completions',
             json=payload,
             headers=headers,
-            timeout=15
+            timeout=int(os.getenv('THAURA_REQUEST_TIMEOUT', '30'))
         )
         
         if response.status_code == 200:
@@ -79,14 +82,14 @@ If asked about related topics, connect them back to this news story."""
                     return {
                         "status": "success",
                         "message": assistant_message,
-                        "service": "openai"
+                        "service": "thaura"
                     }
         
-        print(f"DEBUG: OpenAI API returned status {response.status_code}: {response.text[:200]}")
+        print(f"DEBUG: Thaura AI returned status {response.status_code}: {response.text[:200]}")
         return None
             
     except Exception as e:
-        print(f"DEBUG: Error chatting with OpenAI: {e}")
+        print(f"DEBUG: Error chatting with Thaura AI: {e}")
         return None
 
 def chat_with_thaurae(messages, context):
@@ -220,26 +223,15 @@ def process_chat_message(news_id, user_message, context):
         'content': user_message
     })
     
-    # Try AI services in priority order:
-    # 1. OpenAI (ChatGPT) - Primary
-    # 2. Thaura.ai - Secondary
-    # 3. Claude - Fallback
+    # Use Thaura AI only
     print(f"DEBUG: process_chat_message called for news_id={news_id}")
-    response = chat_with_openai(conversation['messages'], context)
+    response = chat_with_thaurae(conversation['messages'], context)
     
     if not response:
-        print("DEBUG: OpenAI unavailable, trying Thaura.ai...")
-        response = chat_with_thaurae(conversation['messages'], context)
-    
-    if not response:
-        print("DEBUG: Thaura.ai unavailable, trying Claude...")
-        response = chat_with_claude(conversation['messages'], context)
-    
-    if not response:
-        print("DEBUG: All AI services failed!")
+        print("DEBUG: Thaura AI chat failed!")
         response = {
-            "error": "All chat services unavailable",
-            "message": "Unable to process your message at this time. Please check API keys are configured."
+            "error": "Chat service unavailable",
+            "message": "Unable to process your message. Please check that THAURA_API_KEY is configured."
         }
     
     # Add assistant message to history

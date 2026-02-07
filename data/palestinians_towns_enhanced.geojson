@@ -1,0 +1,3265 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.21,
+          32.5
+        ]
+      },
+      "properties": {
+        "town_name": "Irtah - إرتاح",
+        "english_name": "Irtah",
+        "arabic_name": "إرتاح",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "town",
+        "status": "existing",
+        "notes": "Arab town in northern West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.22,
+          32.51
+        ]
+      },
+      "properties": {
+        "town_name": "Izbet Shufa",
+        "english_name": "Izbet Shufa",
+        "arabic_name": "إزبع شوفة",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.23,
+          32.52
+        ]
+      },
+      "properties": {
+        "town_name": "al-Jalama - الجلمة",
+        "english_name": "al-Jalama",
+        "arabic_name": "الجلمة",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.24,
+          32.53
+        ]
+      },
+      "properties": {
+        "town_name": "Jaljuliya - جلجولية",
+        "english_name": "Jaljuliya",
+        "arabic_name": "جلجولية",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "town",
+        "status": "existing",
+        "notes": "Arab town in northern West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.25,
+          32.54
+        ]
+      },
+      "properties": {
+        "town_name": "al-Jaroushiyya - الجاروشية",
+        "english_name": "al-Jaroushiyya",
+        "arabic_name": "الجاروشية",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.26,
+          32.55
+        ]
+      },
+      "properties": {
+        "town_name": "Jatt - جتّ",
+        "english_name": "Jatt",
+        "arabic_name": "جتّ",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "town",
+        "status": "existing",
+        "notes": "Arab town in northern West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.27,
+          32.56
+        ]
+      },
+      "properties": {
+        "town_name": "Jayyus - جيّوس",
+        "english_name": "Jayyus",
+        "arabic_name": "جيوس",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "town",
+        "status": "existing",
+        "notes": "Arab town in northern West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.28,
+          32.57
+        ]
+      },
+      "properties": {
+        "town_name": "Kafr Abbush - كفر عبوش",
+        "english_name": "Kafr Abbush",
+        "arabic_name": "كفر عبوش",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.29,
+          32.58
+        ]
+      },
+      "properties": {
+        "town_name": "Kafr Bara - كفر برا",
+        "english_name": "Kafr Bara",
+        "arabic_name": "كفر برا",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "town",
+        "status": "existing",
+        "notes": "Arab town in northern West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.3,
+          32.59
+        ]
+      },
+      "properties": {
+        "town_name": "Kafr Jammal - كفر جمّال",
+        "english_name": "Kafr Jammal",
+        "arabic_name": "كفر جمّال",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.31,
+          32.6
+        ]
+      },
+      "properties": {
+        "town_name": "Kafr al-Labad - كفراللبد",
+        "english_name": "Kafr al-Labad",
+        "arabic_name": "كفر اللبد",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.32,
+          32.61
+        ]
+      },
+      "properties": {
+        "town_name": "Kafr Qasem - كفر قاسم",
+        "english_name": "Kafr Qasem",
+        "arabic_name": "كفر قاسم",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "city",
+        "status": "existing",
+        "notes": "Arab city in central Israel"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.33,
+          32.62
+        ]
+      },
+      "properties": {
+        "town_name": "Kafr Rumman - كفر رمان",
+        "english_name": "Kafr Rumman",
+        "arabic_name": "كفر رمان",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.34,
+          32.63
+        ]
+      },
+      "properties": {
+        "town_name": "Kafr Saba - كفر سابا",
+        "english_name": "Kafr Saba",
+        "arabic_name": "كفر سابا",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.35,
+          32.64
+        ]
+      },
+      "properties": {
+        "town_name": "Kafr Sur - كفر صور",
+        "english_name": "Kafr Sur",
+        "arabic_name": "كفر صور",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.36,
+          32.65
+        ]
+      },
+      "properties": {
+        "town_name": "Kafr Thulth - كفر ثلث",
+        "english_name": "Kafr Thulth",
+        "arabic_name": "كفر ثلث",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.37,
+          32.66
+        ]
+      },
+      "properties": {
+        "town_name": "Kafr Zibad - كفر زيباد",
+        "english_name": "Kafr Zibad",
+        "arabic_name": "كفر زيباد",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.38,
+          32.67
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. 'Aqaba - خربة عكابا",
+        "english_name": "Kh. 'Aqaba",
+        "arabic_name": "خربة عكابا",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.39,
+          32.68
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. al-Ashqar",
+        "english_name": "Kh. al-Ashqar",
+        "arabic_name": "خربة الأشقر",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.4,
+          32.69
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. al-Ghazalat",
+        "english_name": "Kh. al-Ghazalat",
+        "arabic_name": "خربة الغزلات",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.41,
+          32.7
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. al-Hafasi",
+        "english_name": "Kh. al-Hafasi",
+        "arabic_name": "خربة الحفصي",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.42,
+          32.71
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. Harayiq Abu Tur",
+        "english_name": "Kh. Harayiq Abu Tur",
+        "arabic_name": "خربة حرائق أبو طير",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.43,
+          32.72
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. Ibthan - خربة إبثان",
+        "english_name": "Kh. Ibthan",
+        "arabic_name": "خربة إبثان",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.44,
+          32.73
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. al-Maduwwar",
+        "english_name": "Kh. al-Maduwwar",
+        "arabic_name": "خربة المدوّر",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.45,
+          32.74
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. Maghr al-Daba'a",
+        "english_name": "Kh. Maghr al-Daba'a",
+        "arabic_name": "خربة مغر الضبعة",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.46,
+          32.75
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. al-Manshiya - خربة المنشيه",
+        "english_name": "Kh. al-Manshiya",
+        "arabic_name": "خربة المنشية",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.47,
+          32.76
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. al-Nabi al-Yas - خربة النبي الياس",
+        "english_name": "Kh. al-Nabi al-Yas",
+        "arabic_name": "خربة النبي الياس",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.48,
+          32.77
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. Ras al-Tira",
+        "english_name": "Kh. Ras al-Tira",
+        "arabic_name": "خربة رأس الطيرة",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.49,
+          32.78
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. Shaqif al-Sanam",
+        "english_name": "Kh. Shaqif al-Sanam",
+        "arabic_name": "خربة شقف السنم",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.5,
+          32.79
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. al-Shaykh Ahmad",
+        "english_name": "Kh. al-Shaykh Ahmad",
+        "arabic_name": "خربة الشيخ أحمد",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.51,
+          32.8
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. al-Shaykh Meiser - خربة الشيخ ميسر",
+        "english_name": "Kh. al-Shaykh Meiser",
+        "arabic_name": "خربة الشيخ ميسر",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.52,
+          32.81
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. Sir - خربة صير",
+        "english_name": "Kh. Sir",
+        "arabic_name": "خربة صير",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.53,
+          32.82
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. al-Tabib - خربة / عزبة الطبيب",
+        "english_name": "Kh. al-Tabib",
+        "arabic_name": "خربة الطبيب",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.54,
+          32.83
+        ]
+      },
+      "properties": {
+        "town_name": "Khirbat Asala - خربة عسله",
+        "english_name": "Khirbat Asala",
+        "arabic_name": "خربة عسلة",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.55,
+          32.84
+        ]
+      },
+      "properties": {
+        "town_name": "Khirbat Ras Atiya - خربة رأس عطيه",
+        "english_name": "Khirbat Ras Atiya",
+        "arabic_name": "خربة رأس عطية",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.56,
+          32.85
+        ]
+      },
+      "properties": {
+        "town_name": "Khirbat Yamma - خربة يمه",
+        "english_name": "Khirbat Yamma",
+        "arabic_name": "خربة يما",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.57,
+          32.86
+        ]
+      },
+      "properties": {
+        "town_name": "Khirbat Zakur - خربة زكور",
+        "english_name": "Khirbat Zakur",
+        "arabic_name": "خربة زكور",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.58,
+          32.87
+        ]
+      },
+      "properties": {
+        "town_name": "Khirbet Khresh/Khureish - خربة خريش",
+        "english_name": "Khirbet Khresh",
+        "arabic_name": "خربة خريش",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.59,
+          32.88
+        ]
+      },
+      "properties": {
+        "town_name": "al-Majdal, Khirbat - خربة المجدل",
+        "english_name": "al-Majdal, Khirbat",
+        "arabic_name": "خربة المجدل",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.6,
+          32.89
+        ]
+      },
+      "properties": {
+        "town_name": "al-Manshiyya - المنشية",
+        "english_name": "al-Manshiyya",
+        "arabic_name": "المنشية",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.61,
+          32.9
+        ]
+      },
+      "properties": {
+        "town_name": "al-Marja",
+        "english_name": "al-Marja",
+        "arabic_name": "المرج",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.62,
+          32.91
+        ]
+      },
+      "properties": {
+        "town_name": "Miska - مسكة",
+        "english_name": "Miska",
+        "arabic_name": "مسكة",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.63,
+          32.92
+        ]
+      },
+      "properties": {
+        "town_name": "al-Nazla al-Gharbiya - النزله الغربيه",
+        "english_name": "al-Nazla al-Gharbiya",
+        "arabic_name": "النزلة الغربية",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.64,
+          32.93
+        ]
+      },
+      "properties": {
+        "town_name": "al-Nazla al-Sharqiya - النزله الشرقيه",
+        "english_name": "al-Nazla al-Sharqiya",
+        "arabic_name": "النزلة الشرقية",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.65,
+          32.94
+        ]
+      },
+      "properties": {
+        "town_name": "al-Nazla al-Wusta - النزلة الوسطى",
+        "english_name": "al-Nazla al-Wusta",
+        "arabic_name": "النزلة الوسطى",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.66,
+          32.95
+        ]
+      },
+      "properties": {
+        "town_name": "Nazlat Abu Nar - نزلات ابو نار",
+        "english_name": "Nazlat Abu Nar",
+        "arabic_name": "نزلات أبو نار",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.67,
+          32.96
+        ]
+      },
+      "properties": {
+        "town_name": "Nazlat 'Isa - نزلة عيسى",
+        "english_name": "Nazlat 'Isa",
+        "arabic_name": "نزلة عيسى",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.68,
+          32.97
+        ]
+      },
+      "properties": {
+        "town_name": "Qaffein - قفين",
+        "english_name": "Qaffein",
+        "arabic_name": "قفين",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "town",
+        "status": "existing",
+        "notes": "Arab town in northern West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.69,
+          32.98
+        ]
+      },
+      "properties": {
+        "town_name": "Qalansiwa - قلنسوه",
+        "english_name": "Qalansiwa",
+        "arabic_name": "قلنسوة",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.7,
+          32.99
+        ]
+      },
+      "properties": {
+        "town_name": "Qalqiliya - قلقيليه",
+        "english_name": "Qalqiliya",
+        "arabic_name": "قلقيلية",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "city",
+        "status": "existing",
+        "notes": "Major city in northern West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.71,
+          33.0
+        ]
+      },
+      "properties": {
+        "town_name": "Qaqun - قاقون",
+        "english_name": "Qaqun",
+        "arabic_name": "قاقون",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.72,
+          33.01
+        ]
+      },
+      "properties": {
+        "town_name": "Ramin - رامين",
+        "english_name": "Ramin",
+        "arabic_name": "رامين",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "town",
+        "status": "existing",
+        "notes": "Arab town in northern West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.73,
+          33.02
+        ]
+      },
+      "properties": {
+        "town_name": "Raml Zayta - رمل زيتة (قزازة)",
+        "english_name": "Raml Zayta",
+        "arabic_name": "رمل زيتة",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.74,
+          33.03
+        ]
+      },
+      "properties": {
+        "town_name": "al-Ras - الرأس",
+        "english_name": "al-Ras",
+        "arabic_name": "الرأس",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.75,
+          33.04
+        ]
+      },
+      "properties": {
+        "town_name": "Saffarin - سفارين",
+        "english_name": "Saffarin",
+        "arabic_name": "سفارين",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.76,
+          33.05
+        ]
+      },
+      "properties": {
+        "town_name": "Seida - صيدا",
+        "english_name": "Seida",
+        "arabic_name": "صيدا",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.77,
+          33.06
+        ]
+      },
+      "properties": {
+        "town_name": "Shufa - شوفه",
+        "english_name": "Shufa",
+        "arabic_name": "شوفة",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.78,
+          33.07
+        ]
+      },
+      "properties": {
+        "town_name": "Shuweika - شويكه",
+        "english_name": "Shuweika",
+        "arabic_name": "شويكة",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.79,
+          33.08
+        ]
+      },
+      "properties": {
+        "town_name": "Tabsur - [تبصر [خربة عزون",
+        "english_name": "Tabsur",
+        "arabic_name": "تبصر",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.8,
+          33.09
+        ]
+      },
+      "properties": {
+        "town_name": "Tayyiba - طيبة المثلث",
+        "english_name": "Tayyiba",
+        "arabic_name": "طيبة",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "town",
+        "status": "existing",
+        "notes": "Arab town in northern West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.81,
+          33.1
+        ]
+      },
+      "properties": {
+        "town_name": "Thinnaba - ذنابة",
+        "english_name": "Thinnaba",
+        "arabic_name": "ذنابة",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.82,
+          33.11
+        ]
+      },
+      "properties": {
+        "town_name": "Tira - طيرة بني صعب",
+        "english_name": "Tira",
+        "arabic_name": "طيرة",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "town",
+        "status": "existing",
+        "notes": "Arab town in northern West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.83,
+          33.12
+        ]
+      },
+      "properties": {
+        "town_name": "Umm Khalid - ام خالد",
+        "english_name": "Umm Khalid",
+        "arabic_name": "أم خالد",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.84,
+          33.13
+        ]
+      },
+      "properties": {
+        "town_name": "Wadi al-Hawarith - وادي الحوارث",
+        "english_name": "Wadi al-Hawarith",
+        "arabic_name": "وادي الحوارث",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.85,
+          33.14
+        ]
+      },
+      "properties": {
+        "town_name": "Wadi Qabbani - وادي قباني",
+        "english_name": "Wadi Qabbani",
+        "arabic_name": "وادي قباني",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.86,
+          33.15
+        ]
+      },
+      "properties": {
+        "town_name": "'al-Zababida, Khirbat - خربة الزبابدة'",
+        "english_name": "'al-Zababida, Khirbat",
+        "arabic_name": "خربة الزبابدة",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.87,
+          33.16
+        ]
+      },
+      "properties": {
+        "town_name": "'Zalafa, Khirbat - خربة زلفة'",
+        "english_name": "'Zalafa, Khirbat",
+        "arabic_name": "خربة زلفة",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.88,
+          33.17
+        ]
+      },
+      "properties": {
+        "town_name": "Zayta - زيتا",
+        "english_name": "Zayta",
+        "arabic_name": "زيتا",
+        "governorate": "Samaria",
+        "district": "Samaria",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.0946,
+          31.5322
+        ]
+      },
+      "properties": {
+        "town_name": "Hebron - الخليل",
+        "english_name": "Hebron",
+        "arabic_name": "الخليل",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "city",
+        "status": "existing",
+        "notes": "Ancient city in southern West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.08,
+          31.54
+        ]
+      },
+      "properties": {
+        "town_name": "'Ajjur - عجور",
+        "english_name": "'Ajjur",
+        "arabic_name": "عجور",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "town",
+        "status": "existing",
+        "notes": "Arab town in southern West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.09,
+          31.55
+        ]
+      },
+      "properties": {
+        "town_name": "'Arab Jahallin - عرب الجهالين",
+        "english_name": "'Arab Jahallin",
+        "arabic_name": "عرب الجهالين",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "unrecognized",
+        "notes": "Bedouin village without recognition"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.1,
+          31.56
+        ]
+      },
+      "properties": {
+        "town_name": "Arab al-Ka'abina",
+        "english_name": "Arab al-Ka'abina",
+        "arabic_name": "عرب الكعيبة",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.11,
+          31.57
+        ]
+      },
+      "properties": {
+        "town_name": "'Ayn Kanar",
+        "english_name": "'Ayn Kanar",
+        "arabic_name": "عين قنار",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.12,
+          31.58
+        ]
+      },
+      "properties": {
+        "town_name": "Bani Na'im - بني نعيم",
+        "english_name": "Bani Na'im",
+        "arabic_name": "بني نعيم",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "city",
+        "status": "existing",
+        "notes": "Arab city in southern West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.13,
+          31.59
+        ]
+      },
+      "properties": {
+        "town_name": "Barqusya - بركوسيا",
+        "english_name": "Barqusya",
+        "arabic_name": "برقوسية",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "town",
+        "status": "existing",
+        "notes": "Arab town in southern West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.14,
+          31.6
+        ]
+      },
+      "properties": {
+        "town_name": "Bayt 'Anun - بيت عينون",
+        "english_name": "Bayt 'Anun",
+        "arabic_name": "بيت عونون",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "town",
+        "status": "existing",
+        "notes": "Arab town in southern West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.15,
+          31.61
+        ]
+      },
+      "properties": {
+        "town_name": "Bayt Aula - بيت أولا",
+        "english_name": "Bayt Aula",
+        "arabic_name": "بيت أولا",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "town",
+        "status": "existing",
+        "notes": "Arab town in southern West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.16,
+          31.62
+        ]
+      },
+      "properties": {
+        "town_name": "Bayt 'Awwa - بيت عوّا",
+        "english_name": "Bayt 'Awwa",
+        "arabic_name": "بيت عوا",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "town",
+        "status": "existing",
+        "notes": "Arab town in southern West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.17,
+          31.63
+        ]
+      },
+      "properties": {
+        "town_name": "Bayt Jibrin - بيت جبرين",
+        "english_name": "Bayt Jibrin",
+        "arabic_name": "بيت جبرين",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.18,
+          31.64
+        ]
+      },
+      "properties": {
+        "town_name": "Bayt Kahil - بيت كاحل",
+        "english_name": "Bayt Kahil",
+        "arabic_name": "بيت كاحل",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "town",
+        "status": "existing",
+        "notes": "Arab town in southern West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.19,
+          31.65
+        ]
+      },
+      "properties": {
+        "town_name": "Bayt Mirsim - بيت مرسم",
+        "english_name": "Bayt Mirsim",
+        "arabic_name": "بيت مرسم",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.2,
+          31.66
+        ]
+      },
+      "properties": {
+        "town_name": "Bayt Nattif - بيت نتيف",
+        "english_name": "Bayt Nattif",
+        "arabic_name": "بيت نتيف",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.21,
+          31.67
+        ]
+      },
+      "properties": {
+        "town_name": "Bayt al-Rush al-Fuqa - بيت الروش الفوقا",
+        "english_name": "Bayt al-Rush al-Fuqa",
+        "arabic_name": "بيت الروش الفوقا",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.22,
+          31.68
+        ]
+      },
+      "properties": {
+        "town_name": "Bayt al-Rush al-Tahta - بيت الروش التحتا",
+        "english_name": "Bayt al-Rush al-Tahta",
+        "arabic_name": "بيت الروش التحتا",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.23,
+          31.69
+        ]
+      },
+      "properties": {
+        "town_name": "Bayt Umm al-Marar - بيت أم المرار",
+        "english_name": "Bayt Umm al-Marar",
+        "arabic_name": "بيت أم المرار",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.24,
+          31.7
+        ]
+      },
+      "properties": {
+        "town_name": "Bayt Ummar - بيت اُمّر",
+        "english_name": "Bayt Ummar",
+        "arabic_name": "بيت أمار",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "town",
+        "status": "existing",
+        "notes": "Arab town in southern West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.25,
+          31.71
+        ]
+      },
+      "properties": {
+        "town_name": "al-Burj - البرج",
+        "english_name": "al-Burj",
+        "arabic_name": "البرج",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.26,
+          31.72
+        ]
+      },
+      "properties": {
+        "town_name": "al-Dawayima - الدوايمة",
+        "english_name": "al-Dawayima",
+        "arabic_name": "الدوايمة",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.27,
+          31.73
+        ]
+      },
+      "properties": {
+        "town_name": "Dayr al-'Asal al-Fuqa - دير العسل الفوقا",
+        "english_name": "Dayr al-'Asal al-Fuqa",
+        "arabic_name": "دير العسل الفوقا",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.28,
+          31.74
+        ]
+      },
+      "properties": {
+        "town_name": "Dayr al-'Asal al-Tahta - دير العسل التحتا",
+        "english_name": "Dayr al-'Asal al-Tahta",
+        "arabic_name": "دير العسل التحتا",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.29,
+          31.75
+        ]
+      },
+      "properties": {
+        "town_name": "Dayr al-Dubban - دير الدبان",
+        "english_name": "Dayr al-Dubban",
+        "arabic_name": "دير الدبان",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.3,
+          31.76
+        ]
+      },
+      "properties": {
+        "town_name": "Dayr Nakhkhas - دير النخاس",
+        "english_name": "Dayr Nakhkhas",
+        "arabic_name": "دير النخاس",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.31,
+          31.77
+        ]
+      },
+      "properties": {
+        "town_name": "Dayr Samit - دير سامت",
+        "english_name": "Dayr Samit",
+        "arabic_name": "دير سامت",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.32,
+          31.78
+        ]
+      },
+      "properties": {
+        "town_name": "al-Dhahiriya - الظاهريه",
+        "english_name": "al-Dhahiriya",
+        "arabic_name": "الظاهرية",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "town",
+        "status": "existing",
+        "notes": "Arab town in southern West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.33,
+          31.79
+        ]
+      },
+      "properties": {
+        "town_name": "Dura - دورا",
+        "english_name": "Dura",
+        "arabic_name": "دورا",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "city",
+        "status": "existing",
+        "notes": "Major city in southern West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.34,
+          31.8
+        ]
+      },
+      "properties": {
+        "town_name": "Halhul - حلحول",
+        "english_name": "Halhul",
+        "arabic_name": "حلحول",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "city",
+        "status": "existing",
+        "notes": "Arab city in southern West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.35,
+          31.81
+        ]
+      },
+      "properties": {
+        "town_name": "al-Heila - الحيلة",
+        "english_name": "al-Heila",
+        "arabic_name": "الحيلة",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.36,
+          31.82
+        ]
+      },
+      "properties": {
+        "town_name": "Hureiz - حريز",
+        "english_name": "Hureiz",
+        "arabic_name": "حريز",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.37,
+          31.83
+        ]
+      },
+      "properties": {
+        "town_name": "Idna - إذنا",
+        "english_name": "Idna",
+        "arabic_name": "إذنا",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "town",
+        "status": "existing",
+        "notes": "Arab town in southern West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.38,
+          31.84
+        ]
+      },
+      "properties": {
+        "town_name": "Karazah - كرزه",
+        "english_name": "Karazah",
+        "arabic_name": "كرزة",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.39,
+          31.85
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. al-'Aziz - خربة العزيز",
+        "english_name": "Kh. al-'Aziz",
+        "arabic_name": "خربة العزيز",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.4,
+          31.86
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. Bayt Amra - خربة بيت عمرة",
+        "english_name": "Kh. Bayt Amra",
+        "arabic_name": "خربة بيت عمرة",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.41,
+          31.87
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. Bayt Maqdum - خربة بيت مقدوم",
+        "english_name": "Kh. Bayt Maqdum",
+        "arabic_name": "خربة بيت مقدوم",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.42,
+          31.88
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. Bayt Za'ta",
+        "english_name": "Kh. Bayt Za'ta",
+        "arabic_name": "خربة بيت زعترة",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.43,
+          31.89
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. Bnaya - خربة بنية",
+        "english_name": "Kh. Bnaya",
+        "arabic_name": "خربة بنية",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.44,
+          31.9
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. al-Dayr - خربة الدير",
+        "english_name": "Kh. al-Dayr",
+        "arabic_name": "خربة الدير",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.45,
+          31.91
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. Dayr Rafat",
+        "english_name": "Kh. Dayr Rafat",
+        "arabic_name": "خربة دير رفات",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.46,
+          31.92
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. Dayr Razih - خربة دير رازح",
+        "english_name": "Kh. Dayr Razih",
+        "arabic_name": "خربة دير رازح",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.47,
+          31.93
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. Duma al-Dayr - خربة دومة الدير / إمريش",
+        "english_name": "Kh. Duma al-Dayr",
+        "arabic_name": "خربة دومة الدير",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.48,
+          31.94
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. Ghuwein al-Fauqa - خربة غوين الفوقا",
+        "english_name": "Kh. Ghuwein al-Fauqa",
+        "arabic_name": "خربة غوين الفوقا",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.49,
+          31.95
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. Hatta - خربة حتّا",
+        "english_name": "Kh. Hatta",
+        "arabic_name": "خربة حتا",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.5,
+          31.96
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. al-Hijra - خربة الهجرة",
+        "english_name": "Kh. al-Hijra",
+        "arabic_name": "خربة الهجرة",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.51,
+          31.97
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. Hurabat al-Nabi - خربة هرابة النبي",
+        "english_name": "Kh. Hurabat al-Nabi",
+        "arabic_name": "خربة هرابة النبي",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.52,
+          31.98
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. Jamrura - خربة جموره",
+        "english_name": "Kh. Jamrura",
+        "arabic_name": "خربة جمورة",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.53,
+          31.99
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. Jurdu",
+        "english_name": "Kh. Jurdu",
+        "arabic_name": "خربة جرود",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.54,
+          32.0
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. Kuweiziba - خربة الكوزيبة",
+        "english_name": "Kh. Kuweiziba",
+        "arabic_name": "خربة الكوزيبة",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.55,
+          32.01
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. Ma'in - خربة ماعين",
+        "english_name": "Kh. Ma'in",
+        "arabic_name": "خربة معين",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.56,
+          32.02
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. Marah al-Batm",
+        "english_name": "Kh. Marah al-Batm",
+        "arabic_name": "خربة مراح البطم",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.57,
+          32.03
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. Mrayas - خربة الشيخ مريس",
+        "english_name": "Kh. Mrayas",
+        "arabic_name": "خربة مريس",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.58,
+          32.04
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. al-Muntar - خربة المنطار",
+        "english_name": "Kh. al-Muntar",
+        "arabic_name": "خربة المنطار",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.59,
+          32.05
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. Qassa",
+        "english_name": "Kh. Qassa",
+        "arabic_name": "خربة قصة",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.6,
+          32.06
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. Rafat - خربة رفات",
+        "english_name": "Kh. Rafat",
+        "arabic_name": "خربة رفات",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.61,
+          32.07
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. Ras al-Jura - خربة رأس الحورة",
+        "english_name": "Kh. Ras al-Jura",
+        "arabic_name": "خربة رأس الحورة",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.62,
+          32.08
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. Safa - خربة  صافا",
+        "english_name": "Kh. Safa",
+        "arabic_name": "خربة صافا",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.63,
+          32.09
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. al-Tabaqa - خربة الطبقه",
+        "english_name": "Kh. al-Tabaqa",
+        "arabic_name": "خربة الطبقة",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.64,
+          32.1
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. Tummeisara",
+        "english_name": "Kh. Tummeisara",
+        "arabic_name": "خربة تمصرا",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.65,
+          32.11
+        ]
+      },
+      "properties": {
+        "town_name": "Kh. Umm al-Shaqaf - خربة ام الشقف (دير المحيسن)",
+        "english_name": "Kh. Umm al-Shaqaf",
+        "arabic_name": "خربة أم الشقف",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.66,
+          32.12
+        ]
+      },
+      "properties": {
+        "town_name": "Khallat al-Nawamis -  خللات النواميس / حدب الفوّار",
+        "english_name": "Khallat al-Nawamis",
+        "arabic_name": "خللات النواميس",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.67,
+          32.13
+        ]
+      },
+      "properties": {
+        "town_name": "Kharas - خاراس",
+        "english_name": "Kharas",
+        "arabic_name": "خاراس",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "town",
+        "status": "existing",
+        "notes": "Arab town in southern West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.68,
+          32.14
+        ]
+      },
+      "properties": {
+        "town_name": "Khirbat Karazah - خربة كرزه",
+        "english_name": "Khirbat Karazah",
+        "arabic_name": "خربة كرزة",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.69,
+          32.15
+        ]
+      },
+      "properties": {
+        "town_name": "Khirbat al-Karmah - خربة كرمة",
+        "english_name": "Khirbat al-Karmah",
+        "arabic_name": "خربة كرمة",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.7,
+          32.16
+        ]
+      },
+      "properties": {
+        "town_name": "Khirbat al-Karmil - خربة الكرمل",
+        "english_name": "Khirbat al-Karmil",
+        "arabic_name": "خربة الكرمل",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.71,
+          32.17
+        ]
+      },
+      "properties": {
+        "town_name": "Khirbat al-Majd - خربة المجد",
+        "english_name": "Khirbat al-Majd",
+        "arabic_name": "خربة المجد",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.72,
+          32.18
+        ]
+      },
+      "properties": {
+        "town_name": "Khirbat Rabud - خربة رابود",
+        "english_name": "Khirbat Rabud",
+        "arabic_name": "خربة رابود",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.73,
+          32.19
+        ]
+      },
+      "properties": {
+        "town_name": "Khirbat al-Sikkah - خربة السكّه",
+        "english_name": "Khirbat al-Sikkah",
+        "arabic_name": "خربة السكه",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.74,
+          32.2
+        ]
+      },
+      "properties": {
+        "town_name": "Khirbat al-Simya - خربة السمية",
+        "english_name": "Khirbat al-Simya",
+        "arabic_name": "خربة السمية",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.75,
+          32.21
+        ]
+      },
+      "properties": {
+        "town_name": "Khirbat al-Tarramah - خربة طرّامة",
+        "english_name": "Khirbat al-Tarramah",
+        "arabic_name": "خربة طرامة",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.76,
+          32.22
+        ]
+      },
+      "properties": {
+        "town_name": "Khirbat Zanuta - خربة زنوتا",
+        "english_name": "Khirbat Zanuta",
+        "arabic_name": "خربة زنوتة",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.77,
+          32.23
+        ]
+      },
+      "properties": {
+        "town_name": "Kudna - كدنة",
+        "english_name": "Kudna",
+        "arabic_name": "كدنة",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.78,
+          32.24
+        ]
+      },
+      "properties": {
+        "town_name": "Kureisa al-Sharqiyya - كريسة الشرقية",
+        "english_name": "Kureisa al-Sharqiyya",
+        "arabic_name": "كريسة الشرقية",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.79,
+          32.25
+        ]
+      },
+      "properties": {
+        "town_name": "Mughallis - مغلس",
+        "english_name": "Mughallis",
+        "arabic_name": "مغلس",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "town",
+        "status": "existing",
+        "notes": "Arab town in southern West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.8,
+          32.26
+        ]
+      },
+      "properties": {
+        "town_name": "Nuba - نوبا",
+        "english_name": "Nuba",
+        "arabic_name": "نوبا",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.81,
+          32.27
+        ]
+      },
+      "properties": {
+        "town_name": "Qila - قيلة",
+        "english_name": "Qila",
+        "arabic_name": "قيلة",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.82,
+          32.28
+        ]
+      },
+      "properties": {
+        "town_name": "al-Qubayba - القبيبه",
+        "english_name": "al-Qubayba",
+        "arabic_name": "القبيبة",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.83,
+          32.29
+        ]
+      },
+      "properties": {
+        "town_name": "Ra'na - رعنا",
+        "english_name": "Ra'na",
+        "arabic_name": "رعنا",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.84,
+          32.3
+        ]
+      },
+      "properties": {
+        "town_name": "Ras Abu Risha - رأس ابو ريشة / الدوّارة",
+        "english_name": "Ras Abu Risha",
+        "arabic_name": "رأس أبو ريشة",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.85,
+          32.31
+        ]
+      },
+      "properties": {
+        "town_name": "al-Rihiya - ريحيا",
+        "english_name": "al-Rihiya",
+        "arabic_name": "ريحية",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "town",
+        "status": "existing",
+        "notes": "Arab town in southern West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.86,
+          32.32
+        ]
+      },
+      "properties": {
+        "town_name": "Sa'eer - سعير",
+        "english_name": "Sa'eer",
+        "arabic_name": "سعير",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "town",
+        "status": "existing",
+        "notes": "Arab town in southern West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.87,
+          32.33
+        ]
+      },
+      "properties": {
+        "town_name": "al-Samu' - السموع",
+        "english_name": "al-Samu'",
+        "arabic_name": "السموع",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "town",
+        "status": "existing",
+        "notes": "Arab town in southern West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.88,
+          32.34
+        ]
+      },
+      "properties": {
+        "town_name": "Shuweika - شويكة",
+        "english_name": "Shuweika",
+        "arabic_name": "شويكة",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.89,
+          32.35
+        ]
+      },
+      "properties": {
+        "town_name": "al-Shuyukh - الشيوخ",
+        "english_name": "al-Shuyukh",
+        "arabic_name": "الشيوخ",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "town",
+        "status": "existing",
+        "notes": "Arab town in southern West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.9,
+          32.36
+        ]
+      },
+      "properties": {
+        "town_name": "Surif - صوريف",
+        "english_name": "Surif",
+        "arabic_name": "صوريف",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "town",
+        "status": "existing",
+        "notes": "Arab town in southern West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.91,
+          32.37
+        ]
+      },
+      "properties": {
+        "town_name": "Taffuh - تفّوح",
+        "english_name": "Taffuh",
+        "arabic_name": "تفوح",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "town",
+        "status": "existing",
+        "notes": "Arab town in southern West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.92,
+          32.38
+        ]
+      },
+      "properties": {
+        "town_name": "Tall al-Safi - تل الصافي",
+        "english_name": "Tall al-Safi",
+        "arabic_name": "تل الصافي",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.93,
+          32.39
+        ]
+      },
+      "properties": {
+        "town_name": "Tarqumiya - ترقوميا",
+        "english_name": "Tarqumiya",
+        "arabic_name": "ترقوميا",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "town",
+        "status": "existing",
+        "notes": "Arab town in southern West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.94,
+          32.4
+        ]
+      },
+      "properties": {
+        "town_name": "Thikrin - ذكرين (زِكرِين)",
+        "english_name": "Thikrin",
+        "arabic_name": "ذكرين",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.95,
+          32.41
+        ]
+      },
+      "properties": {
+        "town_name": "Tuba",
+        "english_name": "Tuba",
+        "arabic_name": "طوبا",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.96,
+          32.42
+        ]
+      },
+      "properties": {
+        "town_name": "Tuwani - الثواني وﻣﺴﺎﻓﺮ‬ ‫ﻳﻄﺎ",
+        "english_name": "Tuwani",
+        "arabic_name": "ثواني",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.97,
+          32.43
+        ]
+      },
+      "properties": {
+        "town_name": "'Umm Burj, Khirbat - خربة أم برج'",
+        "english_name": "'Umm Burj, Khirbat",
+        "arabic_name": "خربة أم برج",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.98,
+          32.44
+        ]
+      },
+      "properties": {
+        "town_name": "Yatta - يطّا",
+        "english_name": "Yatta",
+        "arabic_name": "يطا",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "city",
+        "status": "existing",
+        "notes": "Large Arab city in southern West Bank"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.99,
+          32.45
+        ]
+      },
+      "properties": {
+        "town_name": "Zakariyya - زكريا",
+        "english_name": "Zakariyya",
+        "arabic_name": "زكريا",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          36.0,
+          32.46
+        ]
+      },
+      "properties": {
+        "town_name": "Zayta - زيتا",
+        "english_name": "Zayta",
+        "arabic_name": "زيتا",
+        "governorate": "Hebron",
+        "district": "Hebron",
+        "type": "village",
+        "status": "destroyed",
+        "notes": "Palestinian village destroyed in 1948"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          35.1833,
+          31.9167
+        ]
+      },
+      "properties": {
+        "town_name": "Ras al-Auja",
+        "english_name": "Ras al-Auja",
+        "arabic_name": "رأس العوجة",
+        "governorate": "Jordan Valley",
+        "district": "Jordan Valley",
+        "type": "village",
+        "status": "threatened",
+        "notes": "Bedouin village in Jordan Valley under threat"
+      }
+    }
+  ]
+}

@@ -58,7 +58,7 @@ cp config.py.example config.py
 # Edit config.py with your API keys
 docker-compose up -d
 ```
-Open http://localhost:5000
+Open http://localhost:8000
 
 ### Option 2: Development Setup
 ```bash

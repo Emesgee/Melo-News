@@ -4,32 +4,64 @@ Uses AI to create journalist-style reports from story snapshots
 """
 import requests
 import os
+import json
 from flask import Blueprint, jsonify, request
 from datetime import datetime
 from app.models import Telegram
 
 summary_bp = Blueprint('summary', __name__, url_prefix='/api')
 
-def generate_summary_with_openai(stories_data):
+def safe_json_parse(value):
+    """Safely parse JSON field, return empty list on error"""
+    if not value or value == 'null' or value == '':
+        return []
+    try:
+        if isinstance(value, str):
+            return json.loads(value)
+        return value if isinstance(value, list) else []
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return []
+
+def generate_summary_with_thaura(stories_data):
     """
-    Generate a professional news summary using OpenAI
+    Generate a professional news summary using Thaura AI
     stories_data: list of story objects with title, description, city, etc.
     """
     try:
-        api_key = os.getenv('OPENAI_API_KEY')
+        # Use Thaura AI instead of OpenAI
+        api_key = os.getenv('THAURA_API_KEY')
+        api_base = os.getenv('THAURA_API_BASE', 'https://backend.thaura.ai/v1')
+        model = os.getenv('THAURA_DEFAULT_MODEL', 'thaura')
+        
         if not api_key:
-            print("DEBUG: OPENAI_API_KEY not found for summary")
+            print("DEBUG: THAURA_API_KEY not found for summary")
             return None
         
-        # Format stories for the prompt
-        stories_text = "\n".join([
-            f"- {story.get('title', 'Untitled')} ({story.get('matched_city', 'Unknown Location')}): {story.get('description', story.get('message', ''))}"
-            for story in stories_data
-        ])
+        # Format stories for the prompt with media links
+        stories_text = ""
+        for story in stories_data:
+            story_text = f"- {story.get('title', 'Untitled')} ({story.get('matched_city', 'Unknown Location')}): {story.get('description', story.get('message', ''))}"
+            
+            # Add video links - labeled as "Video" instead of full URL
+            videos = story.get('video_links', [])
+            if videos:
+                video_list = ", ".join([f"[Video]({v})" for v in videos])
+                story_text += f"\n  Videos: {video_list}"
+            
+            # Add image links - labeled as "Image" instead of full URL
+            images = story.get('image_links', [])
+            if images:
+                image_list = ", ".join([f"[Image]({img})" for img in images])
+                story_text += f"\n  Images: {image_list}"
+            
+            stories_text += story_text + "\n"
         
         prompt = f"""You are a professional news editor. Create a neutral, fact-based news summary (maximum 500 words) 
 from the following news snapshots from the Israel-Palestine region. Format it as a professional one-page news brief 
 with a headline, date, and organized paragraphs covering key locations and events. Be balanced and objective.
+
+IMPORTANT: Include hyperlinks to videos and images using ONLY the word "Video" or "Image" as the link text in markdown format.
+Example: "footage shows [Video](url)" NOT "footage shows [Video 1](url)"
 
 STORIES:
 {stories_text}
@@ -39,6 +71,7 @@ FORMAT:
 - Include date: {datetime.now().strftime('%B %d, %Y')}
 - Organize by location/theme
 - Keep tone professional and neutral
+- Include media links inline using only "Video" or "Image" as link text
 - End with a brief outlook
 
 SUMMARY:"""
@@ -49,19 +82,19 @@ SUMMARY:"""
         }
         
         payload = {
-            'model': 'gpt-3.5-turbo',
+            'model': model,
             'messages': [
                 {'role': 'user', 'content': prompt}
             ],
-            'temperature': 0.7,
-            'max_tokens': 1000
+            'temperature': float(os.getenv('THAURA_TEMPERATURE', '0.7')),
+            'max_tokens': int(os.getenv('THAURA_MAX_TOKENS', '2048'))
         }
         
         response = requests.post(
-            'https://api.openai.com/v1/chat/completions',
+            f'{api_base}/chat/completions',
             json=payload,
             headers=headers,
-            timeout=20
+            timeout=int(os.getenv('THAURA_REQUEST_TIMEOUT', '30'))
         )
         
         if response.status_code == 200:
@@ -72,15 +105,15 @@ SUMMARY:"""
                     return {
                         "status": "success",
                         "summary": summary_text,
-                        "service": "openai",
+                        "service": "thaura",
                         "generated_at": datetime.now().isoformat()
                     }
         
-        print(f"DEBUG: OpenAI summary returned status {response.status_code}")
+        print(f"DEBUG: Thaura AI summary returned status {response.status_code}")
         return None
             
     except Exception as e:
-        print(f"DEBUG: Error generating summary with OpenAI: {e}")
+        print(f"DEBUG: Error generating summary with Thaura AI: {e}")
         return None
 
 def generate_summary_with_claude(stories_data):
@@ -90,14 +123,31 @@ def generate_summary_with_claude(stories_data):
         if not api_key:
             return None
         
-        stories_text = "\n".join([
-            f"- {story.get('title', 'Untitled')} ({story.get('matched_city', 'Unknown Location')}): {story.get('description', story.get('message', ''))}"
-            for story in stories_data
-        ])
+        # Format stories for the prompt with media links
+        stories_text = ""
+        for story in stories_data:
+            story_text = f"- {story.get('title', 'Untitled')} ({story.get('matched_city', 'Unknown Location')}): {story.get('description', story.get('message', ''))}"
+            
+            # Add video links - labeled as "Video" instead of full URL
+            videos = story.get('video_links', [])
+            if videos:
+                video_list = ", ".join([f"[Video]({v})" for v in videos])
+                story_text += f"\n  Videos: {video_list}"
+            
+            # Add image links - labeled as "Image" instead of full URL
+            images = story.get('image_links', [])
+            if images:
+                image_list = ", ".join([f"[Image]({img})" for img in images])
+                story_text += f"\n  Images: {image_list}"
+            
+            stories_text += story_text + "\n"
         
         prompt = f"""You are a professional news editor. Create a neutral, fact-based news summary (maximum 500 words) 
 from the following news snapshots from the Israel-Palestine region. Format it as a professional one-page news brief 
 with a headline, date, and organized paragraphs covering key locations and events. Be balanced and objective.
+
+IMPORTANT: Include hyperlinks to videos and images using ONLY the word "Video" or "Image" as the link text in markdown format.
+Example: "footage shows [Video](url)" NOT "footage shows [Video 1](url)"
 
 STORIES:
 {stories_text}
@@ -107,6 +157,7 @@ FORMAT:
 - Include date: {datetime.now().strftime('%B %d, %Y')}
 - Organize by location/theme
 - Keep tone professional and neutral
+- Include media links inline using only "Video" or "Image" as link text
 - End with a brief outlook
 
 SUMMARY:"""
@@ -182,7 +233,9 @@ def generate_melo_summary():
                         'lat': s.lat,
                         'lon': s.lon,
                         'time': s.time.isoformat() if s.time else None,
-                        'views': s.total_views or 0
+                        'views': s.total_views or 0,
+                        'video_links': safe_json_parse(s.video_links),
+                        'image_links': safe_json_parse(s.image_links)
                     }
                     for s in telegram_stories
                 ]
@@ -213,7 +266,9 @@ def generate_melo_summary():
                         'lat': s.lat,
                         'lon': s.lon,
                         'time': s.time.isoformat() if s.time else None,
-                        'views': s.total_views or 0
+                        'views': s.total_views or 0,
+                        'video_links': safe_json_parse(s.video_links),
+                        'image_links': safe_json_parse(s.image_links)
                     }
                     for s in telegram_stories
                 ]
@@ -238,7 +293,9 @@ def generate_melo_summary():
                         'lat': s.lat,
                         'lon': s.lon,
                         'time': s.time.isoformat() if s.time else None,
-                        'views': s.total_views or 0
+                        'views': s.total_views or 0,
+                        'video_links': safe_json_parse(s.video_links),
+                        'image_links': safe_json_parse(s.image_links)
                     }
                     for s in telegram_stories
                 ]
@@ -258,18 +315,14 @@ def generate_melo_summary():
         
         print(f"DEBUG: Generating summary for {len(stories)} stories")
         
-        # Try OpenAI first, fallback to Claude
-        summary_result = generate_summary_with_openai(stories)
+        # Use Thaura AI only
+        summary_result = generate_summary_with_thaura(stories)
         
         if not summary_result:
-            print("DEBUG: OpenAI failed, trying Claude...")
-            summary_result = generate_summary_with_claude(stories)
-        
-        if not summary_result:
-            print("DEBUG: All AI services failed")
+            print("DEBUG: Thaura AI summary generation failed")
             return jsonify({
                 "error": "Summary generation failed",
-                "message": "Unable to generate summary. Check API keys are configured."
+                "message": "Unable to generate summary. Check that THAURA_API_KEY is configured."
             }), 500
         
         return jsonify({

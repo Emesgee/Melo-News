@@ -15,6 +15,10 @@ from confluent_kafka import Producer
 import spacy
 import requests
 import pandas as pd
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from modules.location_detector import detect_palestine_location
+from modules.geocoder import geocode_city, load_geojson_coordinates
 # -------------------------
 # Logging
 # -------------------------
@@ -37,8 +41,9 @@ print(f"[INFO] spaCy model loaded: {nlp is not None}")
 # -------------------------
 # Telegram URLs (can be configured via env var TELEGRAM_URLS as comma-separated list)
 # -------------------------
-# Focus on Gaza news
-topics = "gaza"
+# Topic for telegram scraping
+topics = input("Enter topics for telegram scraping (comma-separated): ")
+#list of telegram urls to scrape
 telegram_urls = ['https://t.me/s/QudsNen?q=', 'https://t.me/s/eye_on_palestine/q=']
 telegram_urls = [u + topics.replace(' ', '+') for u in telegram_urls]
 print(f"[CONFIG] Telegram URLs to scrape: {telegram_urls}")
@@ -50,20 +55,20 @@ print(f"[CONFIG] Scraper keywords: {SCRAPER_KEYWORDS}")
 
 
 # -------------------------
-# Load Palestinian towns from GeoJSON (has all locations)
+# Load Palestinian towns CSV (config via PALESTINIAN_TOWNS_CSV)
 # -------------------------
+TOWNS_CSV = os.getenv("PALESTINIAN_TOWNS_CSV", os.path.join(os.getcwd(), "palestinian_towns.csv"))
+
 try:
-    from modules.geocoder import geojson_coords
-    all_villages = geojson_coords
-    all_cities = set()
-    logger.info(f"[CONFIG] Loaded {len(all_villages)} Palestinian towns from GeoJSON")
-    if len(all_villages) > 0:
-        sample = list(all_villages.keys())[:5]
-        logger.info(f"[CONFIG] Sample towns: {sample}")
-except ImportError as import_err:
-    logger.warning(f"Could not load GeoJSON locations: {import_err}, using CSV fallback")
-    all_villages = {}
-    all_cities = set()
+    df = pd.read_csv(TOWNS_CSV)
+    df.columns = df.columns.str.strip()
+except Exception as e:
+    logger.warning(f"Failed to load towns CSV at {TOWNS_CSV}: {e}")
+    df = pd.DataFrame({"town_name": []})
+
+# Build lookups: map lowercased town -> canonical town
+all_villages = {str(v).strip().lower(): str(v).strip() for v in df.get('town_name', []) if pd.notna(v)}
+all_cities = set()  # can be extended if you have a cities list
 
 # -------------------------
 # Location filter
@@ -75,13 +80,12 @@ def filter_location(text):
     # Exact token match
     for word in set(text_lower.replace('\n', ' ').replace('\t', ' ').split()):
         if word in all_villages:
-            # all_villages now contains dicts, extract the town name
-            town_name = word if isinstance(all_villages[word], dict) else all_villages[word]
-            return town_name, town_name
+            canon = all_villages[word]
+            return canon, canon
     # Substring fallbacks (for multi-word towns)
-    for village_lc in all_villages.keys():
+    for village_lc, canon in all_villages.items():
         if village_lc and village_lc in text_lower:
-            return village_lc, village_lc
+            return canon, canon
     # Cities placeholder
     for city in all_cities:
         if city in text_lower:
@@ -176,6 +180,9 @@ def extract_message_text(element):
 driver = None
 producer = None
 
+# Load GeoJSON data for location matching
+load_geojson_coordinates()
+
 try:
     # Chrome setup
     options = webdriver.ChromeOptions()
@@ -239,56 +246,37 @@ try:
                 if messages_sent + messages_filtered < 3:
                     logger.info(f"Message sample: {text[:200]}...")
                 
-                # Extract location - must have Palestinian location to proceed
-                village_or_city, city_result = filter_location(text)
-                if not village_or_city:
-                    messages_filtered += 1
-                    logger.debug(f"Filtered out (no Palestinian location): {text[:80]}...")
-                    continue
+                # Trust Telegram's search results - don't re-filter by keywords
+                # (Telegram already filtered by the search query in the URL)
 
                 msg_time = parse_time(element)
                 views = parse_views(element)
                 videos = extract_video_links(element)
                 durations = extract_video_durations(element)
                 images = extract_image_links(element)
-                
-                lat, lon = None, None
-                if village_or_city:
-                    try:
-                        key = f"{village_or_city}, Palestine".lower()
-                        # Simple geocode cache (in-memory for this run)
-                        if not hasattr(filter_location, "_geo_cache"):
-                            filter_location._geo_cache = {}
-                            # Try loading from disk
-                            try:
-                                with open('geocode_cache.json', 'r', encoding='utf-8') as cf:
-                                    filter_location._geo_cache.update(json.load(cf))
-                            except Exception:
-                                pass
 
-                        cache = filter_location._geo_cache
-                        if key in cache:
-                            lat, lon = cache[key]
-                        else:
-                            resp = requests.get(
-                                "https://nominatim.openstreetmap.org/search",
-                                params={"q": key, "format": "json", "limit": 1},
-                                headers={"User-Agent": "Mozilla/5.0 (Melo-News scraper)"},
-                                timeout=15,
-                            )
-                            if resp.status_code == 200:
-                                data = resp.json()
-                                if data:
-                                    lat, lon = float(data[0]["lat"]), float(data[0]["lon"])
-                                    cache[key] = [lat, lon]
-                                    try:
-                                        with open('geocode_cache.json', 'w', encoding='utf-8') as cf:
-                                            json.dump(cache, cf)
-                                    except Exception as werr:
-                                        logger.debug("Failed writing geocode cache: %s", werr)
-                            time.sleep(1)
-                    except Exception as gerr:
-                        logger.debug("Geocoding error: %s", gerr)
+                village_or_city, city_result = filter_location(text)
+                lat, lon = None, None
+                
+                # If no location from CSV, try the geocoder module
+                if not village_or_city:
+                    location_result = detect_palestine_location(text)
+                    if location_result:
+                        if "village" in location_result:
+                            village_or_city = location_result["village"]
+                        elif "city" in location_result:
+                            village_or_city = location_result["city"]
+                        elif "place" in location_result:
+                            village_or_city = location_result["place"]
+                        city_result = location_result.get("country", "Palestine")
+                
+                # Geocode the detected location
+                if village_or_city:
+                    geocoded = geocode_city(village_or_city)
+                    if geocoded:
+                        lat = geocoded['lat']
+                        lon = geocoded['lon']
+                        logger.info(f"[LOCATION] {village_or_city} -> ({lat}, {lon})")
 
                 # Build a stable id to reduce duplicates
                 base_id = f"{msg_time.isoformat() if msg_time else ''}|{text[:120] if text else ''}"

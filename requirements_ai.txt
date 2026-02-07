@@ -1,0 +1,18 @@
+# Azure AI Analyzer - Requirements
+# Install with: pip install -r requirements_ai.txt
+
+# Azure Computer Vision
+azure-ai-vision-imageanalysis>=1.0.0
+
+# Azure Speech Services
+azure-cognitiveservices-speech>=1.38.0
+
+# Azure OpenAI
+openai>=1.0.0
+
+# Video/Audio processing
+opencv-python>=4.8.0
+ffmpeg-python>=0.2.0
+
+# NLP (optional for enhanced keyword extraction)
+spacy>=3.7.0

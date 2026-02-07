@@ -41,16 +41,19 @@ def get_city_name_from_coords(lat, lon):
 
 def generate_history_with_openai(city_name, lat, lon):
     """
-    Generate city history using OpenAI ChatGPT API (PRIMARY)
-    Requires OPENAI_API_KEY environment variable
+    Generate city history using Thaura AI (PRIMARY)
+    Requires THAURA_API_KEY environment variable
     """
     try:
-        api_key = os.getenv('OPENAI_API_KEY')
+        api_key = os.getenv('THAURA_API_KEY')
+        api_base = os.getenv('THAURA_API_BASE', 'https://backend.thaura.ai/v1')
+        model = os.getenv('THAURA_DEFAULT_MODEL', 'thaura')
+        
         if not api_key:
-            print("DEBUG: OPENAI_API_KEY not found")
+            print("DEBUG: THAURA_API_KEY not found")
             return None
         
-        print(f"DEBUG: Using OpenAI for history (key found: {len(api_key)} chars)")
+        print(f"DEBUG: Using Thaura AI for history (key found: {len(api_key)} chars)")
         
         headers = {
             'Authorization': f'Bearer {api_key}',
@@ -61,22 +64,22 @@ def generate_history_with_openai(city_name, lat, lon):
         Focus on key historical events, cultural significance, and current status. Be factual and balanced."""
         
         payload = {
-            'model': 'gpt-3.5-turbo',  # or 'gpt-4' for better quality
+            'model': model,
             'messages': [
                 {
                     'role': 'user',
                     'content': prompt
                 }
             ],
-            'temperature': 0.7,
-            'max_tokens': 300
+            'temperature': float(os.getenv('THAURA_TEMPERATURE', '0.7')),
+            'max_tokens': int(os.getenv('THAURA_MAX_TOKENS', '2048'))
         }
         
         response = requests.post(
-            'https://api.openai.com/v1/chat/completions',
+            f'{api_base}/chat/completions',
             json=payload,
             headers=headers,
-            timeout=15
+            timeout=int(os.getenv('THAURA_REQUEST_TIMEOUT', '30'))
         )
         
         if response.status_code == 200:
@@ -88,14 +91,14 @@ def generate_history_with_openai(city_name, lat, lon):
                         "status": "success",
                         "history": history_text,
                         "city": city_name,
-                        "service": "openai"
+                        "service": "thaura"
                     }
         
-        print(f"DEBUG: OpenAI returned status {response.status_code}: {response.text[:200]}")
+        print(f"DEBUG: Thaura AI returned status {response.status_code}: {response.text[:200]}")
         return None
             
     except Exception as e:
-        print(f"DEBUG: Error with OpenAI: {e}")
+        print(f"DEBUG: Error with Thaura AI: {e}")
         return None
 
 def generate_history_with_thaurae(city_name, lat, lon):
@@ -213,10 +216,7 @@ def generate_history_with_claude(city_name, lat, lon):
 def get_city_history():
     """
     Get history of a city based on lat/lon coordinates
-    Tries AI services in priority order:
-    1. OpenAI ChatGPT (PRIMARY) - if OPENAI_API_KEY set
-    2. Thaura.ai (SECONDARY) - if THAURA_AI_API_KEY set  
-    3. Claude AI (FALLBACK) - if ANTHROPIC_API_KEY set
+    Uses Thaura AI only - requires THAURA_API_KEY environment variable
     
     Expected JSON: { "lat": 31.9, "lon": 35.2, "city": "Jerusalem" (optional) }
     """
@@ -245,21 +245,14 @@ def get_city_history():
             if not city_name:
                 city_name = f"Location ({lat:.4f}, {lon:.4f})"
         
-        # Try AI services in priority order
+        # Use Thaura AI only
         history_data = generate_history_with_openai(city_name, lat, lon)
         
         if not history_data:
-            print("OpenAI unavailable, trying Thaura.ai...")
-            history_data = generate_history_with_thaurae(city_name, lat, lon)
-        
-        if not history_data:
-            print("Thaura.ai unavailable, trying Claude...")
-            history_data = generate_history_with_claude(city_name, lat, lon)
-        
-        if not history_data:
+            print("Thaura AI history generation failed")
             history_data = {
-                "error": "All AI services unavailable",
-                "message": "Unable to generate history. Check that API keys are configured."
+                "error": "AI service unavailable",
+                "message": "Unable to generate history. Check that THAURA_API_KEY is configured."
             }
         
         # Cache the result

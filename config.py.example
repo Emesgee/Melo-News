@@ -7,7 +7,7 @@ class Config:
     # Database Configuration
     SQLALCHEMY_DATABASE_URI = os.environ.get(
         'DATABASE_URL', 
-        "postgresql://admin:admin@localhost:5432/melo_news"
+        "postgresql://admin:admin@localhost:5432/mydb"
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     

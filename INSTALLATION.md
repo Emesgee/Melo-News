@@ -54,7 +54,7 @@
 3. **Database setup**
    ```bash
    # Create PostgreSQL database
-   createdb melo_news
+   createdb mydb
    
    # Run migrations (if available)
    python migrate.py

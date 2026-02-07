@@ -273,7 +273,7 @@ docker-compose up postgres kafka redis
 ### Environment Variables
 ```bash
 # Database
-DATABASE_URL=postgresql://user:pass@localhost:5432/melo_news
+DATABASE_URL=postgresql://user:pass@localhost:5432/mydb
 
 # AI Services  
 OPENAI_API_KEY=sk-...

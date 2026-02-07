@@ -62,6 +62,7 @@ def create_app():
     from .city_history.routes import city_history_bp
     from .city_history.chat_routes import news_chat_bp
     from .summary.summary import summary_bp
+    from .ai_analyzer.routes import ai_analyzer_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(profile_bp)
@@ -74,6 +75,15 @@ def create_app():
     app.register_blueprint(city_history_bp)
     app.register_blueprint(news_chat_bp)
     app.register_blueprint(summary_bp)
+    app.register_blueprint(ai_analyzer_bp, url_prefix='/api/ai')
+    
+    @app.route('/api/health')
+    def health_check():
+        return jsonify({
+            'status': 'healthy',
+            'timestamp': datetime.utcnow().isoformat(),
+            'version': '1.0.0'
+        })
 
     
 
@@ -181,3 +191,4 @@ def handle_disconnect():
 def handle_message(message):
     print(f'Received message: {message}')
     socketio.send(f'Echo: {message}')
+

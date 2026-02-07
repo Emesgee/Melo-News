@@ -1,4 +1,4 @@
-from app import create_app
+from app import create_app, socketio
 from app.models import db
 from dotenv import load_dotenv
 import os
@@ -19,4 +19,5 @@ with app.app_context():
         print(f"An error occurred while creating tables: {e}")
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8000, debug=True)
+    # Use socketio.run() instead of app.run() since the app uses SocketIO
+    socketio.run(app, host="0.0.0.0", port=8000, debug=True, allow_unsafe_werkzeug=True)

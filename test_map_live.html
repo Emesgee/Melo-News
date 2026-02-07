@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MapArea - Live News Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            height: 100%;
+            width: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+        }
+        
+        .map-area-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .map-container {
+            flex: 1;
+            position: relative;
+            background-color: #f0f0f0;
+        }
+        
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+        
+        .map-dropdown {
+            position: absolute;
+            top: 10px;
+            left: 50px;
+            z-index: 999;
+            background: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .map-dropdown select {
+            padding: 6px 10px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        
+        .zoom-circles {
+            position: absolute;
+            right: 20px;
+            bottom: 80px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 999;
+        }
+        
+        .zoom-circle {
+            width: 40px;
+            height: 40px;
+            background-color: white;
+            border: 1px solid #ccc;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            transition: background-color 0.2s;
+        }
+        
+        .zoom-circle:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .zoom-circle:active {
+            background-color: #e0e0e0;
+        }
+        
+        .info-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            max-width: 320px;
+            z-index: 999;
+            font-size: 13px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .info-panel h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .info-item {
+            margin: 6px 0;
+            color: #666;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .info-item strong {
+            color: #333;
+            min-width: 100px;
+        }
+        
+        .status-indicator {
+            display: inline-flex;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        
+        .status-ok {
+            background-color: #4CAF50;
+        }
+        
+        .status-loading {
+            background-color: #2196F3;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        .status-error {
+            background-color: #f44336;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .loader {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #2196F3;
+            animation: pulse 1.5s ease-in-out infinite;
+            margin-left: 4px;
+        }
+        
+        .popup-content {
+            font-family: Arial, sans-serif;
+            font-size: 13px;
+            min-width: 220px;
+        }
+        
+        .popup-content h4 {
+            margin: 0 0 8px 0;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .popup-field {
+            margin: 6px 0;
+            padding: 4px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .popup-field:last-child {
+            border-bottom: none;
+        }
+        
+        .popup-label {
+            font-weight: bold;
+            color: #555;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+        
+        .popup-value {
+            color: #333;
+            margin-top: 2px;
+            word-break: break-word;
+        }
+        
+        .leaflet-popup-content-wrapper {
+            background-color: #f9f9f9 !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="map-area-container">
+        <div class="map-container">
+            <div id="map"></div>
+            
+            <div class="map-dropdown">
+                <select id="layerSelect" onchange="changeLayer(this.value)">
+                    <option value="osm">OpenStreetMap</option>
+                    <option value="topo">OpenTopoMap</option>
+                    <option value="stadia">Stadia Map</option>
+                </select>
+            </div>
+            
+            <div class="zoom-circles">
+                <div class="zoom-circle zoom-in" onclick="zoomIn()">+</div>
+                <div class="zoom-circle zoom-out" onclick="zoomOut()">−</div>
+            </div>
+            
+            <div class="info-panel">
+                <h3>Map Status</h3>
+                <div class="info-item">
+                    <span class="status-indicator status-ok"></span>
+                    <strong>Map:</strong> Ready
+                </div>
+                <div class="info-item">
+                    <span class="status-indicator" id="dataStatus">Loading...</span>
+                    <strong>Data:</strong> <span id="dataStatusText">Fetching</span>
+                </div>
+                <div class="info-item">
+                    <strong>Markers:</strong> <span id="markerCount">0</span>
+                </div>
+                <div class="info-item">
+                    <strong>Zoom:</strong> <span id="zoomLevel">10</span>
+                </div>
+                <div class="info-item">
+                    <strong>API:</strong> <span id="apiStatus">http://localhost:8000</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    
+    <script>
+        // Initialize map
+        const defaultPosition = [31.9, 35.2];
+        const map = L.map('map').setView(defaultPosition, 10);
+        
+        // Map layers
+        const layers = {
+            osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors',
+                maxZoom: 19
+            }),
+            topo: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+                attribution: 'Map data: &copy; OpenStreetMap contributors, SRTM',
+                maxZoom: 17
+            }),
+            stadia: L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; Stadia Maps',
+                maxZoom: 20
+            })
+        };
+        
+        // Add default layer
+        layers.osm.addTo(map);
+        
+        // Change layer function
+        function changeLayer(layerName) {
+            Object.values(layers).forEach(layer => map.removeLayer(layer));
+            layers[layerName].addTo(map);
+        }
+        
+        // Zoom controls
+        function zoomIn() {
+            map.setZoom(map.getZoom() + 1);
+        }
+        
+        function zoomOut() {
+            map.setZoom(map.getZoom() - 1);
+        }
+        
+        // Update zoom level display
+        map.on('zoomend', function() {
+            document.getElementById('zoomLevel').textContent = map.getZoom();
+        });
+        
+        // Marker cluster group
+        let markerClusterGroup = L.markerClusterGroup();
+        map.addLayer(markerClusterGroup);
+        
+        // Fetch news data from API
+        async function fetchNewsData() {
+            const statusEl = document.getElementById('dataStatus');
+            const statusTextEl = document.getElementById('dataStatusText');
+            
+            try {
+                // Try multiple API endpoints
+                const endpoints = [
+                    'http://localhost:8000/api/telegram/news',
+                    'http://127.0.0.1:8000/api/telegram/news',
+                    'http://localhost:5000/api/telegram/news',
+                    'http://127.0.0.1:5000/api/telegram/news',
+                ];
+                
+                let response = null;
+                for (const endpoint of endpoints) {
+                    try {
+                        console.log(`[API] Trying endpoint: ${endpoint}`);
+                        response = await fetch(endpoint, {
+                            method: 'GET',
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                        if (response.ok) {
+                            console.log(`[API] Connected to: ${endpoint}`);
+                            break;
+                        }
+                    } catch (e) {
+                        console.log(`[API] Endpoint unavailable: ${endpoint}`);
+                        continue;
+                    }
+                }
+                
+                if (!response || !response.ok) {
+                    throw new Error('API not available');
+                }
+                
+                const data = await response.json();
+                console.log('[API] Data received:', data);
+                
+                // Handle different response formats
+                let items = [];
+                if (Array.isArray(data)) {
+                    items = data;
+                } else if (data.features && Array.isArray(data.features)) {
+                    items = data.features.map(f => f.properties);
+                } else if (data.results) {
+                    items = data.results;
+                }
+                
+                console.log(`[MARKERS] Processing ${items.length} items`);
+                
+                // Clear existing markers
+                markerClusterGroup.clearLayers();
+                
+                // Add markers for news items
+                let markerCount = 0;
+                items.forEach((item, idx) => {
+                    // Normalize data structure
+                    const lat = item.lat || item.latitude;
+                    const lon = item.lon || item.longitude;
+                    const city = item.matched_city || item.city || item.name || 'Unknown';
+                    const message = item.message || item.description || item.title || 'No description';
+                    const time = item.time || item.published_at || item.created_at || '';
+                    
+                    // Only add markers with valid coordinates
+                    if (lat != null && lon != null) {
+                        try {
+                            const marker = L.circleMarker([lat, lon], {
+                                radius: 8,
+                                fillColor: '#c81515',
+                                color: '#fff',
+                                weight: 2,
+                                opacity: 1,
+                                fillOpacity: 0.8
+                            });
+                            
+                            // Format popup content
+                            const popupHTML = `
+                                <div class="popup-content">
+                                    <h4>${escapeHtml(city)}</h4>
+                                    <div class="popup-field">
+                                        <div class="popup-label">Message</div>
+                                        <div class="popup-value">${escapeHtml(message.substring(0, 100))}${message.length > 100 ? '...' : ''}</div>
+                                    </div>
+                                    <div class="popup-field">
+                                        <div class="popup-label">Coordinates</div>
+                                        <div class="popup-value">${lat.toFixed(4)}, ${lon.toFixed(4)}</div>
+                                    </div>
+                                    ${time ? `<div class="popup-field">
+                                        <div class="popup-label">Time</div>
+                                        <div class="popup-value">${new Date(time).toLocaleString()}</div>
+                                    </div>` : ''}
+                                </div>
+                            `;
+                            
+                            marker.bindPopup(popupHTML);
+                            markerClusterGroup.addLayer(marker);
+                            markerCount++;
+                        } catch (e) {
+                            console.error('Error adding marker:', e);
+                        }
+                    }
+                });
+                
+                // Update UI
+                document.getElementById('markerCount').textContent = markerCount;
+                statusEl.className = 'status-indicator status-ok';
+                statusTextEl.textContent = `${markerCount} news items loaded`;
+                
+                console.log(`✓ Loaded ${markerCount} markers from API`);
+                return true;
+                
+            } catch (error) {
+                console.error('[ERROR] Failed to fetch news data:', error);
+                statusEl.className = 'status-indicator status-error';
+                statusTextEl.textContent = 'API unavailable - using demo mode';
+                loadDemoData();
+                return false;
+            }
+        }
+        
+        // Load demo data when API is unavailable
+        function loadDemoData() {
+            console.log('[DEMO] Loading demo data...');
+            
+            const demoData = [
+                { lat: 31.5, lon: 34.5, name: 'Gaza City', message: 'Breaking news from Gaza City' },
+                { lat: 31.3423, lon: 34.3007, name: 'Khan Younis', message: 'News from Khan Younis' },
+                { lat: 31.2832, lon: 34.2654, name: 'Rafah', message: 'Updates from Rafah' },
+                { lat: 31.9454, lon: 35.2024, name: 'Bethlehem', message: 'News from Bethlehem' },
+                { lat: 31.9454, lon: 35.2046, name: 'Ramallah', message: 'Breaking from Ramallah' },
+                { lat: 31.8693, lon: 35.1899, name: 'Jericho', message: 'Updates from Jericho' },
+                { lat: 32.2265, lon: 35.2348, name: 'Nablus', message: 'News from Nablus' },
+                { lat: 32.4631, lon: 35.3009, name: 'Jenin', message: 'Updates from Jenin' },
+                { lat: 31.9235, lon: 35.2247, name: 'Sheikh Jarrah', message: 'News from Sheikh Jarrah' },
+            ];
+            
+            markerClusterGroup.clearLayers();
+            
+            demoData.forEach(item => {
+                const marker = L.circleMarker([item.lat, item.lon], {
+                    radius: 8,
+                    fillColor: '#2196F3',
+                    color: '#fff',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.7
+                });
+                
+                marker.bindPopup(`<div class="popup-content">
+                    <h4>${item.name} (DEMO)</h4>
+                    <div class="popup-field">
+                        <div class="popup-label">Message</div>
+                        <div class="popup-value">${item.message}</div>
+                    </div>
+                    <div class="popup-field">
+                        <div class="popup-label">Coordinates</div>
+                        <div class="popup-value">${item.lat.toFixed(4)}, ${item.lon.toFixed(4)}</div>
+                    </div>
+                </div>`);
+                
+                markerClusterGroup.addLayer(marker);
+            });
+            
+            document.getElementById('markerCount').textContent = demoData.length;
+        }
+        
+        // Helper function to escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Initial data fetch
+        console.log('[MAP] Initializing...');
+        fetchNewsData().then(success => {
+            if (!success) {
+                console.log('[DEMO] Running in demo mode');
+            }
+        });
+        
+        // Auto-refresh data every 30 seconds
+        setInterval(() => {
+            console.log('[AUTO-REFRESH] Fetching latest data...');
+            fetchNewsData();
+        }, 30000);
+        
+        console.log('✓ MapArea Live News Map initialized');
+    </script>
+</body>
+</html>

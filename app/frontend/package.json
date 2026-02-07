@@ -1,6 +1,6 @@
 {
   "name": "frontend",
-  "homepage": "https://YOUR_GITHUB_USERNAME.github.io/YOUR_REPO_NAME",
+  "homepage": "https://EMESGEE.github.io/Melo-News",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
@@ -84,7 +84,6 @@
     "@babel/preset-react": "^7.25.9",
     "@testing-library/dom": "^10.4.0",
     "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
-    "gh-pages": "^6.3.0"
+    "@types/react-dom": "^18.3.1"
   }
 }
