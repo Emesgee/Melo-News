@@ -12,12 +12,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Set up Node.js
+      # Frontend build
+      - name: Set up Node.js for frontend
         uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
-          cache-dependency-path: 'package-lock.json'
+          cache-dependency-path: 'app/frontend/package-lock.json'
           working-directory: './app/frontend'
       
       - name: Install frontend dependencies
@@ -28,17 +29,18 @@ jobs:
         run: npm run build
         working-directory: './app/frontend'
       
+      # Backend build
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
-          working-directory: './app'
+          working-directory: './app/backend'
       
       - name: Install backend dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-        working-directory: './backend'
+        working-directory: './app/backend'
       
       - name: Run tests (optional)
         run: |
@@ -46,7 +48,7 @@ jobs:
           npm test
           # Backend tests
           python -m pytest
-        working-directory: './frontend'
+        working-directory: './app/frontend'
 
   deploy:
     needs: build-and-test
@@ -55,6 +57,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      
+      - name: Install SSH key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          name: id_rsa
+          known_hosts: ${{ secrets.KNOWN_HOSTS }}
       
       - name: Deploy to server
         uses: appleboy/ssh-action@v0.1.0
@@ -65,7 +74,7 @@ jobs:
           script: |
             echo "=== Starting deployment ==="
             
-            # Navigate to app directory
+            # Navigate to app directory (use the correct path on your server)
             cd /Melo-News
             
             # Pull latest changes
