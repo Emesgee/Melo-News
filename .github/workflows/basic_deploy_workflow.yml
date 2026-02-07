@@ -65,7 +65,7 @@ jobs:
             echo "=== Starting deployment ==="
             
             # Navigate to app directory
-            cd /root/Melo-News
+            cd /Melo-News
             
             # Pull latest changes
             git pull origin main
