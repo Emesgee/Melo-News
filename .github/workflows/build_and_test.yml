@@ -1,9 +1,6 @@
-name: Deploy Full Stack App
-
-on:
-  push:
-    branches: [ main, master ]
-  workflow_dispatch:
+name: Build and Test (Reusable)
+on: 
+  workflow_call: # Allow other workflows to call this one
 
 jobs:
   build-and-test:
