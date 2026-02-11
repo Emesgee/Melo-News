@@ -1,5 +1,8 @@
-name: Build and Test (Reusable)
-on: 
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
   workflow_call:
 
 jobs:
