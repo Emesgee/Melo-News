@@ -50,7 +50,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
           source: "Melo-News/app/frontend/build/*"
-          target: ${{ secrets.SSH_DEPLOY_PATH }}
+          target: ${{ secrets.SSH_PATH }}
 
       - name: Reload Nginx (optional)
         if: success()
