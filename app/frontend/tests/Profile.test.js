@@ -1,16 +1,28 @@
 import React from 'react';
-import { render, screen, fireEvent, profileDataElement } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { MemoryRouter } from 'react-router-dom';
-import Login from '../src/pages/Profile';
-import { loginUser, setAuthToken, ProfieData } from '../src/services/api';
+
 import Profile from '../src/pages/Profile';
 
-// Mocking the API call
-jest.mock('../src/services/api', () => ({
-    ProfilData: jest.fn(),
+// Mocking the API call and Axios instance
+const mockApi = {
+    defaults: {
+        headers: {
+            common: {
+                Authorization: 'Bearer mocktoken',
+            },
+        },
+    },
+    get: jest.fn(() => Promise.resolve({ data: { name: 'Test User' } })),
+};
+
+jest.mock('../services/api', () => ({
+    __esModule: true,
+    ProfileData: jest.fn(() => Promise.resolve({ data: { name: 'Test User' } })),
     setAuthToken: jest.fn(),
-  }));
+    api: mockApi,
+}));
 
 describe('ProfileTest Component', () => {
     beforeEach(() => {
@@ -18,8 +30,11 @@ describe('ProfileTest Component', () => {
     });
 
     it('renders ProfileTest component heading correctly', () => {
-        render(<Profile />);
-        expect(screen.getByRole('heading', {name:'Profile Data'})).toBeInTheDocument()
+        render(
+            <MemoryRouter>
+                <Profile />
+            </MemoryRouter>
+        );
+        expect(screen.getByRole('heading', { name: 'Profile Data' })).toBeInTheDocument();
     });
-
 });
