@@ -34,8 +34,7 @@ jobs:
             echo "Domain: melonews.tech"
             echo "Server IP: 104.248.161.154"
             
-            # Navigate to app directory
-            cd /Melo-News
+            cd /root/Melo-News
             
             # Check git repository status
             echo "=== Git status ==="
