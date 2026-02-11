@@ -18,12 +18,12 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
-          cache-dependency-path: 'app/frontend/package-lock.json'
+          cache-dependency-path: './app/frontend/package-lock.json'
 
       - name: Cache node modules
         uses: actions/cache@v4
         with:
-          path: app/frontend/node_modules
+          path: .app/frontend/node_modules
           key: ${{ runner.os }}-node-${{ hashFiles('app/frontend/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node-
