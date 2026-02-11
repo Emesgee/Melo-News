@@ -45,20 +45,20 @@ jobs:
         if: success()
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.DO_HOST }}
-          username: ${{ secrets.DO_USER }}
-          key: ${{ secrets.DO_SSH_KEY }}
-          port: ${{ secrets.DO_PORT }}
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
           source: "Melo-News/app/frontend/build/*"
-          target: ${{ secrets.DO_DEPLOY_PATH }}
+          target: ${{ secrets.SSH_DEPLOY_PATH }}
 
       - name: Reload Nginx (optional)
         if: success()
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.DO_HOST }}
-          username: ${{ secrets.DO_USER }}
-          key: ${{ secrets.DO_SSH_KEY }}
-          port: ${{ secrets.DO_PORT }}
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
           script: |
             sudo systemctl reload nginx
