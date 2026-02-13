@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="jest tests" tests="3" failures="0" errors="0" time="22.307">
+  <testsuite name="MapArea Component Integration Tests" errors="0" failures="0" skipped="0" timestamp="2026-02-13T16:13:17" time="8.608" tests="2">
+    <testcase classname="MapArea Component Integration Tests Component file exists and exports" name="MapArea Component Integration Tests Component file exists and exports" time="0.003">
+    </testcase>
+    <testcase classname="MapArea Component Integration Tests MapArea component should render with proper structure" name="MapArea Component Integration Tests MapArea component should render with proper structure" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="App full suite placeholder" errors="0" failures="0" skipped="0" timestamp="2026-02-13T16:13:26" time="0.079" tests="1">
+    <testcase classname="App full suite placeholder placeholder passes" name="App full suite placeholder placeholder passes" time="0.002">
+    </testcase>
+  </testsuite>
+</testsuites>
