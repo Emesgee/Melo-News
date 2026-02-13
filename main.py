@@ -19,5 +19,5 @@ with app.app_context():
         print(f"An error occurred while creating tables: {e}")
 
 if __name__ == "__main__":
-    # Use socketio.run() instead of app.run() since the app uses SocketIO
-    socketio.run(app, host="0.0.0.0", port=8000, debug=True, allow_unsafe_werkzeug=True)
+    # Bind only to localhost; Nginx proxies requests to this port
+    socketio.run(app, host="127.0.0.1", port=8000, debug=True, allow_unsafe_werkzeug=True)
