@@ -27,6 +27,16 @@ on:
         run: npm install       
         working-directory: app/frontend
 
+      - name: Cache node modules
+        uses: actions/cache@v4
+        with:
+          path: app/frontend/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('app/frontend/package-lock.json') }}
+
+      - name: Check react-scripts
+        run: ls node_modules/react-scripts
+        working-directory: app/frontend
+
       - name: Run tests
         run: npm test -- --ci --reporters=default --reporters=jest-junit
         working-directory: app/frontend
