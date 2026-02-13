@@ -1,15 +1,12 @@
-# GitHub Actions workflow for deploying the React frontend to a DigitalOcean server via SSH
-# This workflow builds, tests, and deploys the app on push to main
-
-jobs:
 name: Deploy React Frontend to DigitalOcean
 
 on:
   push:
     branches:
-      - main 
+      - main
+  workflow_dispatch:
 
-
+jobs:
   build-test-deploy:
     runs-on: ubuntu-latest
     env:
@@ -23,15 +20,15 @@ on:
         with:
           node-version: '18.x'
 
-      - name: Install dependencies
-        run: npm install       
-        working-directory: app/frontend
-
       - name: Cache node modules
         uses: actions/cache@v4
         with:
           path: app/frontend/node_modules
           key: ${{ runner.os }}-node-${{ hashFiles('app/frontend/package-lock.json') }}
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: app/frontend
 
       - name: Check react-scripts
         run: ls node_modules/react-scripts
