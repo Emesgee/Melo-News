@@ -54,3 +54,6 @@ redis==4.6.0
 
 # WebDriver Management
 webdriver-manager==4.0.0
+
+# Azure Storage
+azure-storage-blob==12.22.0
