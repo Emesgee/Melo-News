@@ -64,8 +64,8 @@ def create_app():
     from .summary.summary import summary_bp
     from .ai_analyzer.routes import ai_analyzer_bp
 
-    app.register_blueprint(auth_bp)
-    app.register_blueprint(profile_bp)
+    app.register_blueprint(auth_bp, url_prefix='/api')
+    app.register_blueprint(profile_bp, url_prefix='/api')
     app.register_blueprint(file_upload_bp)
     app.register_blueprint(file_types_bp)
     app.register_blueprint(templates_bp, url_prefix='/api')
