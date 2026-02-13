@@ -7,7 +7,7 @@ name: Deploy React Frontend to DigitalOcean
 on:
   push:
     branches:
-      - main
+      - main 
 
 
   build-test-deploy:
