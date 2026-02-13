@@ -240,7 +240,7 @@ const Search = ({ onSearchResult, showAsTopbar = false }) => {
 
     try {
       setLoading(true);
-      const response = await api.post('/api/search', searchData);
+      const response = await api.post('/search', searchData);
       setMessage(response.data.message || 'Search completed successfully.');
 
       // Ensure we're getting an array of results
@@ -292,7 +292,7 @@ const Search = ({ onSearchResult, showAsTopbar = false }) => {
         template_ids: [1],
       };
       
-      api.post('/api/search', searchData).then(response => {
+      api.post('/search', searchData).then(response => {
         const results = Array.isArray(response.data.results) ? response.data.results : (response.data.results ? [response.data.results] : []);
         if (onSearchResult) onSearchResult(results);
         updateSuggestedTags(results);

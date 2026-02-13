@@ -13,7 +13,7 @@ const CityHistory = ({ lat, lon, city }) => {
         setLoading(true);
         setError(null);
         
-        const response = await api.post('/api/city-history', {
+        const response = await api.post('/city-history', {
           lat,
           lon,
           city

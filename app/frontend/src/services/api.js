@@ -58,7 +58,7 @@ export const loginUser = async (credentials) => {
 export const ProfileData = async () => {
   ensureAuthToken();
   try {
-    return await api.get('/api/profile', {
+    return await api.get('/profile', {
       params: {
         userData: 'name'
       }
@@ -83,7 +83,7 @@ export const fetchFileTypes = async () => {
 // Test API URL for connectivity
 export const testApiUrl = async () => {
   try {
-    const response = await api.get('/api/test');
+    const response = await api.get('/test');
     console.log("API Test Successful:", response.data);
   } catch (error) {
     console.error("API Test Failed:", error);
