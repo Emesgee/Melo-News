@@ -35,7 +35,7 @@ jobs:
         working-directory: app/frontend
 
       - name: Run tests
-        run: npm test -- --ci --reporters=default --reporters=jest-junit
+        run: npx jest --ci --reporters=default --reporters=jest-junit
         working-directory: app/frontend
 
       - name: Build frontend
