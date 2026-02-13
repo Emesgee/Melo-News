@@ -66,7 +66,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
           source: "app/frontend/build/*"
-          target: /root/Melo-News/app/frontend/build
+          target: /var/www/melonews/
 
       - name: Reload Nginx (optional)
         if: success()
