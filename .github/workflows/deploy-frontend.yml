@@ -20,6 +20,14 @@ jobs:
         with:
           node-version: '18.x'
 
+      - name: Clear node_modules cache
+        uses: actions/cache@v4
+        with:
+          path: app/frontend/node_modules
+          key: ${{ runner.os }}-node-clear-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
       - name: Cache node modules
         uses: actions/cache@v4
         with:
