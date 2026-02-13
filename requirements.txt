@@ -14,8 +14,8 @@ requests==2.31.0
 
 # Data Processing
 kafka-python==2.0.2
-pandas==2.0.3
-numpy==1.24.3
+pandas==2.2.3
+numpy==1.26.4
 
 # AI Integration
 openai==0.28.1
