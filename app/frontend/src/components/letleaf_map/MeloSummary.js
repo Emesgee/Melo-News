@@ -3,7 +3,7 @@ import axios from 'axios';
 import './MeloSummary.css';
 import { resolveStoryId } from '../../utils/storyUtils';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://192.168.0.96:8000';
+const API_URL = process.env.REACT_APP_API_URL || '/api';
 
 const MeloSummary = ({ searchResults = [], onClose, initialOpen = false }) => {
   const [isOpen, setIsOpen] = useState(initialOpen);

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import './NewsChat.css';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://192.168.0.96:8000';
+const API_URL = process.env.REACT_APP_API_URL || '/api';
 
 const NewsChat = ({ newsId, newsData }) => {
   const [messages, setMessages] = useState([]);
