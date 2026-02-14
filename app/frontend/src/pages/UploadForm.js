@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/navigation_bars/Sidebar';
 import './UploadForm.css';
 import axios from 'axios';
+import { api } from '../services/api';
 
 const GeneralInfoForm = ({ title, setTitle, tags, setTags, subject, setSubject }) => (
   <div className="form-section">
@@ -196,7 +197,6 @@ const UploadForm = () => {
     'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   ];
 
-  const API_URL = process.env.REACT_APP_API_URL || 'http://192.168.0.96:8000';
   const GEODATA_API_URL = 'https://api.opencagedata.com/geocode/v1/json';
   const GEODATA_API_KEY = '0bc1962b58b7482ebe0507debae9a885';
 
@@ -205,7 +205,7 @@ const UploadForm = () => {
   useEffect(() => {
     const fetchFileTypes = async () => {
       try {
-        const response = await axios.get(`${API_URL}/api/file-types`);
+        const response = await api.get('/file-types');
         setFileTypes(response.data);
       } catch (error) {
         setMessage('Failed to load file types. Please refresh the page.');
@@ -213,7 +213,7 @@ const UploadForm = () => {
       }
     };
     fetchFileTypes();
-  }, [API_URL]);
+  }, []);
 
   useEffect(() => {
     if (city.trim() && country.trim()) {
@@ -286,31 +286,24 @@ const UploadForm = () => {
     formData.append('file', file);
 
     try {
-      const response = await fetch(`${API_URL}/api/ai/analyze`, {
-        method: 'POST',
-        body: formData,
+      const response = await api.post('/ai/analyze', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setAnalysisResult(data);
-        
-        // Auto-fill form fields
-        if (data.title) setTitle(data.title);
-        if (data.tags) setTags(data.tags);
-        if (data.subject) setSubject(data.subject);
-        if (data.city) setCity(data.city);
-        if (data.country) setCountry(data.country);
-        
-        setMessage(`✅ AI Analysis complete! Confidence: ${(data.confidence * 100).toFixed(0)}% - Review and edit the fields before submitting.`);
-        setMessageType('success');
-      } else {
-        const error = await response.json();
-        setMessage(`⚠️ AI analysis unavailable: ${error.error || 'Service error'}. Please fill form manually.`);
-        setMessageType('error');
-      }
+      const data = response.data;
+      setAnalysisResult(data);
+      
+      // Auto-fill form fields
+      if (data.title) setTitle(data.title);
+      if (data.tags) setTags(data.tags);
+      if (data.subject) setSubject(data.subject);
+      if (data.city) setCity(data.city);
+      if (data.country) setCountry(data.country);
+      
+      setMessage(`✅ AI Analysis complete! Confidence: ${(data.confidence * 100).toFixed(0)}% - Review and edit the fields before submitting.`);
+      setMessageType('success');
     } catch (error) {
-      setMessage('⚠️ AI analysis failed. Please fill the form manually.');
+      setMessage(`⚠️ AI analysis unavailable: ${error.response?.data?.error || error.message || 'Service error'}. Please fill form manually.`);
       setMessageType('error');
     } finally {
       setIsAnalyzing(false);
@@ -356,30 +349,26 @@ const UploadForm = () => {
         return;
       }
 
-      const response = await fetch(`${API_URL}/api/file_upload/upload`, {
-        method: 'POST',
+      const response = await api.post('/file_upload/upload', formData, {
         headers: {
+          'Content-Type': 'multipart/form-data',
           Authorization: `Bearer ${token}`,
         },
-        body: formData,
       });
 
-      const responseData = await response.json();
+      setMessage('🎉 File uploaded successfully! Your news story is now live on the map.');
+      setMessageType('success');
 
-      if (response.ok) {
-        setMessage('🎉 File uploaded successfully! Your news story is now live on the map.');
-        setMessageType('success');
-
-        // Reset form
-        setSelectedFile(null);
-        setTitle('');
-        setTags('');
-        setSubject('');
-        setCity('');
-        setCountry('');
-        setLat(null);
-        setLon(null);
-        setFileTypeId('');
+      // Reset form
+      setSelectedFile(null);
+      setTitle('');
+      setTags('');
+      setSubject('');
+      setCity('');
+      setCountry('');
+      setLat(null);
+      setLon(null);
+      setFileTypeId('');
 
         // Reset file input
         const fileInput = document.getElementById('fileInput');
@@ -392,14 +381,10 @@ const UploadForm = () => {
           setMessage('✅ Uploaded! Search by title or location to find it on the map.');
           setMessageType('success');
         }, 2000);
-      } else {
-        console.error('Upload error:', responseData);
-        setMessage(responseData.message || 'Failed to upload file. Please try again.');
-        setMessageType('error');
-      }
     } catch (error) {
       console.error('Error during upload:', error);
-      setMessage('Network error occurred. Please check your connection and try again.');
+      const errorMsg = error.response?.data?.message || error.message || 'Network error occurred. Please check your connection and try again.';
+      setMessage(errorMsg);
       setMessageType('error');
     } finally {
       setIsLoading(false);
