@@ -73,7 +73,7 @@ export const ProfileData = async () => {
 export const fetchFileTypes = async () => {
   ensureAuthToken();
   try {
-    return await api.get('/api/file-types');
+    return await api.get('/file-types');
   } catch (error) {
     console.error("Failed to Fetch File Types:", error);
     throw error;
