@@ -37,7 +37,7 @@ const ensureAuthToken = () => {
 // User Registration
 export const registerUser = async (userData) => {
   try {
-    return await api.post('/auth/register', userData);
+    return await api.post('/auth/register/', userData);
   } catch (error) {
     console.error("Registration Failed:", error);
     throw error;
@@ -47,7 +47,7 @@ export const registerUser = async (userData) => {
 // User Login
 export const loginUser = async (credentials) => {
   try {
-    return await api.post('/auth/login', credentials);
+    return await api.post('/auth/login/', credentials);
   } catch (error) {
     console.error("Login Failed:", error);
     throw error;
@@ -58,7 +58,7 @@ export const loginUser = async (credentials) => {
 export const ProfileData = async () => {
   ensureAuthToken();
   try {
-    return await api.get('/profile', {
+    return await api.get('/profile/', {
       params: {
         userData: 'name'
       }
@@ -73,7 +73,7 @@ export const ProfileData = async () => {
 export const fetchFileTypes = async () => {
   ensureAuthToken();
   try {
-    return await api.get('/file-types');
+    return await api.get('/file-types/');
   } catch (error) {
     console.error("Failed to Fetch File Types:", error);
     throw error;
@@ -83,7 +83,7 @@ export const fetchFileTypes = async () => {
 // Test API URL for connectivity
 export const testApiUrl = async () => {
   try {
-    const response = await api.get('/test');
+    const response = await api.get('/test/');
     console.log("API Test Successful:", response.data);
   } catch (error) {
     console.error("API Test Failed:", error);

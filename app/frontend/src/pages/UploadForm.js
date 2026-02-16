@@ -205,7 +205,7 @@ const UploadForm = () => {
   useEffect(() => {
     const fetchFileTypes = async () => {
       try {
-        const response = await api.get('/file-types');
+        const response = await api.get('/file-types/');
         setFileTypes(response.data);
       } catch (error) {
         setMessage('Failed to load file types. Please refresh the page.');
@@ -286,7 +286,7 @@ const UploadForm = () => {
     formData.append('file', file);
 
     try {
-      const response = await api.post('/ai/analyze', formData, {
+      const response = await api.post('/ai/analyze/', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
@@ -349,7 +349,7 @@ const UploadForm = () => {
         return;
       }
 
-      const response = await api.post('/file_upload/upload', formData, {
+      const response = await api.post('/file_upload/upload/', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
           Authorization: `Bearer ${token}`,
