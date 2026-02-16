@@ -39,6 +39,9 @@ def create_app():
     # Set max upload size to 100MB
     app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
 
+    # Allow routes to work with or without trailing slashes
+    app.url_map.strict_slashes = False
+
     # Initialize extensions
     db.init_app(app)
     migrate = Migrate(app, db)

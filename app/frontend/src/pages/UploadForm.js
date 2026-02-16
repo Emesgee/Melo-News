@@ -286,7 +286,7 @@ const UploadForm = () => {
     formData.append('file', file);
 
     try {
-      const response = await api.post('/ai/analyze/', formData, {
+      const response = await api.post('/ai/analyze', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
@@ -349,7 +349,7 @@ const UploadForm = () => {
         return;
       }
 
-      const response = await api.post('/file_upload/upload/', formData, {
+      const response = await api.post('/file_upload/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
           Authorization: `Bearer ${token}`,
