@@ -36,6 +36,9 @@ def create_app():
         "pool_recycle": 280
     }
 
+    # Set max upload size to 100MB
+    app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
+
     # Initialize extensions
     db.init_app(app)
     migrate = Migrate(app, db)
