@@ -36,6 +36,7 @@ pytz==2023.3
 
 # Development Dependencies (optional)
 pytest==7.4.2
+pytest-cov==4.1.0   
 pytest-flask==1.2.0
 black==23.7.0
 flake8==6.0.0
