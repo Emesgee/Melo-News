@@ -58,3 +58,5 @@ webdriver-manager==4.0.0
 
 # Azure Storage
 azure-storage-blob==12.22.0
+fuzzywuzzy==0.18.0
+python-Levenshtein==0.21.1
