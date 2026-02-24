@@ -9,7 +9,7 @@ Flask-SocketIO==5.3.6
 
 # Database
 psycopg2-binary==2.9.7
-SQLAlchemy==2.1.1
+SQLAlchemy==2.0.46
 
 # Web Scraping
 selenium==4.11.2
