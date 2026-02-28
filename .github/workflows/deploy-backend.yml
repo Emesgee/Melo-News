@@ -27,7 +27,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run Python tests
-        run: pytest -v --cov=app --cov-report=xml
+        run: pytest app/test/ -v --cov=app --cov-report=xml
 
       - name: Deploy to DigitalOcean
         if: success() && github.ref == 'refs/heads/main'
