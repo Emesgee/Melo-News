@@ -24,6 +24,7 @@ MANIFEST
 # Environment variables
 .env
 .env.local
+.env.production
 .venv
 env/
 venv/
