@@ -1,13 +1,21 @@
+
 import pytest
 import tempfile
 import os
+import sys
 from io import BytesIO
+
+# Add parent directory to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
+
 from app.ai_analyzer.routes import (
     analyze_image,
     analyze_video,
     extract_keywords_from_text,
     analyze_media
 )
+
+
 
 class TestThauraAIAnalyzer:
     
