@@ -23,23 +23,29 @@ class KafkaPipeline:
         logger.info("=" * 80)
         
         try:
+            # ✅ Set UTF-8 encoding for subprocess
+            env = os.environ.copy()
+            env['PYTHONIOENCODING'] = 'utf-8'
+            
             self.consumer_process = subprocess.Popen(
                 [sys.executable, 'kafkaConsumer.py'],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 universal_newlines=True,
-                bufsize=1
+                encoding='utf-8',
+                errors='replace',
+                bufsize=1,
+                env=env
             )
             
             for line in self.consumer_process.stdout:
                 if line:
-                    print(f"[CONSUMER] {line.rstrip()}")
+                    print(line.rstrip())
                     logger.info(f"[CONSUMER] {line.rstrip()}")
         
         except Exception as e:
             logger.error(f"❌ Consumer failed: {e}")
             print(f"❌ CONSUMER ERROR: {e}")
-            sys.exit(1)
     
     def run_producer(self):
         """Run Kafka Producer (scrapes Telegram → produces to Kafka)"""
@@ -51,21 +57,35 @@ class KafkaPipeline:
         logger.info("=" * 80)
         
         try:
+            # ✅ Set UTF-8 encoding for subprocess
+            env = os.environ.copy()
+            env['PYTHONIOENCODING'] = 'utf-8'
+            
             self.producer_process = subprocess.Popen(
                 [sys.executable, 'kafkaProducer.py'],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 universal_newlines=True,
-                bufsize=1
+                encoding='utf-8',
+                errors='replace',
+                bufsize=1,
+                env=env
             )
             
+            # Read producer output until it exits
             for line in self.producer_process.stdout:
                 if line:
                     logger.info(f"[PRODUCER] {line.rstrip()}")
+            
+            # Wait for process to actually finish
+            self.producer_process.wait(timeout=300)
+            logger.info("[PRODUCER] Producer process finished successfully")
         
+        except subprocess.TimeoutExpired:
+            logger.error("Producer timeout - killing process")
+            self.producer_process.kill()
         except Exception as e:
             logger.error(f"❌ Producer failed: {e}")
-            sys.exit(1)
     
     def start_pipeline(self):
         """Start both producer and consumer"""
@@ -90,9 +110,16 @@ class KafkaPipeline:
         producer_thread = Thread(target=self.run_producer, daemon=False)
         producer_thread.start()
         
-        # Give producer time to start producing messages
-        logger.info("⏳ Waiting for producer to start scraping Telegram...\n")
-        time.sleep(5)
+        # Wait for producer to finish (it will exit after sending messages)
+        logger.info("⏳ Waiting for producer to finish scraping and sending to Kafka...\n")
+        producer_thread.join(timeout=600)  # Wait up to 10 minutes
+        
+        if producer_thread.is_alive():
+            logger.error("Producer thread still running after timeout!")
+            return
+        
+        logger.info("\n✅ Producer finished! Starting consumer...\n")
+        time.sleep(2)  # Small delay
         
         # Start consumer (it waits for messages on Kafka)
         consumer_thread = Thread(target=self.run_consumer, daemon=False)
@@ -102,17 +129,16 @@ class KafkaPipeline:
         logger.info("✅ Pipeline is running!")
         logger.info("=" * 80)
         logger.info("\n📝 What's happening:")
-        logger.info("   1. Producer scrapes Telegram channels for Palestinian news")
-        logger.info("   2. Filters messages by Palestinian locations (GeoJSON)")
-        logger.info("   3. Produces valid messages to Kafka topic")
-        logger.info("   4. Consumer reads from Kafka topic")
-        logger.info("   5. Detects location if missing")
-        logger.info("   6. Downloads/uploads videos and images")
-        logger.info("   7. Stores in PostgreSQL database")
+        logger.info("   1. Producer scraped Telegram channels for Palestinian news")
+        logger.info("   2. Filtered messages by Palestinian locations (GeoJSON)")
+        logger.info("   3. Produced valid messages to Kafka topic")
+        logger.info("   4. Consumer reading from Kafka topic")
+        logger.info("   5. Detecting location if missing")
+        logger.info("   6. Downloading/uploading videos and images")
+        logger.info("   7. Storing in PostgreSQL database")
         logger.info("\n📌 Press Ctrl+C to stop the pipeline gracefully\n")
         
         try:
-            producer_thread.join()
             consumer_thread.join()
         except KeyboardInterrupt:
             self.stop_pipeline()
@@ -124,7 +150,7 @@ class KafkaPipeline:
         logger.info("=" * 80)
         
         # Stop producer first
-        if self.producer_process:
+        if self.producer_process and self.producer_process.poll() is None:
             logger.info("Stopping Producer (Telegram scraper)...")
             self.producer_process.terminate()
             try:
@@ -136,7 +162,7 @@ class KafkaPipeline:
                 logger.info("✅ Producer killed")
         
         # Stop consumer
-        if self.consumer_process:
+        if self.consumer_process and self.consumer_process.poll() is None:
             logger.info("Stopping Consumer (database processor)...")
             self.consumer_process.terminate()
             try:

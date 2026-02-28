@@ -1,3 +1,12 @@
+import sys
+import io
+import os
+
+if sys.platform == 'win32':
+    os.environ['PYTHONIOENCODING'] = 'utf-8'
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
 import json
 import time
 from confluent_kafka import Consumer, KafkaError
@@ -16,11 +25,20 @@ setup_cors()
 # Load GeoJSON coordinates
 geojson_coords = load_geojson_coordinates()
 
-print("[KAFKA] Starting consumer...")
-print(f"[KAFKA] Bootstrap servers: {KAFKA_CONF['bootstrap.servers']}")
-print(f"[KAFKA] Topic: eyesonpalestine")
+# ✅ FIX: Use unique consumer group + reset to earliest
+import time as time_module
+consumer_config = KAFKA_CONF.copy()
+consumer_config['group.id'] = f'eyesonpalestine-consumer-{int(time_module.time())}'
+consumer_config['auto.offset.reset'] = 'earliest'
+consumer_config['enable.auto.commit'] = True
 
-consumer = Consumer(KAFKA_CONF)
+print("[KAFKA] Starting consumer...")
+print(f"[KAFKA] Bootstrap servers: {consumer_config['bootstrap.servers']}")
+print(f"[KAFKA] Topic: eyesonpalestine")
+print(f"[KAFKA] Consumer group: {consumer_config['group.id']}")
+print(f"[KAFKA] Reading from: earliest")
+
+consumer = Consumer(consumer_config)
 consumer.subscribe(['eyesonpalestine'])
 
 conn = connect_db()
@@ -28,6 +46,7 @@ if not conn:
     print("[ERROR] Failed to connect to database")
     exit(1)
 
+print("[POSTGRES] Connected successfully")
 print("[CONSUMER] Waiting for messages...\n")
 message_counter = 0
 
@@ -44,7 +63,7 @@ try:
             continue
 
         try:
-            message_data = json.loads(msg.value().decode("utf-8"))
+            message_data = json.loads(msg.value().decode("utf-8", errors='replace'))
             message_counter += 1
             print(f"\n{'='*60}")
             print(f"[MESSAGE #{message_counter}]")
@@ -58,6 +77,9 @@ try:
         matched_city = message_data.get("matched_city")
         lat = message_data.get("lat")
         lon = message_data.get("lon")
+
+        print(f"[INFO] City: {matched_city}")
+        print(f"[INFO] Text: {text[:100]}...")
 
         # Detect location if missing
         if not matched_city or lat is None or lon is None:
@@ -77,11 +99,11 @@ try:
 
         # Process videos
         video_links = message_data.get("video_links", "")
-        uploaded_videos = download_and_upload_videos(video_links)
+        uploaded_videos = download_and_upload_videos(video_links) if video_links else []
         
         # Process images
         image_links = message_data.get("image_links", "")
-        image_urls = process_image_links(image_links)
+        image_urls = process_image_links(image_links) if image_links else []
 
         # Prepare database row
         row = {

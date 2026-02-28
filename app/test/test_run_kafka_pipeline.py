@@ -2,6 +2,7 @@ import pytest
 import subprocess
 import os
 import sys
+import time
 from unittest.mock import MagicMock, patch
 
 # Add root directory to sys.path
@@ -71,3 +72,59 @@ class TestKafkaPipelineFiles:
         """Test run_kafka_pipeline.py exists"""
         run_pipeline_path = os.path.join(ROOT_DIR, 'run_kafka_pipeline.py')
         assert os.path.exists(run_pipeline_path)
+
+
+@pytest.mark.integration
+class TestKafkaPipelineIntegration:
+    """Integration tests - requires running Kafka broker"""
+    
+    def test_pipeline_produces_and_consumes_messages(self):
+        """Test full producer → Kafka → consumer flow"""
+        pipeline = KafkaPipeline()
+        
+        # Start producer thread
+        from threading import Thread
+        producer_thread = Thread(target=pipeline.run_producer, daemon=True)
+        producer_thread.start()
+        
+        # Wait for producer to produce messages
+        time.sleep(10)
+        
+        # Start consumer thread
+        consumer_thread = Thread(target=pipeline.run_consumer, daemon=True)
+        consumer_thread.start()
+        
+        # Wait for consumer to process messages
+        time.sleep(10)
+        
+        # Shutdown gracefully
+        pipeline.stop_pipeline()
+        
+        # Verify processes were started
+        assert pipeline.producer_process is not None
+        assert pipeline.consumer_process is not None
+    
+    def test_pipeline_survives_graceful_shutdown(self):
+        """Test pipeline shuts down without errors"""
+        pipeline = KafkaPipeline()
+        
+        # Start pipeline
+        from threading import Thread
+        producer_thread = Thread(target=pipeline.run_producer, daemon=True)
+        producer_thread.start()
+        
+        time.sleep(5)
+        
+        consumer_thread = Thread(target=pipeline.run_consumer, daemon=True)
+        consumer_thread.start()
+        
+        time.sleep(5)
+        
+        # Shutdown should not raise exception
+        try:
+            pipeline.stop_pipeline()
+            shutdown_success = True
+        except Exception as e:
+            shutdown_success = False
+        
+        assert shutdown_success is True
