@@ -4,16 +4,11 @@ import os
 import sys
 from unittest.mock import MagicMock, patch
 
-# Add parent directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
+# Add root directory to sys.path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-# Import from root directory
-try:
-    from run_kafka_pipeline import KafkaPipeline
-except ImportError:
-    # Fallback: try adding root to path
-    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + "/../../..")
-    from run_kafka_pipeline import KafkaPipeline
+# Now import normally
+from run_kafka_pipeline import KafkaPipeline
 
 # Get root directory
 ROOT_DIR = os.path.join(os.path.dirname(__file__), "../..")
@@ -65,14 +60,14 @@ class TestKafkaPipelineFiles:
     def test_kafka_producer_exists(self):
         """Test kafkaProducer.py exists"""
         kafka_producer_path = os.path.join(ROOT_DIR, 'kafkaProducer.py')
-        assert os.path.exists(kafka_producer_path), f"kafkaProducer.py not found at {kafka_producer_path}"
+        assert os.path.exists(kafka_producer_path)
     
     def test_kafka_consumer_exists(self):
         """Test kafkaConsumer.py exists"""
         kafka_consumer_path = os.path.join(ROOT_DIR, 'kafkaConsumer.py')
-        assert os.path.exists(kafka_consumer_path), f"kafkaConsumer.py not found at {kafka_consumer_path}"
+        assert os.path.exists(kafka_consumer_path)
     
     def test_run_kafka_pipeline_exists(self):
         """Test run_kafka_pipeline.py exists"""
         run_pipeline_path = os.path.join(ROOT_DIR, 'run_kafka_pipeline.py')
-        assert os.path.exists(run_pipeline_path), f"run_kafka_pipeline.py not found at {run_pipeline_path}"
+        assert os.path.exists(run_pipeline_path)
