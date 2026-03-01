@@ -336,7 +336,7 @@ try:
     
     # EXIT after producing all messages
     logger.info("Producer finished. Exiting.")
-    exit(0)  # ← ADD THIS LINE
+      # ← ADD THIS LINE
 
 finally:
     if driver:
