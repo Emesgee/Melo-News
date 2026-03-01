@@ -28,6 +28,8 @@ python-Levenshtein>=0.21,<1.0
 
 # NLP
 spacy>=3.5,<4.0
+selenium>=4.20.0
+azure-storage-blob>=12.21.0
 
 # API & HTTP
 requests>=2.31,<3.0

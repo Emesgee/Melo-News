@@ -2,8 +2,19 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
+# Build deps for native wheels (spacy/blis, etc.)
+RUN apt-get update && \
+	apt-get install -y --no-install-recommends build-essential gcc python3-dev libffi-dev && \
+	rm -rf /var/lib/apt/lists/*
+
+# Keep packaging tools current so we prefer prebuilt wheels
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --prefer-binary -r requirements.txt
+
+# Install required spaCy model
+RUN python -m spacy download en_core_web_sm
 
 COPY . .
 
