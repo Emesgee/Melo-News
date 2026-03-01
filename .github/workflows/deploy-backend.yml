@@ -5,11 +5,17 @@ on:
     branches:
       - main
       - develop
+  pull_request:
+    branches:
+      - main
+      - develop
   workflow_dispatch:
 
 jobs:
   test-backend:
     runs-on: ubuntu-latest
+    outputs:
+      test-status: ${{ job.status }}
 
     steps:
       - name: Checkout code
@@ -29,16 +35,120 @@ jobs:
       - name: Run Python tests
         run: pytest app/test/ -v --cov=app --cov-report=xml
 
-      - name: Deploy to DigitalOcean
-        if: success() && github.ref == 'refs/heads/main'
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+
+  deploy-staging:
+    needs: test-backend
+    runs-on: ubuntu-latest
+    if: success() && github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    environment:
+      name: staging
+      url: https://staging.melonews.io
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+
+      - name: Deploy to DigitalOcean Staging
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT }}
+          host: ${{ secrets.STAGING_SSH_HOST }}
+          username: ${{ secrets.STAGING_SSH_USER }}
+          key: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
+          port: ${{ secrets.STAGING_SSH_PORT }}
           script: |
+            cd /app/melo-news
+            git fetch origin
+            git checkout develop
+            git pull origin develop
+            pip install -r requirements-prod.txt
+            docker-compose -f docker-compose.prod.yml down || true
+            docker-compose -f docker-compose.prod.yml up -d
+            echo "✅ Staging deployed successfully"
+            docker-compose -f docker-compose.prod.yml ps
+
+      - name: Slack Notification - Staging Deploy
+        if: always()
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "text": "Staging Deployment: ${{ job.status }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Staging Deployment* - Branch: develop\nStatus: ${{ job.status }}\nCommit: ${{ github.sha }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  deploy-production:
+    needs: test-backend
+    runs-on: ubuntu-latest
+    if: success() && github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: production
+      url: https://melonews.io
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Deploy to DigitalOcean Production
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PRODUCTION_SSH_HOST }}
+          username: ${{ secrets.PRODUCTION_SSH_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
+          port: ${{ secrets.PRODUCTION_SSH_PORT }}
+          script: |
+            cd /app/melo-news
+            git fetch origin
+            git checkout main
             git pull origin main
-            pip install -r requirements.txt
-            docker-compose restart api
-            echo "✅ Backend deployed successfully"
+            pip install -r requirements-prod.txt
+            docker-compose -f docker-compose.prod.yml down || true
+            docker-compose -f docker-compose.prod.yml up -d
+            docker-compose -f docker-compose.prod.yml exec -T postgres pg_dump -U admin mydb > /backups/melo-$(date +%Y%m%d-%H%M%S).sql || true
+            echo "✅ Production deployed successfully"
+            docker-compose -f docker-compose.prod.yml ps
+
+      - name: Health Check
+        run: |
+          sleep 10
+          curl -f https://melonews.io/api/health || exit 1
+        continue-on-error: true
+
+      - name: Slack Notification - Production Deploy
+        if: always()
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "text": "Production Deployment: ${{ job.status }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Production Deployment* - Branch: main\nStatus: ${{ job.status }}\nCommit: ${{ github.sha }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

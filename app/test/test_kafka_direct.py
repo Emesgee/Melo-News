@@ -1,4 +1,13 @@
 import json
+import pytest
+import sys
+
+# Skip Kafka tests on Windows (only run in Docker)
+pytestmark = pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Kafka tests only run in Docker environment"
+)
+
 from confluent_kafka import Consumer, KafkaError
 
 print("=" * 60)

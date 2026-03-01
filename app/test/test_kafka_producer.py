@@ -4,7 +4,16 @@ import json
 import tempfile
 import hashlib
 import logging
+import pytest
+import sys
 from datetime import datetime
+
+# Skip Kafka tests on Windows (only run in Docker)
+pytestmark = pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Kafka tests only run in Docker environment"
+)
+
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
