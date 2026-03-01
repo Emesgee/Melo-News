@@ -3,15 +3,15 @@ python-dotenv==1.0.0
 confluent-kafka==2.3.0
 psycopg2-binary==2.9.9
 
-# Web framework
-Flask==3.0.0
+# Web framework (Flask 2.3.x for compatibility)
+Flask==2.3.3
 flask-cors==4.0.0
 Flask-SQLAlchemy==3.1.1
 Flask-Migrate==4.0.5
 alembic==1.13.0
 SQLAlchemy==2.0.23
 
-# JWT & Auth
+# JWT & Auth (compatible with Flask 2.3.x)
 Flask-JWT-Extended==4.5.2
 
 # WebSocket
