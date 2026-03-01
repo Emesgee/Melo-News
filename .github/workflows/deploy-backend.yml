@@ -58,7 +58,7 @@ jobs:
       - name: Check if SSH secrets are configured
         id: check-secrets
         run: |
-          if [ -z "${{ secrets.SSH_HOST }}" ] || [ -z "${{ secrets.SSH_KEY }}" ]; then
+          if [ -z "${{ secrets.SSH_HOST }}" ] || [ -z "${{ secrets.SSH_PRIVATE_KEY }}" ]; then
             echo "skip=true" >> $GITHUB_OUTPUT
             echo "⚠️ SSH secrets not configured - skipping deployment"
           else
@@ -119,7 +119,7 @@ jobs:
       - name: Check if SSH secrets are configured
         id: check-secrets
         run: |
-          if [ -z "${{ secrets.SSH_HOST }}" ] || [ -z "${{ secrets.SSH_KEY }}" ]; then
+          if [ -z "${{ secrets.SSH_HOST }}" ] || [ -z "${{ secrets.SSH_PRIVATE_KEY }}" ]; then
             echo "skip=true" >> $GITHUB_OUTPUT
             echo "⚠️ SSH secrets not configured - skipping production deployment"
           else
