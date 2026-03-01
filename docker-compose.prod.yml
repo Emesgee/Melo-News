@@ -33,6 +33,8 @@ services:
       dockerfile: app/DockerFile
     container_name: melo-api-prod
     restart: always
+    env_file:
+      - .env
     ports:
       - "5000:5000"
     environment:
@@ -69,6 +71,8 @@ services:
       dockerfile: app/DockerFile
     container_name: melo-scheduler-prod
     restart: always
+    env_file:
+      - .env
     command: python schedule_pipeline.py
     environment:
       ENVIRONMENT: production

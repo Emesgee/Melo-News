@@ -13,14 +13,20 @@ from .models import db, InputTemplate, OutputTemplate, FileType, Telegram
 # Initialize SocketIO globally
 socketio = SocketIO(cors_allowed_origins="*")
 
-def create_app(config_name='development'):
+def create_app(config_name=None):
     """
     Create and configure Flask application
     
     Args:
-        config_name: 'development', 'production', or 'testing'
+        config_name: 'development', 'production', or 'testing' (auto-detected if not provided)
     """
     app = Flask(__name__)
+    
+    # Auto-detect environment from ENVIRONMENT variable if not provided
+    if config_name is None:
+        import os
+        env = os.getenv('ENVIRONMENT', 'development').lower()
+        config_name = 'production' if env == 'production' else 'development'
     
     # Use the Config class from config.py
     from config import Config
@@ -37,10 +43,14 @@ def create_app(config_name='development'):
          methods=["GET", "POST", "OPTIONS", "PUT", "DELETE"],
          allow_headers=["Content-Type", "Authorization"])
 
-    # Log database URI for debugging
+    # Log database URI for debugging (masked)
     print(f"[APP] Environment: {config_name}")
-    print(f"[APP] Connected to database: {app.config['SQLALCHEMY_DATABASE_URI']}")
-
+    db_uri = app.config.get('SQLALCHEMY_DATABASE_URI')
+    if db_uri:
+        masked_uri = db_uri.split('://')[0] + '://***:***@' + db_uri.split('@')[-1]
+        print(f"[APP] Connected to database: {masked_uri}")
+    else:
+        print("[APP] ERROR: SQLALCHEMY_DATABASE_URI is not set in config!")
     # SQLAlchemy engine options
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
         "pool_pre_ping": True,

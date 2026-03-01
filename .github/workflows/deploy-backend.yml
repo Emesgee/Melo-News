@@ -79,7 +79,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
-          source: "app/,docker-compose.prod.yml,main.py,requirements-prod.txt,.env.example"
+          source: "app/,docker-compose.prod.yml,main.py,requirements.txt,requirements-prod.txt,.env.example,app/DockerFile"
           target: "/app/melo-news"
           overwrite: true
 
@@ -140,7 +140,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
-          source: "app/,docker-compose.prod.yml,main.py,requirements-prod.txt,.env.example"
+          source: "app/,docker-compose.prod.yml,main.py,requirements.txt,requirements-prod.txt,.env.example,app/DockerFile"
           target: "/app/melo-news"
           overwrite: true
 
