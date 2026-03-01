@@ -53,21 +53,14 @@ jobs:
         with:
           ref: develop
 
-      - name: Debug - Check secrets
-        run: |
-          echo "SSH Host: ${{ secrets.STAGING_SSH_HOST }}"
-          echo "SSH User: ${{ secrets.STAGING_SSH_USER }}"
-          echo "SSH Port: ${{ secrets.STAGING_SSH_PORT }}"
-          echo "Branch: ${{ github.ref }}"
-
       - name: Deploy to DigitalOcean Staging
-        if: secrets.STAGING_SSH_HOST != ''
+        if: secrets.SSH_HOST != ''
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.STAGING_SSH_HOST }}
-          username: ${{ secrets.STAGING_SSH_USER }}
-          key: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
-          port: ${{ secrets.STAGING_SSH_PORT }}
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
           script: |
             cd /app/melo-news || mkdir -p /app/melo-news && cd /app/melo-news
             git fetch origin
@@ -79,7 +72,7 @@ jobs:
             echo "✅ Staging deployed successfully"
             docker-compose -f docker-compose.prod.yml ps
 
-      - name: Deployment Status Message
+      - name: Deployment Status
         if: always()
         run: echo "Deployment Status: ${{ job.status }}"
 
@@ -95,13 +88,13 @@ jobs:
           ref: main
 
       - name: Deploy to DigitalOcean Production
-        if: secrets.PRODUCTION_SSH_HOST != ''
+        if: secrets.SSH_HOST != ''
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.PRODUCTION_SSH_HOST }}
-          username: ${{ secrets.PRODUCTION_SSH_USER }}
-          key: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
-          port: ${{ secrets.PRODUCTION_SSH_PORT }}
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
           script: |
             cd /app/melo-news || mkdir -p /app/melo-news && cd /app/melo-news
             git fetch origin
@@ -119,6 +112,6 @@ jobs:
           curl -f http://localhost:5000/api/health || echo "Health check pending"
         continue-on-error: true
 
-      - name: Deployment Status Message
+      - name: Production Deployment Status
         if: always()
         run: echo "Production Deployment Status: ${{ job.status }}"
