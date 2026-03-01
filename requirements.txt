@@ -29,7 +29,9 @@ fuzzywuzzy>=0.18,<1.0
 python-Levenshtein>=0.21,<1.0
 
 # NLP
-spacy>=3.7,<4.0
+spacy==3.8.7
+thinc==8.3.4
+blis==1.2.0
 selenium>=4.20.0
 azure-storage-blob>=12.21.0
 azure-ai-vision-imageanalysis>=1.0.0

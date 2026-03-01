@@ -11,7 +11,7 @@ RUN apt-get update && \
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir --prefer-binary -r requirements.txt
+RUN pip install --no-cache-dir --prefer-binary --only-binary=:all: -r requirements.txt
 
 # Install required spaCy model
 RUN python -m spacy download en_core_web_sm
