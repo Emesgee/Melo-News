@@ -24,7 +24,6 @@ def create_app(config_name=None):
     
     # Auto-detect environment from ENVIRONMENT variable if not provided
     if config_name is None:
-        import os
         env = os.getenv('ENVIRONMENT', 'development').lower()
         config_name = 'production' if env == 'production' else 'development'
     
