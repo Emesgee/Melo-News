@@ -2,9 +2,9 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
-# Build deps for native wheels (spacy/blis, etc.)
+# Build deps for native wheels (spacy/blis, etc.) and curl for container healthchecks
 RUN apt-get update && \
-	apt-get install -y --no-install-recommends build-essential gcc python3-dev libffi-dev && \
+	apt-get install -y --no-install-recommends build-essential gcc python3-dev libffi-dev curl && \
 	rm -rf /var/lib/apt/lists/*
 
 # Keep packaging tools current so we prefer prebuilt wheels
