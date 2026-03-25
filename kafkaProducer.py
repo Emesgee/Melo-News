@@ -2,7 +2,6 @@ import os
 import time
 import json
 import tempfile
-import hashlib
 import logging
 from datetime import datetime
 from selenium import webdriver
@@ -12,9 +11,22 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from confluent_kafka import Producer
-import spacy
-import requests
-import pandas as pd
+from modules.pipeline_task import detect_and_geocode, build_kafka_row
+from modules.sources.rss_adapter import RSSAdapter
+from modules.sources.reddit_adapter import RedditAdapter
+from modules.sources.twitter_adapter import TwitterAdapter
+from modules.sources.upscrolled_adapter import UpScrolledAdapter
+from modules.sources.settler_violence_sources import (
+    SETTLER_VIOLENCE_TOPICS,
+    TELEGRAM_CHANNELS,
+    SETTLER_VIOLENCE_RSS_FEEDS,
+    SETTLER_VIOLENCE_TWITTER_ACCOUNTS,
+    SETTLER_VIOLENCE_TWITTER_SEARCH_TERMS,
+    SETTLER_VIOLENCE_SUBREDDITS,
+    SETTLER_VIOLENCE_REDDIT_SEARCH_TERMS,
+    SETTLER_VIOLENCE_UPSCROLLED_TAGS,
+    SETTLER_VIOLENCE_UPSCROLLED_CHANNELS,
+)
 # -------------------------
 # Logging
 # -------------------------
@@ -22,29 +34,26 @@ LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 logging.basicConfig(level=LOG_LEVEL, format='%(asctime)s %(levelname)s %(message)s')
 logger = logging.getLogger("kafkaProducer")
 print(f"[LOGGING] Level set to: {LOG_LEVEL}")
-# -------------------------
-# Load spaCy model (optional; not critical)
-# -------------------------
-try:
-    nlp = spacy.load("en_core_web_sm")
-except Exception:
-    nlp = None
-print(f"[INFO] spaCy model loaded: {nlp is not None}")
 
 
 
 
 # -------------------------
-# Telegram URLs (can be configured via env var TELEGRAM_URLS as comma-separated list)
+# Telegram URLs — verified channels × settler violence topics
 # -------------------------
-# Focus on Gaza news
-topics = "gaza"
-telegram_urls = ['https://t.me/s/QudsNen?q=', 'https://t.me/s/eye_on_palestine/q=']
-telegram_urls = [u + topics.replace(' ', '+') for u in telegram_urls]
-print(f"[CONFIG] Telegram URLs to scrape: {telegram_urls}")
+topics = SETTLER_VIOLENCE_TOPICS  # ['settler', 'settler violence', ...]
+telegram_channels = [handle for handle, _desc in TELEGRAM_CHANNELS]
 
-SCRAPER_KEYWORDS = []
-SCRAPER_KEYWORDS.extend([k.strip().lower() for k in topics.split(',') if k.strip()])
+# Build URLs: each channel searched for the primary topic
+primary_topic = topics[0]  # 'settler'
+telegram_urls = [
+    f'https://t.me/s/{ch}?q={primary_topic.replace(" ", "+")}'
+    for ch in telegram_channels
+]
+print(f"[CONFIG] Telegram channels to scrape: {len(telegram_urls)} (topic: {primary_topic})")
+print(f"[CONFIG] Sample channels: {telegram_channels[:5]}")
+
+SCRAPER_KEYWORDS = [t.strip().lower() for t in topics if t.strip()]
 print(f"[CONFIG] Scraper keywords: {SCRAPER_KEYWORDS}")
 
 
@@ -170,11 +179,57 @@ def extract_message_text(element):
     except:
         return ""
 
-# -------------------------
-# Main scraper
-# -------------------------
-driver = None
+# ──────────────────────────────────────────────────────────
+# Benchmark helpers
+# ──────────────────────────────────────────────────────────
+_bench_sources = []   # list of dicts recorded per source
+
+def _record(name, found, filtered, sent, duration):
+    _bench_sources.append({
+        'name':     name,
+        'found':    found,
+        'filtered': filtered,
+        'sent':     sent,
+        'duration': duration,
+    })
+
+def _print_benchmark(chrome_secs, total_secs):
+    """Print a formatted benchmark summary table."""
+    col = [24, 7, 9, 7, 9, 8]
+    div = '╠' + '╬'.join('═' * c for c in col) + '╣'
+    top = '╔' + '╦'.join('═' * c for c in col) + '╗'
+    bot = '╚' + '╩'.join('═' * c for c in col) + '╝'
+    hdr = '╠' + '╬'.join('═' * c for c in col) + '╣'
+
+    def row(cells):
+        parts = [str(c).center(col[i]) for i, c in enumerate(cells)]
+        return '║' + '║'.join(parts) + '║'
+
+    print('\n' + top)
+    print(row(['Source', 'Found', 'Filtered', 'Sent', 'Time(s)', 'msg/s']))
+    print(hdr)
+    print(row(['Chrome startup', '-', '-', '-', f'{chrome_secs:.1f}', '-']))
+    print(div)
+    t_found = t_filt = t_sent = 0
+    for s in _bench_sources:
+        spd = f"{s['sent']/s['duration']:.2f}" if s['duration'] > 0 else '-'
+        f_str = str(s['found']) if s['found'] is not None else '-'
+        fl_str = str(s['filtered']) if s['filtered'] is not None else '-'
+        print(row([s['name'][:24], f_str, fl_str, s['sent'], f"{s['duration']:.1f}", spd]))
+        if s['found'] is not None:  t_found += s['found']
+        if s['filtered'] is not None: t_filt  += s['filtered']
+        t_sent += s['sent']
+    print(div)
+    tot_spd = f"{t_sent/total_secs:.2f}" if total_secs > 0 else '-'
+    print(row(['TOTAL', t_found, t_filt, t_sent, f'{total_secs:.1f}', tot_spd]))
+    print(bot + '\n')
+
+# ──────────────────────────────────────────────────────────
+# Main pipeline
+# ──────────────────────────────────────────────────────────
+driver   = None
 producer = None
+_t_total = time.perf_counter()
 
 try:
     # Chrome setup
@@ -196,10 +251,13 @@ try:
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
     options.add_experimental_option('useAutomationExtension', False)
 
+    _t_chrome_start = time.perf_counter()
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
     driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
         "source": "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
     })
+    _chrome_secs = time.perf_counter() - _t_chrome_start
+    logger.info(f"[BENCH] Chrome ready in {_chrome_secs:.1f}s")
 
     # Kafka
     bootstrap_servers = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092')
@@ -208,25 +266,33 @@ try:
     logger.info(f"Kafka producer connected to {bootstrap_servers}, topic: {topic}")
 
     for url in telegram_urls:
+        _t_url = time.perf_counter()
+        _channel = url.split('/')[4].split('?')[0]   # e.g. QudsNen
         try:
             driver.get(url)
             elements = WebDriverWait(driver, 30).until(
                 EC.presence_of_all_elements_located((By.CLASS_NAME, 'tgme_widget_message_bubble'))
             )
+            _t_loaded = time.perf_counter()
+            logger.info(f"[BENCH] {_channel}: page loaded in {_t_loaded - _t_url:.1f}s")
 
-            # Chunked scrolling - increased to find more messages
+            # Chunked scrolling
             for _ in range(10):
                 driver.execute_script("window.scrollBy(0, 1000)")
                 time.sleep(0.5)
+            _t_scrolled = time.perf_counter()
+            logger.info(f"[BENCH] {_channel}: scrolled in {_t_scrolled - _t_loaded:.1f}s")
 
             elements = driver.find_elements(By.CLASS_NAME, 'tgme_widget_message_bubble')
             messages_sent = 0
             messages_found = len(elements)
             messages_filtered = 0
+            _msg_times = []   # per-message processing durations
 
             logger.info(f"Found {messages_found} total messages on page")
 
             for element in elements:
+                _t_msg = time.perf_counter()
                 try:
                     driver.execute_script("arguments[0].scrollIntoView(true);", element)
                     time.sleep(0.5)
@@ -234,7 +300,7 @@ try:
                     pass
 
                 text = extract_message_text(element)
-                
+
                 # Debug: log first few messages to see what content we're getting
                 if messages_sent + messages_filtered < 3:
                     logger.info(f"Message sample: {text[:200]}...")
@@ -252,62 +318,22 @@ try:
                 durations = extract_video_durations(element)
                 images = extract_image_links(element)
                 
-                lat, lon = None, None
-                if village_or_city:
-                    try:
-                        key = f"{village_or_city}, Palestine".lower()
-                        # Simple geocode cache (in-memory for this run)
-                        if not hasattr(filter_location, "_geo_cache"):
-                            filter_location._geo_cache = {}
-                            # Try loading from disk
-                            try:
-                                with open('geocode_cache.json', 'r', encoding='utf-8') as cf:
-                                    filter_location._geo_cache.update(json.load(cf))
-                            except Exception:
-                                pass
-
-                        cache = filter_location._geo_cache
-                        if key in cache:
-                            lat, lon = cache[key]
-                        else:
-                            resp = requests.get(
-                                "https://nominatim.openstreetmap.org/search",
-                                params={"q": key, "format": "json", "limit": 1},
-                                headers={"User-Agent": "Mozilla/5.0 (Melo-News scraper)"},
-                                timeout=15,
-                            )
-                            if resp.status_code == 200:
-                                data = resp.json()
-                                if data:
-                                    lat, lon = float(data[0]["lat"]), float(data[0]["lon"])
-                                    cache[key] = [lat, lon]
-                                    try:
-                                        with open('geocode_cache.json', 'w', encoding='utf-8') as cf:
-                                            json.dump(cache, cf)
-                                    except Exception as werr:
-                                        logger.debug("Failed writing geocode cache: %s", werr)
-                            time.sleep(1)
-                    except Exception as gerr:
-                        logger.debug("Geocoding error: %s", gerr)
-
-                # Build a stable id to reduce duplicates
-                base_id = f"{msg_time.isoformat() if msg_time else ''}|{text[:120] if text else ''}"
-                msg_id = hashlib.sha256(base_id.encode('utf-8')).hexdigest()
-
-                row = {
-                    'id': msg_id,
-                    'time': msg_time.isoformat() if msg_time else None,
-                    'total_views': views,
-                    'message': text,
-                    'video_links': '|'.join(videos),
+                # Build and enrich row via pipeline_task (accurate location)
+                row = build_kafka_row({
+                    'time':            msg_time,
+                    'total_views':     views,
+                    'message':         text,
+                    'video_links':     '|'.join(videos),
                     'video_durations': '|'.join(durations),
-                    'image_links': '|'.join(images),
-                    'subject': None,
-                    'matched_city': village_or_city,
-                    'city_result': city_result,
-                    'lat': lat,
-                    'lon': lon
-                }
+                    'image_links':     '|'.join(images),
+                    'subject':         None,
+                    'tags':            f'telegram, settler_violence, {url.split("/")[4].split("?")[0]}',
+                    'source':          'telegram',
+                    'matched_city':    village_or_city,
+                    'city_result':     city_result,
+                    'lat':             None,
+                    'lon':             None,
+                })
 
                 try:
                     producer.produce(topic, value=json.dumps(row).encode('utf-8'))
@@ -320,16 +346,81 @@ try:
                 with open('output.json', 'a', encoding='utf-8') as f:
                     f.write(json.dumps(row) + '\n')
 
-            logger.info(f"Scraped {url}:")
-            logger.info(f"  Total messages found: {messages_found}")
-            logger.info(f"  Filtered out (no keyword match): {messages_filtered}")
-            logger.info(f"  Sent to Kafka: {messages_sent}")
+                _msg_times.append(time.perf_counter() - _t_msg)
+
+            _url_dur = time.perf_counter() - _t_url
+            _avg_msg = (sum(_msg_times) / len(_msg_times)) if _msg_times else 0
+            logger.info(f"Scraped {_channel}:")
+            logger.info(f"  Total messages found:   {messages_found}")
+            logger.info(f"  Filtered out:           {messages_filtered}")
+            logger.info(f"  Sent to Kafka:          {messages_sent}")
+            logger.info(f"[BENCH] {_channel}: total={_url_dur:.1f}s  avg/msg={_avg_msg:.2f}s")
+            _record(f'Telegram/{_channel}', messages_found, messages_filtered, messages_sent, _url_dur)
 
         except Exception as e:
             logger.error("Error scraping %s: %s", url, e)
 
     producer.flush()
-    logger.info("All messages flushed to Kafka")
+    logger.info("[TELEGRAM] All Telegram messages flushed to Kafka")
+
+    # ── RSS Sources (14 settler-violence feeds) ────────────────────
+    logger.info("\n" + "=" * 60)
+    logger.info("[RSS] Starting RSS feed ingestion (14 settler violence feeds)...")
+    logger.info("=" * 60)
+    _t_rss = time.perf_counter()
+    try:
+        rss = RSSAdapter(
+            feeds=SETTLER_VIOLENCE_RSS_FEEDS,
+            producer=producer, topic=topic, filter_fn=filter_location,
+        )
+        rss_sent = rss.run()
+        _rss_dur = time.perf_counter() - _t_rss
+        logger.info(f"[RSS] Done: {rss_sent} stories sent in {_rss_dur:.1f}s")
+        _record('RSS (14 feeds)', None, None, rss_sent, _rss_dur)
+    except Exception as e:
+        logger.error("[RSS] Failed: %s", e)
+        _record('RSS (14 feeds)', None, None, 0, time.perf_counter() - _t_rss)
+
+    # ── Reddit Sources (5 subs × 7 settler terms) ─────────────────
+    logger.info("\n" + "=" * 60)
+    logger.info("[REDDIT] Starting Reddit ingestion (settler violence)...")
+    logger.info("=" * 60)
+    _t_reddit = time.perf_counter()
+    try:
+        reddit = RedditAdapter(
+            subreddits=SETTLER_VIOLENCE_SUBREDDITS,
+            search_terms=SETTLER_VIOLENCE_REDDIT_SEARCH_TERMS,
+            producer=producer, topic=topic, filter_fn=filter_location,
+        )
+        reddit_sent = reddit.run()
+        _reddit_dur = time.perf_counter() - _t_reddit
+        logger.info(f"[REDDIT] Done: {reddit_sent} stories sent in {_reddit_dur:.1f}s")
+        _record('Reddit (5 subs)', None, None, reddit_sent, _reddit_dur)
+    except Exception as e:
+        logger.error("[REDDIT] Failed: %s", e)
+        _record('Reddit (5 subs)', None, None, 0, time.perf_counter() - _t_reddit)
+
+    # ── Twitter/X Sources (20 accts + 9 settler terms) ────────────
+    logger.info("\n" + "=" * 60)
+    logger.info("[TWITTER] Starting Twitter/X ingestion (settler violence)...")
+    logger.info("=" * 60)
+    _t_twitter = time.perf_counter()
+    try:
+        twitter = TwitterAdapter(
+            accounts=SETTLER_VIOLENCE_TWITTER_ACCOUNTS,
+            search_terms=SETTLER_VIOLENCE_TWITTER_SEARCH_TERMS,
+            producer=producer, topic=topic, filter_fn=filter_location,
+        )
+        twitter_sent = twitter.run()
+        _twitter_dur = time.perf_counter() - _t_twitter
+        logger.info(f"[TWITTER] Done: {twitter_sent} stories sent in {_twitter_dur:.1f}s")
+        _record('Twitter/X (20 accts)', None, None, twitter_sent, _twitter_dur)
+    except Exception as e:
+        logger.error("[TWITTER] Failed: %s", e)
+        _record('Twitter/X (20 accts)', None, None, 0, time.perf_counter() - _t_twitter)
+
+    # ── Final benchmark table
+    _print_benchmark(_chrome_secs, time.perf_counter() - _t_total)
 
 finally:
     if driver:

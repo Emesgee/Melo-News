@@ -1,352 +1,254 @@
-import os
-import time
-import json
-import tempfile
-import hashlib
-import logging
-import pytest
+# app/test/test_kafka_producer.py
+"""
+Unit tests for the producer-side pipeline_task module.
+
+All external I/O (location detection, geocoding, Kafka, filesystem) is
+mocked so these tests run without spaCy, psycopg2, or a live Kafka broker.
+"""
+
 import sys
+import os
+import json
+import hashlib
 from datetime import datetime
+from unittest.mock import patch, MagicMock
 
-# Skip Kafka tests on Windows (only run in Docker)
-pytestmark = pytest.mark.skipif(
-    sys.platform == "win32",
-    reason="Kafka tests only run in Docker environment"
-)
+import pytest
 
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
-from confluent_kafka import Producer
-import spacy
-import requests
-import pandas as pd
+# Ensure the project root is on sys.path
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
 
-# -------------------------
-# Logging
-# -------------------------
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
-logging.basicConfig(level=LOG_LEVEL, format='%(asctime)s %(levelname)s %(message)s')
-logger = logging.getLogger("kafkaProducer")
-print(f"[LOGGING] Level set to: {LOG_LEVEL}")
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
-# -------------------------
-# Load spaCy model (optional; not critical)
-# -------------------------
-try:
-    nlp = spacy.load("en_core_web_sm")
-except Exception:
-    nlp = None
-print(f"[INFO] spaCy model loaded: {nlp is not None}")
+GEOCODE_RESULT_KHAN_YOUNIS = {"lat": 31.3452, "lon": 34.3043, "city": "khan younis", "district": "Khan Younis"}
+GEOCODE_RESULT_GAZA        = {"lat": 31.5000, "lon": 34.5000, "city": "Gaza",        "district": "Gaza"}
+GEOCODE_RESULT_NABLUS      = {"lat": 32.2211, "lon": 35.2544, "city": "nablus",      "district": "Nablus"}
 
-# -------------------------
-# Telegram URLs (can be configured via env var TELEGRAM_URLS as comma-separated list)
-# -------------------------
-# Focus on Gaza news
-topics = "gaza"
-telegram_urls = ['https://t.me/s/QudsNen?q=', 'https://t.me/s/eye_on_palestine/q=']
-telegram_urls = [u + topics.replace(' ', '+') for u in telegram_urls]
-print(f"[CONFIG] Telegram URLs to scrape: {telegram_urls}")
 
-SCRAPER_KEYWORDS = []
-SCRAPER_KEYWORDS.extend([k.strip().lower() for k in topics.split(',') if k.strip()])
-print(f"[CONFIG] Scraper keywords: {SCRAPER_KEYWORDS}")
+# ---------------------------------------------------------------------------
+# detect_and_geocode tests
+# ---------------------------------------------------------------------------
 
-# -------------------------
-# Load Palestinian towns from GeoJSON (has all locations)
-# -------------------------
-try:
-    from modules.geocoder import geojson_coords
-    all_villages = geojson_coords
-    all_cities = set()
-    logger.info(f"[CONFIG] Loaded {len(all_villages)} Palestinian towns from GeoJSON")
-    if len(all_villages) > 0:
-        sample = list(all_villages.keys())[:5]
-        logger.info(f"[CONFIG] Sample towns: {sample}")
-except ImportError as import_err:
-    logger.warning(f"Could not load GeoJSON locations: {import_err}, using CSV fallback")
-    all_villages = {}
-    all_cities = set()
+class TestDetectAndGeocode:
 
-# -------------------------
-# Location filter
-# -------------------------
-def filter_location(text):
-    if not text:
-        return None, None
-    text_lower = text.lower()
-    # Exact token match
-    for word in set(text_lower.replace('\n', ' ').replace('\t', ' ').split()):     
-        if word in all_villages:
-            # all_villages now contains dicts, extract the town name
-            town_name = word if isinstance(all_villages[word], dict) else all_villages[word]
-            return town_name, town_name
-    # Substring fallbacks (for multi-word towns)
-    for village_lc in all_villages.keys():
-        if village_lc and village_lc in text_lower:
-            return village_lc, village_lc
-    # Cities placeholder
-    for city in all_cities:
-        if city in text_lower:
-            return city, city
-    return None, None
-
-# -------------------------
-# Parsing helpers
-# -------------------------
-def parse_time(element):
-    try:
-        time_element = element.find_element(By.XPATH, './/span[@class="tgme_widget_message_meta"]/a/time')
-        time_text = time_element.get_attribute('datetime')
-        if time_text:
-            logger.debug(f"[DEBUG] Parsed time text: {time_text}")
-            return datetime.fromisoformat(time_text.replace('Z', '+00:00'))        
-    except:
-        return None
-
-def parse_views(element):
-    try:
-        views_element = element.find_element(By.XPATH, './/span[@class="tgme_widget_message_views"]')
-        views_text = views_element.text
-        return parse_views_text(views_text) if views_text else None
-    except:
-        return None
-
-def parse_views_text(views_text):
-    try:
-        if 'K' in views_text:
-            return int(float(views_text.replace('K','').replace(' views','').replace(',','')) * 1000)
-        elif 'M' in views_text:
-            return int(float(views_text.replace('M','').replace(' views','').replace(',','')) * 1000000)
-        else:
-            return int(views_text.replace(' views','').replace(',',''))
-    except:
-        return None
-
-def extract_video_links(element):
-    links = []
-    try:
-        for video in element.find_elements(By.XPATH, './/video'):
-            src = video.get_attribute('src')
-            if src:
-                links.append(src)
-    except:
-        pass
-    return links
-
-def extract_video_durations(element, class_name='message_video_duration'):
-    durations = []
-    try:
-        for d in element.find_elements(By.CLASS_NAME, class_name):
-            txt = d.text.strip()
-            if txt:
-                durations.append(txt)
-    except:
-        pass
-    return durations
-
-def extract_image_links(element):
-    links = []
-    try:
-        # Video thumbnails
-        for i in element.find_elements(By.XPATH, './/i[contains(@class,"tgme_widget_message_video_thumb")]'):
-            style = i.get_attribute("style")
-            if style and "url(" in style:
-                url = style.split("url(")[-1].split(")")[0].strip("'\"")
-                links.append(url)
-
-        # Any other images (<img>) for completeness
-        for img in element.find_elements(By.XPATH, './/img'):
-            src = img.get_attribute('src')
-            if src:
-                links.append(src)
-
-    except Exception as e:
-        logger.debug("Image extraction error: %s", e)
-
-    return list(set(links))
-
-def extract_message_text(element):
-    try:
-        return element.find_element(By.CLASS_NAME, 'tgme_widget_message_text').text    
-    except:
-        return ""
-
-# -------------------------
-# Main scraper
-# -------------------------
-driver = None
-producer = None
-
-try:
-    # Chrome setup
-    options = webdriver.ChromeOptions()
-    options.add_argument("--start-maximized")
-    options.add_argument("--headless=new")
-    options.add_argument(f"--user-data-dir={tempfile.mkdtemp()}")
-    options.add_argument("--disable-gcm")
-    options.add_argument("--disable-notifications")
-    options.add_argument("--disable-background-networking")
-    options.add_argument("--disable-sync")
-    options.add_argument("--no-first-run")
-    options.add_argument("--disable-extensions")
-    options.add_argument("--disable-component-update")
-    options.add_argument("--disable-background-timer-throttling")
-    options.add_argument("--disable-infobars")
-    options.add_argument("--disable-popup-blocking")
-    options.add_argument("--disable-blink-features=AutomationControlled")
-    options.add_experimental_option("excludeSwitches", ["enable-automation"])      
-    options.add_experimental_option('useAutomationExtension', False)
-
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-    driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
-        "source": "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
-    })
-
-    # Kafka
-    bootstrap_servers = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092')     
-    topic = os.getenv('KAFKA_TOPIC', 'eyesonpalestine')
-    producer = Producer({'bootstrap.servers': bootstrap_servers})
-    logger.info(f"Kafka producer connected to {bootstrap_servers}, topic: {topic}")
-    
-    MAX_MESSAGES_PER_URL = 20  # Limit messages per URL
-    
-    for url in telegram_urls:
-        try:
-            driver.get(url)
-            elements = WebDriverWait(driver, 30).until(
-                EC.presence_of_all_elements_located((By.CLASS_NAME, 'tgme_widget_message_bubble'))
+    def test_fast_path_all_data_present(self):
+        """When city + lat/lon are all provided they are returned as-is."""
+        from modules.pipeline_task import detect_and_geocode
+        with patch("modules.pipeline_task._get_geocoder") as mock_gc:
+            city, lat, lon = detect_and_geocode(
+                "some text", matched_city="Gaza", lat=31.5, lon=34.5
             )
+        assert city == "Gaza"
+        assert lat  == 31.5
+        assert lon  == 34.5
+        # geocode should NOT be called — we already have everything
+        mock_gc.assert_not_called()
 
-            # Chunked scrolling - increased to find more messages
-            for _ in range(10):
-                driver.execute_script("window.scrollBy(0, 1000)")
-                time.sleep(0.5)
+    def test_geocodes_when_city_known_but_no_coords(self):
+        """When city is known but lat/lon are None, geocode_city is called."""
+        from modules.pipeline_task import detect_and_geocode
+        with patch("modules.pipeline_task._get_geocoder", return_value=lambda c: GEOCODE_RESULT_KHAN_YOUNIS):
+            city, lat, lon = detect_and_geocode("some text", matched_city="Khan Younis")
+        assert city == "Khan Younis"
+        assert lat  == pytest.approx(31.3452)
+        assert lon  == pytest.approx(34.3043)
 
-            elements = driver.find_elements(By.CLASS_NAME, 'tgme_widget_message_bubble')
-            messages_sent = 0
-            messages_found = len(elements)
-            messages_filtered = 0
+    def test_detects_from_text_when_no_city(self):
+        """When no city is provided, detect_palestine_location is called on the text."""
+        from modules.pipeline_task import detect_and_geocode
+        fake_detection = {"village": "nablus", "city": "nablus"}
+        with patch("modules.pipeline_task._get_detector", return_value=lambda t: fake_detection), \
+             patch("modules.pipeline_task._get_geocoder", return_value=lambda c: GEOCODE_RESULT_NABLUS):
+            city, lat, lon = detect_and_geocode("Clashes near nablus this morning")
+        assert city == "nablus"
+        assert lat  == pytest.approx(32.2211)
+        assert lon  == pytest.approx(35.2544)
 
-            logger.info(f"Found {messages_found} total messages on page")
+    def test_returns_city_even_if_geocode_fails(self):
+        """When location is detected but geocoding fails, city is returned with None coords."""
+        from modules.pipeline_task import detect_and_geocode
+        fake_detection = {"village": "unknownplace"}
+        with patch("modules.pipeline_task._get_detector", return_value=lambda t: fake_detection), \
+             patch("modules.pipeline_task._get_geocoder", return_value=lambda c: None):
+            city, lat, lon = detect_and_geocode("Incident near unknownplace")
+        assert city == "unknownplace"
+        assert lat  is None
+        assert lon  is None
 
-            for element in elements:
-                # Stop if we've reached message limit
-                if messages_sent >= MAX_MESSAGES_PER_URL:
-                    logger.info(f"Reached message limit ({MAX_MESSAGES_PER_URL}) for {url}, stopping")
-                    break
-                
-                try:
-                    driver.execute_script("arguments[0].scrollIntoView(true);", element)
-                    time.sleep(0.5)
-                except:
-                    pass
+    def test_returns_none_when_nothing_found(self):
+        """When text has no detectable location, all three returned values reflect input."""
+        from modules.pipeline_task import detect_and_geocode
+        with patch("modules.pipeline_task._get_detector", return_value=lambda t: None), \
+             patch("modules.pipeline_task._get_geocoder", return_value=lambda c: None):
+            city, lat, lon = detect_and_geocode("No location here at all")
+        assert city is None
+        assert lat  is None
+        assert lon  is None
 
-                text = extract_message_text(element)
 
-                # Debug: log first few messages to see what content we're getting  
-                if messages_sent + messages_filtered < 3:
-                    logger.info(f"Message sample: {text[:200]}...")
+# ---------------------------------------------------------------------------
+# build_kafka_row tests
+# ---------------------------------------------------------------------------
 
-                # Extract location - must have Palestinian location to proceed     
-                village_or_city, city_result = filter_location(text)
-                if not village_or_city:
-                    messages_filtered += 1
-                    logger.debug(f"Filtered out (no Palestinian location): {text[:80]}...")
-                    continue
+# Fake subject filter that always classifies as relevant (for testing)
+_ALWAYS_RELEVANT = {
+    'is_relevant': True,
+    'relevance_score': 0.8,
+    'matched_keywords': ['settler violence'],
+    'method': 'keyword',
+}
 
-                msg_time = parse_time(element)
-                views = parse_views(element)
-                videos = extract_video_links(element)
-                durations = extract_video_durations(element)
-                images = extract_image_links(element)
 
-                lat, lon = None, None
-                if village_or_city:
-                    try:
-                        key = f"{village_or_city}, Palestine".lower()
-                        # Simple geocode cache (in-memory for this run)
-                        if not hasattr(filter_location, "_geo_cache"):
-                            filter_location._geo_cache = {}
-                            # Try loading from disk
-                            try:
-                                with open('geocode_cache.json', 'r', encoding='utf-8') as cf:
-                                    filter_location._geo_cache.update(json.load(cf))
-                            except Exception:
-                                pass
+class TestBuildKafkaRow:
 
-                        cache = filter_location._geo_cache
-                        if key in cache:
-                            lat, lon = cache[key]
-                        else:
-                            resp = requests.get(
-                                "https://nominatim.openstreetmap.org/search",      
-                                params={"q": key, "format": "json", "limit": 1},   
-                                headers={"User-Agent": "Mozilla/5.0 (Melo-News scraper)"},
-                                timeout=15,
-                            )
-                            if resp.status_code == 200:
-                                data = resp.json()
-                                if data:
-                                    lat, lon = float(data[0]["lat"]), float(data[0]["lon"])
-                                    cache[key] = [lat, lon]
-                                    try:
-                                        with open('geocode_cache.json', 'w', encoding='utf-8') as cf:
-                                            json.dump(cache, cf)
-                                    except Exception as werr:
-                                        logger.debug("Failed writing geocode cache: %s", werr)
-                            time.sleep(1)
-                    except Exception as gerr:
-                        logger.debug("Geocoding error: %s", gerr)
+    def _patched_row(self, raw_data, geocode_result=None, detect_result=None):
+        """Helper: call build_kafka_row with mocked location + subject filter modules."""
+        from modules.pipeline_task import build_kafka_row
+        with patch("modules.pipeline_task._get_geocoder",
+                   return_value=lambda c: geocode_result), \
+             patch("modules.pipeline_task._get_detector",
+                   return_value=lambda t: detect_result), \
+             patch("modules.pipeline_task._get_subject_filter",
+                   return_value=lambda t: _ALWAYS_RELEVANT):
+            return build_kafka_row(raw_data)
 
-                # Build a stable id to reduce duplicates
-                base_id = f"{msg_time.isoformat() if msg_time else ''}|{text[:120] if text else ''}"
-                msg_id = hashlib.sha256(base_id.encode('utf-8')).hexdigest()
+    def test_all_required_fields_present(self):
+        """build_kafka_row returns all expected keys."""
+        row = self._patched_row(
+            {"message": "Attack in Gaza", "matched_city": "Gaza", "lat": 31.5, "lon": 34.5}
+        )
+        required = {"id", "time", "total_views", "message", "video_links",
+                    "video_durations", "image_links", "subject", "tags",
+                    "source", "relevance_score", "matched_city", "city_result", "lat", "lon"}
+        assert required.issubset(set(row.keys()))
 
-                row = {
-                    'id': msg_id,
-                    'time': msg_time.isoformat() if msg_time else None,
-                    'total_views': views,
-                    'message': text,
-                    'video_links': '|'.join(videos),
-                    'video_durations': '|'.join(durations),
-                    'image_links': '|'.join(images),
-                    'subject': None,
-                    'matched_city': village_or_city,
-                    'city_result': city_result,
-                    'lat': lat,
-                    'lon': lon
-                }
+    def test_location_populated_from_geocoding(self):
+        """Location fields are filled when city is given but coords are absent."""
+        row = self._patched_row(
+            {"message": "Clashes in Khan Younis", "matched_city": "Khan Younis"},
+            geocode_result=GEOCODE_RESULT_KHAN_YOUNIS,
+        )
+        assert row["matched_city"] == "Khan Younis"
+        assert row["lat"]          == pytest.approx(31.3452)
+        assert row["lon"]          == pytest.approx(34.3043)
 
-                try:
-                    producer.produce(topic, value=json.dumps(row).encode('utf-8'))
-                    producer.poll(0)
-                    messages_sent += 1
-                    logger.info(f"Sent to Kafka: {village_or_city} | {text[:50]}...")
-                except Exception as e:
-                    logger.error("Kafka error: %s", e)
+    def test_metadata_passthrough(self):
+        """tags, source from raw_data survive into the row; subject is always 'settler_violence'."""
+        raw = {
+            "message":      "Report from Al Jazeera",
+            "matched_city": "Gaza",
+            "lat":          31.5,
+            "lon":          34.5,
+            "tags":         "rss, Al Jazeera Middle East",
+            "subject":      "Breaking: airstrike reported",
+            "source":       "rss",
+        }
+        row = self._patched_row(raw)
+        # tags get appended with matched keywords from subject filter
+        assert "rss, Al Jazeera Middle East" in row["tags"]
+        assert row["subject"] == "settler_violence"
+        assert row["source"]  == "rss"
 
-                with open('output.json', 'a', encoding='utf-8') as f:
-                    f.write(json.dumps(row) + '\n')
+    def test_dedup_id_is_stable(self):
+        """Same message+time input always produces the same id."""
+        raw = {"message": "Incident in Ramallah", "time": "2024-03-01T10:00:00"}
+        row1 = self._patched_row(raw)
+        row2 = self._patched_row(raw)
+        assert row1["id"] == row2["id"]
 
-            logger.info(f"Scraped {url}:")
-            logger.info(f"  Total messages found: {messages_found}")
-            logger.info(f"  Filtered out (no Palestinian location): {messages_filtered}")
-            logger.info(f"  Sent to Kafka: {messages_sent}")
+    def test_explicit_id_not_overwritten(self):
+        """If raw_data already contains an id, it is kept."""
+        raw = {"message": "Test", "id": "my-custom-id", "lat": 31.5, "lon": 34.5, "matched_city": "Gaza"}
+        row = self._patched_row(raw)
+        assert row["id"] == "my-custom-id"
 
-        except Exception as e:
-            logger.error("Error scraping %s: %s", url, e)
+    def test_message_truncated_to_500_chars(self):
+        """Messages longer than 500 chars are truncated."""
+        long_msg = "x" * 600
+        row = self._patched_row({"message": long_msg, "matched_city": "Gaza", "lat": 31.5, "lon": 34.5})
+        assert len(row["message"]) == 500
 
-    producer.flush()
-    logger.info("All messages flushed to Kafka")
-    
-    # EXIT after producing all messages
-    logger.info("Producer finished. Exiting.")
-      # ← ADD THIS LINE
+    def test_pipe_str_video_links(self):
+        """video_links list is joined with pipes."""
+        raw = {
+            "message":      "Video footage",
+            "matched_city": "Gaza",
+            "lat":          31.5,
+            "lon":          34.5,
+            "video_links":  ["http://cdn.example/a.mp4", "http://cdn.example/b.mp4"],
+        }
+        row = self._patched_row(raw)
+        assert row["video_links"] == "http://cdn.example/a.mp4|http://cdn.example/b.mp4"
 
-finally:
-    if driver:
-        driver.quit()
+    def test_city_result_falls_back_to_matched_city(self):
+        """city_result uses matched_city when not explicitly provided."""
+        raw = {"message": "News", "matched_city": "Hebron", "lat": 31.5, "lon": 34.5}
+        row = self._patched_row(raw)
+        assert row["city_result"] == "Hebron"
+
+    def test_datetime_time_serialised_to_iso(self):
+        """datetime objects in 'time' field are converted to ISO strings."""
+        dt = datetime(2024, 3, 15, 12, 30, 0)
+        raw = {"message": "News", "time": dt, "matched_city": "Gaza", "lat": 31.5, "lon": 34.5}
+        row = self._patched_row(raw)
+        assert row["time"] == "2024-03-15T12:30:00"
+
+    def test_detect_and_geocode_called_for_missing_city(self):
+        """When no city is in raw_data, text detection is attempted."""
+        detect_result  = {"village": "ramallah"}
+        geocode_result = {"lat": 31.9, "lon": 35.2, "city": "ramallah", "district": "Ramallah"}
+        raw = {"message": "Protests erupted in Ramallah today"}
+        row = self._patched_row(raw, geocode_result=geocode_result, detect_result=detect_result)
+        assert row["matched_city"] == "ramallah"
+        assert row["lat"] is not None
+
+
+# ---------------------------------------------------------------------------
+# filter_location helper (mirrors producer logic)
+# ---------------------------------------------------------------------------
+
+class TestFilterLocation:
+    """Test the exact/substring location matching logic used in kafkaProducer."""
+
+    def _make_filter(self, geojson_coords):
+        def filter_location(text):
+            if not text:
+                return None, None
+            text_lower = text.lower()
+            for word in set(text_lower.replace('\n', ' ').replace('\t', ' ').split()):
+                if word in geojson_coords:
+                    return word, word
+            for village_lc in geojson_coords:
+                if village_lc and village_lc in text_lower:
+                    return village_lc, village_lc
+            return None, None
+        return filter_location
+
+    def test_exact_token_match(self):
+        coords = {"gaza": {}, "nablus": {}, "hebron": {}}
+        fl = self._make_filter(coords)
+        city, result = fl("Heavy fire reported in Gaza today")
+        assert city == "gaza"
+
+    def test_multiword_substring_match(self):
+        coords = {"khan younis": {}, "west bank": {}}
+        fl = self._make_filter(coords)
+        city, result = fl("Strikes hit Khan Younis")
+        assert city == "khan younis"
+
+    def test_no_match_returns_none(self):
+        coords = {"gaza": {}, "nablus": {}}
+        fl = self._make_filter(coords)
+        city, result = fl("Nothing relevant here")
+        assert city is None
+        assert result is None
+
+    def test_empty_text_returns_none(self):
+        coords = {"gaza": {}}
+        fl = self._make_filter(coords)
+        city, result = fl("")
+        assert city is None

@@ -1,56 +1,82 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
+import React, { Suspense, useEffect, useRef } from 'react';
+import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
 
 import Home from './pages/Home';
-import Register from './pages/Register';
-import Login from './pages/Login';
-import FileUpload from './pages/UploadForm';
-import Intro from './pages/Intro';
-import ProfileTest from './pages/Profile';
-import Search from './components/search_bar/Search';
+import Search from './components/searchBar/Search';
 import PrivateRoute from './components/PrivateRoute';
-import MapArea from './components/letleaf_map/MapArea';
-import MeloSummary from './components/letleaf_map/MeloSummary';
+import ErrorBoundary from './components/ErrorBoundary';
+import Toast from './components/Toast';
+import MapArea from './components/leafletMap/MapArea';
+import MeloSummary from './components/leafletMap/MeloSummary';
+import PulseFeed from './components/pulseFeed/PulseFeed';
+import IntelSidebar from './components/intelligence/IntelSidebar';
+import LoadingScreen from './components/LoadingScreen';
+import { DarkModeProvider, useDarkMode } from './utils/DarkModeContext';
+import { AuthProvider, useAuth } from './utils/AuthContext';
+import { ToastProvider, useToast } from './utils/ToastContext';
+import { SearchProvider, useSearch } from './utils/SearchContext';
+import { setupInterceptors } from './services/apiInterceptors';
 import './App.css';
-import { dedupeStories } from './utils/storyUtils';
+
+// Lazy-loaded routes
+const Register = React.lazy(() => import('./pages/Register'));
+const Login = React.lazy(() => import('./pages/Login'));
+const FileUpload = React.lazy(() => import('./pages/UploadForm'));
+const Intro = React.lazy(() => import('./pages/Intro'));
+const ProfileTest = React.lazy(() => import('./pages/Profile'));
+const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
 
 function App({ isLoggedIn: isLoggedInProp }) {
   return (
-    <Router>
-      <AppContent isLoggedInProp={isLoggedInProp} />
-    </Router>
+    <ErrorBoundary>
+      <ToastProvider>
+        <AuthProvider initialLoggedIn={isLoggedInProp}>
+          <SearchProvider>
+            <DarkModeProvider>
+              <Router>
+                <AppContent />
+                <Toast />
+              </Router>
+            </DarkModeProvider>
+          </SearchProvider>
+        </AuthProvider>
+      </ToastProvider>
+    </ErrorBoundary>
   );
 }
 
-const AppContent = ({ isLoggedInProp }) => {
-  const [searchResults, setSearchResults] = React.useState([]);
+const AppContent = () => {
+  const { addToast } = useToast();
+  const interceptorsSetup = useRef(false);
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
-  const [isLoggedIn, setIsLoggedIn] = React.useState(
-    typeof isLoggedInProp === 'boolean'
-      ? isLoggedInProp
-      : !!localStorage.getItem('token')
-  );
   const [showMeloSummary, setShowMeloSummary] = React.useState(false);
   const [searchOpen, setSearchOpen] = React.useState(false);
+  const [showPulseFeed, setShowPulseFeed] = React.useState(false);
+  const [showIntelPanel, setShowIntelPanel] = React.useState(false);
+  const { isDark, toggle: toggleDark } = useDarkMode();
+  const { isLoggedIn, authLoading, logout } = useAuth();
+  const { searchResults } = useSearch();
   const navigate = useNavigate();
+  const location = useLocation();
+  const mainRef = useRef(null);
 
-  const handleTopbarSearchResult = React.useCallback((results = []) => {
-    setSearchResults(dedupeStories(Array.isArray(results) ? results : []));
-  }, []);
+  // Setup API interceptors once (toast + retry + auth expiry)
+  useEffect(() => {
+    if (interceptorsSetup.current) return;
+    interceptorsSetup.current = true;
+    setupInterceptors(addToast, () => {
+      logout();
+      navigate('/login');
+    });
+  }, [addToast, logout, navigate]);
 
-  // Check login status on mount and when token changes
-  React.useEffect(() => {
-    const checkLoginStatus = () => {
-      setIsLoggedIn(!!localStorage.getItem('token'));
-    };
+  // Focus management: move focus to main content on route change
+  useEffect(() => {
+    mainRef.current?.focus({ preventScroll: true });
+  }, [location.pathname]);
 
-    window.addEventListener('storage', checkLoginStatus);
-    return () => window.removeEventListener('storage', checkLoginStatus);
-  }, []);
-
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    setIsLoggedIn(false);
+  const handleLogout = async () => {
+    await logout();
     navigate('/login');
   };
 
@@ -62,8 +88,17 @@ const AppContent = ({ isLoggedInProp }) => {
     }
   };
 
+  if (authLoading) {
+    return <LoadingScreen />;
+  }
+
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${isDark ? 'dark-mode' : ''}`}>
+      {/* Skip-nav link for keyboard accessibility */}
+      <a href="#main-content" className="skip-nav">
+        Skip to main content
+      </a>
+
       {/* Fixed Top Bar with Search and Menu */}
       <header className="topbar-fixed">
         <button 
@@ -88,9 +123,53 @@ const AppContent = ({ isLoggedInProp }) => {
             <path d="m21 21-4.35-4.35" />
           </svg>
         </button>
+
+        {/* Search bar - positioned between menu and action buttons */}
+        <div className="search-topbar-container" style={{ display: searchOpen ? 'flex' : 'none', flex: 1, minWidth: 0 }}>
+          <Search showAsTopbar={true} />
+        </div>
         
         {/* Right side action buttons */}
-        <div className="topbar-actions" style={{position: 'absolute', right: '0.5rem', display: 'flex', gap: '0.5rem'}}>
+        <div className="topbar-actions">
+          {/* Pulse Feed toggle */}
+          <button
+            className={`topbar-action-btn pulse-btn ${showPulseFeed ? 'active' : ''}`}
+            onClick={() => setShowPulseFeed(!showPulseFeed)}
+            title="Pulse Feed"
+            aria-label="Toggle Pulse Feed"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+            </svg>
+          </button>
+
+          {/* Intelligence Panel toggle */}
+          <button
+            className={`topbar-action-btn intel-btn ${showIntelPanel ? 'active' : ''}`}
+            onClick={() => setShowIntelPanel(!showIntelPanel)}
+            title="Intelligence Panel"
+            aria-label="Toggle Intelligence Panel"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 20V10" /><path d="M12 20V4" /><path d="M6 20v-6" />
+            </svg>
+          </button>
+
+          {/* Dark mode toggle */}
+          <button
+            className="topbar-action-btn dark-btn"
+            onClick={toggleDark}
+            title={isDark ? 'Light Mode' : 'Dark Mode'}
+            aria-label="Toggle Dark Mode"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              {isDark
+                ? <circle cx="12" cy="12" r="5" />
+                : <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              }
+            </svg>
+          </button>
+
           <button 
             className="topbar-action-btn summary-btn"
             onClick={() => setShowMeloSummary(true)}
@@ -141,8 +220,6 @@ const AppContent = ({ isLoggedInProp }) => {
           </button>
         </div>
 
-        {searchOpen && <Search onSearchResult={handleTopbarSearchResult} showAsTopbar={true} />}
-
         <nav className={`topbar-nav ${sidebarOpen ? 'open' : ''}`}>
           <Link to="/" className="nav-link">Home</Link>
           <Link to="/upload" className="nav-link">Upload</Link>
@@ -152,13 +229,22 @@ const AppContent = ({ isLoggedInProp }) => {
         </nav>
       </header>
 
+      {/* Pulse Feed Panel (left side) */}
+      {showPulseFeed && (
+        <div className="pulse-feed-panel">
+          <PulseFeed onStoryClick={(story) => { /* TODO: handle story click */ }} />
+        </div>
+      )}
+
+      {/* Intelligence Panel (right side) */}
+      <IntelSidebar isOpen={showIntelPanel} onClose={() => setShowIntelPanel(false)} />
+
       {/* Main content */}
-      <main className="main">
+      <main id="main-content" className="main" ref={mainRef} tabIndex={-1}>
         {/* Melo Summary Modal */}
         {showMeloSummary && (
-          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999 }}>
+          <div className="melo-summary-overlay">
             <MeloSummary 
-              searchResults={searchResults}
               onClose={() => setShowMeloSummary(false)}
               initialOpen={true}
             />
@@ -166,16 +252,17 @@ const AppContent = ({ isLoggedInProp }) => {
         )}
 
         <Routes>
-          <Route path="/" element={<Home searchResults={searchResults} onSearchResult={handleTopbarSearchResult} />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/login" element={<Login onLoginSuccess={() => setIsLoggedIn(true)} />} />
-          <Route path="/intro" element={<Intro />} />
-          <Route path="/search" element={<Search onSearchResult={handleTopbarSearchResult} />} />
+          <Route path="/" element={<Home />} />
+          <Route path="/register" element={<Suspense fallback={null}><Register /></Suspense>} />
+          <Route path="/login" element={<Suspense fallback={null}><Login /></Suspense>} />
+          <Route path="/search" element={<Search />} />
           <Route path="/map" element={<MapArea />} />
 
           <Route element={<PrivateRoute />}>
-            <Route path="/profile" element={<ProfileTest />} />
-            <Route path="/upload" element={<FileUpload />} />
+            <Route path="/intro" element={<Suspense fallback={null}><Intro /></Suspense>} />
+            <Route path="/profile" element={<Suspense fallback={null}><ProfileTest /></Suspense>} />
+            <Route path="/upload" element={<Suspense fallback={null}><FileUpload /></Suspense>} />
+            <Route path="/admin" element={<Suspense fallback={null}><AdminDashboard /></Suspense>} />
           </Route>
         </Routes>
       </main>

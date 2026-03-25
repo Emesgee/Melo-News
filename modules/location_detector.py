@@ -1,23 +1,19 @@
 import json
+import logging
 import spacy
 from modules.geocoder import load_geojson_coordinates, geocode_with_fuzzy
+from modules.constants import GENERIC_LOCATIONS
+
+logger = logging.getLogger(__name__)
 
 try:
     nlp = spacy.load("en_core_web_sm")
 except OSError:
-    print("[WARNING] spacy model not found. Run: python -m spacy download en_core_web_sm")
+    logger.warning("spacy model not found. Run: python -m spacy download en_core_web_sm")
     nlp = None
 
 # Load Palestinian locations from GeoJSON on startup
 geojson_coords = load_geojson_coordinates()
-
-# Generic locations fallback (for broad area references) - with high precision (5+ decimals)
-GENERIC_LOCATIONS = {
-    'gaza': {'lat': 31.50000, 'lon': 34.50000, 'name': 'Gaza'},
-    'gaza strip': {'lat': 31.50000, 'lon': 34.50000, 'name': 'Gaza'},
-    'west bank': {'lat': 31.95000, 'lon': 35.20000, 'name': 'West Bank'},
-    'occupied territories': {'lat': 31.95000, 'lon': 35.00000, 'name': 'Occupied Territories'},
-}
 
 def detect_location_with_thaura(text: str):
     """Use Thaura AI to extract location from text"""
@@ -86,7 +82,7 @@ Answer:"""
             if attempt < 1:
                 continue
         except Exception as e:
-            print(f"[THAURA ERROR] {e}")
+            logger.error("Thaura error: %s", e)
             return None
     
 def detect_palestine_location(text: str):
@@ -99,13 +95,13 @@ def detect_palestine_location(text: str):
     # Level 1: Try exact word-by-word match in GeoJSON
     for location in geojson_coords.keys():
         if location in text_lower:
-            print(f"[LOCATION EXACT MATCH] {location}")
+            logger.info("Exact location match: %s", location)
             return {"village": location, "city": location}
     
     # Level 2: Try generic locations (Gaza, West Bank, etc.)
     for generic_name, generic_data in GENERIC_LOCATIONS.items():
         if generic_name in text_lower:
-            print(f"[LOCATION GENERIC] {generic_data['name']}")
+            logger.info("Generic location match: %s", generic_data['name'])
             return {"village": generic_data['name'], "city": generic_data['name']}
     
     # Level 3: Try spaCy NER to extract location words
@@ -117,16 +113,16 @@ def detect_palestine_location(text: str):
             # Check each entity against GeoJSON
             for entity in location_entities:
                 if entity in geojson_coords:
-                    print(f"[LOCATION spaCy] {entity}")
+                    logger.info("spaCy location match: %s", entity)
                     return {"village": entity, "city": entity}
         except Exception as e:
-            print(f"[spaCy ERROR] {e}")
+            logger.error("spaCy error: %s", e)
     
     # Level 4: Try Fuzzy Matching
     location_name, lat, lon = geocode_with_fuzzy(text)
     if location_name:
-        print(f"[LOCATION FUZZY MATCH] {location_name}")
+        logger.info("Fuzzy location match: %s", location_name)
         return {"village": location_name, "city": location_name}
     
-    print("[LOCATION] Not detected")
+    logger.debug("No location detected in text")
     return None

@@ -11,6 +11,10 @@ from azure.core.exceptions import ResourceExistsError
 from datetime import datetime
 from urllib.parse import urlparse, unquote
 
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from modules.subject_filter import classify_settler_violence
+
 # -------------------------
 # Load environment variables
 # -------------------------
@@ -54,12 +58,12 @@ WHERE message = %(message)s
 insert_query = """
 INSERT INTO telegram (
     time, total_views, message, video_links, video_durations, image_links,
-    tags, subject, matched_city, city_result, lat, lon
+    tags, subject, matched_city, city_result, lat, lon, relevance_score
 )
 VALUES (
     %(time)s, %(total_views)s, %(message)s, %(video_links)s, %(video_durations)s,
     %(image_links)s, %(tags)s, %(subject)s, %(matched_city)s, %(city_result)s,
-    %(lat)s, %(lon)s
+    %(lat)s, %(lon)s, %(relevance_score)s
 );
 """
 
@@ -555,6 +559,20 @@ try:
 
         text = message_data.get("message", "")  # Full message text for location detection
 
+        # ── Relevance gate: only insert settler-violence stories ──
+        subject = message_data.get("subject")
+        relevance_score = message_data.get("relevance_score", 0.0)
+
+        if subject != 'settler_violence' and relevance_score < 0.5:
+            # Producer didn't classify — run subject filter on consumer side
+            classification = classify_settler_violence(text)
+            if not classification['is_relevant']:
+                print(f"[FILTER] ⛔ Off-topic — skipping message #{message_counter}: {text[:80]}...")
+                continue
+            subject = 'settler_violence'
+            relevance_score = classification['relevance_score']
+            print(f"[FILTER] ✅ Consumer-side classified as settler_violence (score={relevance_score:.2f})")
+
         # Get location data from message or detect it
         matched_city = message_data.get("matched_city")
         city_result = message_data.get("city_result")
@@ -643,12 +661,13 @@ try:
             "video_links": json.dumps(video_urls) if video_urls else None,  # JSON array
             "video_durations": message_data.get("video_durations", "")[:250],
             "image_links": json.dumps(image_urls) if image_urls else None,  # JSON array
-            "tags": None,
-            "subject": None,
+            "tags": message_data.get("tags"),
+            "subject": subject or 'settler_violence',
             "matched_city": matched_city_text,
             "city_result": city_result_text,  # String column
             "lat": lat,
             "lon": lon,
+            "relevance_score": relevance_score,
         }
 
         try:

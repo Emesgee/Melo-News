@@ -42,6 +42,7 @@ class TestKafkaPipelineShutdown:
         """Test stop_pipeline terminates producer"""
         pipeline = KafkaPipeline()
         mock_producer = MagicMock()
+        mock_producer.poll.return_value = None  # Simulate running process
         pipeline.producer_process = mock_producer
         pipeline.stop_pipeline()
         mock_producer.terminate.assert_called_once()
@@ -50,6 +51,7 @@ class TestKafkaPipelineShutdown:
         """Test stop_pipeline terminates consumer"""
         pipeline = KafkaPipeline()
         mock_consumer = MagicMock()
+        mock_consumer.poll.return_value = None  # Simulate running process
         pipeline.consumer_process = mock_consumer
         pipeline.stop_pipeline()
         mock_consumer.terminate.assert_called_once()

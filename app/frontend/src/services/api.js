@@ -1,91 +1,98 @@
-// filepath: [api.js](http://_vscodecontentref_/13)
 import axios from 'axios';
 
 // Use relative /api path so all requests go through Nginx proxy
-const envApiUrl = process.env.REACT_APP_API_URL;
-const API_URL = envApiUrl || '/api';
+const API_URL = process.env.REACT_APP_API_URL || '/api';
 
-console.log('API_URL:', API_URL);
-
-// Axios instance with base URL and default headers
+// Axios instance — cookies are sent automatically via withCredentials
 export const api = axios.create({
   baseURL: API_URL,
   headers: {
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
+    'X-Requested-With': 'XMLHttpRequest',  // CSRF protection: server can reject non-XHR requests
   },
-  withCredentials: true
+  withCredentials: true,
 });
 
-// Set Authorization token from localStorage if available
-export const setAuthToken = () => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-  } else {
-    delete api.defaults.headers.common['Authorization'];
-  }
-};
-
-// Ensure Authorization token is applied
-const ensureAuthToken = () => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-  }
-};
 
 // User Registration
 export const registerUser = async (userData) => {
-  try {
-    return await api.post('/auth/register', userData);
-  } catch (error) {
-    console.error("Registration Failed:", error);
-    throw error;
-  }
+  return api.post('auth/register', userData);
 };
 
-// User Login
+// User Login (server sets httpOnly cookie)
 export const loginUser = async (credentials) => {
-  try {
-    return await api.post('/auth/login', credentials);
-  } catch (error) {
-    console.error("Login Failed:", error);
-    throw error;
-  }
+  return api.post('auth/login', credentials);
+};
+
+// User Logout (server clears httpOnly cookie)
+export const logoutUser = async () => {
+  return api.post('auth/logout');
+};
+
+// Check current auth status via cookie
+export const checkAuth = async () => {
+  return api.get('auth/me');
 };
 
 // Get Profile Data
-export const ProfileData = async () => {
-  ensureAuthToken();
-  try {
-    return await api.get('/profile', {
-      params: {
-        userData: 'name'
-      }
-    });
-  } catch (error) {
-    console.error("Failed to Fetch Profile Data:", error);
-    throw error;
-  }
+export const getProfileData = async () => {
+  return api.get('profile', { params: { userData: 'name' } });
 };
+
+/** @deprecated Use getProfileData instead */
+export const ProfileData = getProfileData;
 
 // Fetch Available File Types
 export const fetchFileTypes = async () => {
-  ensureAuthToken();
-  try {
-    return await api.get('/file-types/');
-  } catch (error) {
-    console.error("Failed to Fetch File Types:", error);
-    throw error;
-  }
+  return api.get('file-types/');
 };
 
 // Test API URL for connectivity
 export const testApiUrl = async () => {
+  return api.get('test');
+};
+
+// --- Analytics APIs (Conflictly benchmark features) ---
+
+// Escalation indicators (P0-4)
+export const getEscalation = async (hours = 24) => {
+  return api.get('analytics/escalation', { params: { hours } });
+};
+
+// Trending keywords (P1-5)
+export const getTrending = async (hours = 24, limit = 10) => {
+  return api.get('analytics/trending', { params: { hours, limit } });
+};
+
+// Global tension index (P1-6)
+export const getTensionIndex = async (hours = 24) => {
+  return api.get('analytics/tension', { params: { hours } });
+};
+
+// Predictions (P2-9)
+export const getPredictions = async () => {
+  return api.get('analytics/predictions');
+};
+
+export const createPrediction = async (data) => {
+  return api.post('analytics/predictions', data);
+};
+
+export const votePrediction = async (predictionId, vote) => {
+  return api.post(`analytics/predictions/${predictionId}/vote`, { vote });
+};
+
+// News feed with new fields (P1-7)
+export const getNewsFeed = async (limit = 100) => {
+  return api.get('telegram/news', { params: { limit } });
+};
+
+// Financial data (P2-12) - uses free Yahoo Finance API proxy
+export const getMarketData = async () => {
   try {
-    const response = await api.get('/test');
-    console.log("API Test Successful:", response.data);
-  } catch (error) {
-    console.error("API Test Failed:", error);
+    const resp = await api.get('analytics/market-data');
+    return resp.data;
+  } catch {
+    return null;
   }
 };

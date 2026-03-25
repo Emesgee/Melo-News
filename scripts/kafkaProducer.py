@@ -19,6 +19,11 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from modules.location_detector import detect_palestine_location
 from modules.geocoder import geocode_city, load_geojson_coordinates
+from modules.subject_filter import classify_settler_violence
+from modules.sources.settler_violence_sources import (
+    TELEGRAM_CHANNELS,
+    SETTLER_VIOLENCE_TOPICS,
+)
 # -------------------------
 # Logging
 # -------------------------
@@ -41,15 +46,15 @@ print(f"[INFO] spaCy model loaded: {nlp is not None}")
 # -------------------------
 # Telegram URLs (can be configured via env var TELEGRAM_URLS as comma-separated list)
 # -------------------------
-# Topic for telegram scraping
-topics = input("Enter topics for telegram scraping (comma-separated): ")
-#list of telegram urls to scrape
-telegram_urls = ['https://t.me/s/QudsNen?q=', 'https://t.me/s/eye_on_palestine/q=']
-telegram_urls = [u + topics.replace(' ', '+') for u in telegram_urls]
-print(f"[CONFIG] Telegram URLs to scrape: {telegram_urls}")
+# Build Telegram URLs from centralized settler-violence config
+# Use all configured channels × all settler-violence search topics
+telegram_urls = []
+for handle, _desc in TELEGRAM_CHANNELS:
+    for topic in SETTLER_VIOLENCE_TOPICS:
+        telegram_urls.append(f'https://t.me/s/{handle}?q={topic.replace(" ", "+")}')
+print(f"[CONFIG] Telegram URLs to scrape: {len(telegram_urls)} (channels={len(TELEGRAM_CHANNELS)}, topics={len(SETTLER_VIOLENCE_TOPICS)})")
 
-SCRAPER_KEYWORDS = []
-SCRAPER_KEYWORDS.extend([k.strip().lower() for k in topics.split(',') if k.strip()])
+SCRAPER_KEYWORDS = [t.lower() for t in SETTLER_VIOLENCE_TOPICS]
 print(f"[CONFIG] Scraper keywords: {SCRAPER_KEYWORDS}")
 
 
@@ -282,6 +287,13 @@ try:
                 base_id = f"{msg_time.isoformat() if msg_time else ''}|{text[:120] if text else ''}"
                 msg_id = hashlib.sha256(base_id.encode('utf-8')).hexdigest()
 
+                # ── Subject relevance filter ──────────────────────
+                classification = classify_settler_violence(text)
+                if not classification['is_relevant']:
+                    messages_filtered += 1
+                    logger.debug("Filtered (off-topic): %s", text[:80])
+                    continue
+
                 row = {
                     'id': msg_id,
                     'time': msg_time.isoformat() if msg_time else None,
@@ -290,7 +302,9 @@ try:
                     'video_links': '|'.join(videos),
                     'video_durations': '|'.join(durations),
                     'image_links': '|'.join(images),
-                    'subject': None,
+                    'subject': 'settler_violence',
+                    'tags': ','.join(classification['matched_keywords'][:5]) or None,
+                    'relevance_score': classification['relevance_score'],
                     'matched_city': village_or_city,
                     'city_result': city_result,
                     'lat': lat,

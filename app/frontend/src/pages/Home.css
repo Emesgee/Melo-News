@@ -518,3 +518,42 @@
     height: 2px;
   }
 }
+
+/* ============ DARK MODE ============ */
+.app-shell.dark-mode .home {
+  background: #111;
+  color: #e5e7eb;
+}
+
+.app-shell.dark-mode .map-section {
+  background: #1a1a1a;
+}
+
+.app-shell.dark-mode .map-header h2 {
+  color: #f3f4f6;
+}
+
+.app-shell.dark-mode .map-header p {
+  color: #9ca3af;
+}
+
+.app-shell.dark-mode .features {
+  background: #111;
+}
+
+.app-shell.dark-mode .section-title {
+  color: #f3f4f6;
+}
+
+.app-shell.dark-mode .feature-card {
+  background: #1f2937;
+  border-color: #374151;
+}
+
+.app-shell.dark-mode .feature-card h3 {
+  color: #f3f4f6;
+}
+
+.app-shell.dark-mode .feature-card p {
+  color: #9ca3af;
+}

@@ -1,67 +1,208 @@
-import pytest
+# app/test/test_kafka_consumer.py
+"""
+Unit tests for the consumer-side pipeline_task.build_db_row() function.
+
+Covers:
+- Fallback location enrichment when lat/lon are missing
+- Metadata passthrough (tags, subject, source)
+- DB row field correctness
+- Message truncation to 250 chars
+- Media link JSON serialisation
+"""
+
+import sys
+import os
 import json
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch, MagicMock
+
+import pytest
+
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
 
 
-class TestConsumerDatabaseInsertion:
-    """Test database row preparation"""
-    
-    def test_prepare_database_row(self):
-        """Test preparing a row for database insertion"""
-        message_data = {
-            "time": "2024-02-23T10:30:00",
-            "total_views": 5000,
-            "message": "Breaking news from Khan Younis",
-            "video_links": "http://example.com/video.mp4",
-            "video_durations": "5:30",
-            "image_links": "http://example.com/image.jpg",
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+GEO_KHAN_YOUNIS = {"lat": 31.3452, "lon": 34.3043, "city": "khan younis", "district": "Khan Younis"}
+GEO_GAZA        = {"lat": 31.5000, "lon": 34.5000, "city": "Gaza",        "district": "Gaza"}
+
+
+def _build_db_row_mocked(message_data, uploaded_videos=None, image_urls=None,
+                          geocode_result=None, detect_result=None):
+    """Call build_db_row with mocked location modules."""
+    from modules.pipeline_task import build_db_row
+    with patch("modules.pipeline_task._get_geocoder",
+               return_value=lambda c: geocode_result), \
+         patch("modules.pipeline_task._get_detector",
+               return_value=lambda t: detect_result):
+        return build_db_row(message_data, uploaded_videos=uploaded_videos, image_urls=image_urls)
+
+
+# ---------------------------------------------------------------------------
+# Location enrichment
+# ---------------------------------------------------------------------------
+
+class TestConsumerLocationEnrichment:
+
+    def test_uses_existing_coords_when_present(self):
+        """When lat/lon are already in the payload they pass through unchanged."""
+        data = {
+            "message":      "Breaking news from Khan Younis",
             "matched_city": "Khan Younis",
-            "city_result": "Khan Younis",
-            "lat": 31.34,
-            "lon": 34.30
+            "lat":          31.34,
+            "lon":          34.30,
         }
-        
-        # Simulate what consumer.py does
-        row = {
-            "time": message_data.get("time"),
-            "total_views": message_data.get("total_views"),
-            "message": message_data.get("message")[:250] if message_data.get("message") else None,
-            "video_links": json.dumps([message_data.get("video_links")]) if message_data.get("video_links") else None,
-            "video_durations": (message_data.get("video_durations") or "")[:250],
-            "image_links": json.dumps([message_data.get("image_links")]) if message_data.get("image_links") else None,
-            "matched_city": message_data.get("matched_city")[:250] if message_data.get("matched_city") else None,
-            "city_result": (message_data.get("city_result") or "")[:250],
-            "lat": message_data.get("lat"),
-            "lon": message_data.get("lon"),
-        }
-        
-        # Verify row structure
-        assert row["time"] == "2024-02-23T10:30:00"
-        assert row["total_views"] == 5000
+        row = _build_db_row_mocked(data)
         assert row["matched_city"] == "Khan Younis"
-        assert row["lat"] == 31.34
-        assert row["lon"] == 34.30
-    
-    def test_message_truncation(self):
-        """Test that long messages are truncated to 250 chars"""
-        long_message = "This is a very long message " * 20  # Much longer than 250
-        
-        # Simulate truncation
-        truncated = long_message[:250] if long_message else None
-        
-        # Verify length
-        assert len(truncated) <= 250
-        assert len(truncated) == 250
-    
-    def test_json_serialization_for_links(self):
-        """Test that links are properly JSON serialized"""
-        video_url = "http://example.com/video.mp4"
-        image_url = "http://example.com/image.jpg"
-        
-        # Simulate JSON serialization
-        video_json = json.dumps([video_url]) if video_url else None
-        image_json = json.dumps([image_url]) if image_url else None
-        
-        # Verify it's valid JSON
-        assert json.loads(video_json) == [video_url]
-        assert json.loads(image_json) == [image_url]
+        assert row["lat"]          == pytest.approx(31.34)
+        assert row["lon"]          == pytest.approx(34.30)
+
+    def test_geocodes_city_when_coords_missing(self):
+        """When city is known but lat/lon are absent, geocoding is performed."""
+        data = {
+            "message":      "Reports from Gaza",
+            "matched_city": "Gaza",
+        }
+        row = _build_db_row_mocked(data, geocode_result=GEO_GAZA)
+        assert row["lat"] == pytest.approx(31.5)
+        assert row["lon"] == pytest.approx(34.5)
+
+    def test_detects_location_from_text_when_no_city(self):
+        """When no city or coords are present, location detection runs on message text."""
+        data = {
+            "message": "Clashes erupted near Khan Younis today",
+        }
+        detect_result = {"village": "khan younis"}
+        row = _build_db_row_mocked(data, geocode_result=GEO_KHAN_YOUNIS, detect_result=detect_result)
+        assert row["matched_city"] == "khan younis"
+        assert row["lat"] is not None
+
+    def test_no_location_leaves_none(self):
+        """When no location can be found, lat/lon/city remain None."""
+        data = {"message": "Some generic unrelated text"}
+        row = _build_db_row_mocked(data, geocode_result=None, detect_result=None)
+        assert row["lat"]          is None
+        assert row["lon"]          is None
+        assert row["matched_city"] is None
+
+
+# ---------------------------------------------------------------------------
+# Metadata passthrough
+# ---------------------------------------------------------------------------
+
+class TestConsumerMetadataPassthrough:
+
+    def test_tags_preserved(self):
+        data = {
+            "message":      "News item",
+            "matched_city": "Gaza",
+            "lat":          31.5, "lon": 34.5,
+            "tags":         "rss, Al Jazeera Middle East",
+        }
+        row = _build_db_row_mocked(data)
+        assert row["tags"] == "rss, Al Jazeera Middle East"
+
+    def test_subject_preserved(self):
+        data = {
+            "message":      "News item",
+            "matched_city": "Gaza",
+            "lat":          31.5, "lon": 34.5,
+            "subject":      "Breaking: Israeli airstrike",
+        }
+        row = _build_db_row_mocked(data)
+        assert row["subject"] == "Breaking: Israeli airstrike"
+
+    def test_source_preserved(self):
+        data = {
+            "message":      "News item",
+            "matched_city": "Gaza",
+            "lat":          31.5, "lon": 34.5,
+            "source":       "telegram",
+        }
+        row = _build_db_row_mocked(data)
+        assert row["source"] == "telegram"
+
+    def test_null_metadata_defaults(self):
+        """When metadata fields are absent, subject defaults to 'settler_violence'."""
+        data = {"message": "News", "matched_city": "Gaza", "lat": 31.5, "lon": 34.5}
+        row = _build_db_row_mocked(data)
+        assert row["tags"]    is None
+        assert row["subject"] == "settler_violence"
+        assert row["source"]  is None
+
+
+# ---------------------------------------------------------------------------
+# DB row structure and field rules
+# ---------------------------------------------------------------------------
+
+class TestConsumerDatabaseRow:
+
+    def test_all_expected_columns_present(self):
+        """build_db_row returns all columns needed by INSERT_ROW."""
+        data = {"message": "News", "matched_city": "Gaza", "lat": 31.5, "lon": 34.5}
+        row = _build_db_row_mocked(data)
+        expected = {
+            "time", "total_views", "message", "video_links", "video_durations",
+            "image_links", "tags", "subject", "source", "relevance_score",
+            "matched_city", "city_result", "lat", "lon",
+        }
+        assert expected.issubset(set(row.keys()))
+
+    def test_message_truncated_to_250(self):
+        """Messages are capped at 250 characters for the DB column."""
+        long_msg = "x" * 400
+        data = {"message": long_msg, "matched_city": "Gaza", "lat": 31.5, "lon": 34.5}
+        row = _build_db_row_mocked(data)
+        assert len(row["message"]) == 250
+
+    def test_video_links_json_serialised(self):
+        """uploaded_videos list is stored as a JSON array string."""
+        data = {"message": "News", "matched_city": "Gaza", "lat": 31.5, "lon": 34.5}
+        row = _build_db_row_mocked(
+            data,
+            uploaded_videos=["https://blob.example/video.mp4"]
+        )
+        parsed = json.loads(row["video_links"])
+        assert parsed == ["https://blob.example/video.mp4"]
+
+    def test_image_links_json_serialised(self):
+        """image_urls list is stored as a JSON array string."""
+        data = {"message": "News", "matched_city": "Gaza", "lat": 31.5, "lon": 34.5}
+        row = _build_db_row_mocked(
+            data,
+            image_urls=["https://cdn.example/img.jpg"]
+        )
+        parsed = json.loads(row["image_links"])
+        assert parsed == ["https://cdn.example/img.jpg"]
+
+    def test_no_videos_produces_none(self):
+        """When uploaded_videos is empty/None, video_links column is None."""
+        data = {"message": "News", "matched_city": "Gaza", "lat": 31.5, "lon": 34.5}
+        row = _build_db_row_mocked(data, uploaded_videos=None)
+        assert row["video_links"] is None
+
+    def test_city_result_populated(self):
+        """city_result is filled from matched_city if not explicitly given."""
+        data = {"message": "News", "matched_city": "Ramallah", "lat": 31.9, "lon": 35.2}
+        row = _build_db_row_mocked(data)
+        assert row["city_result"] == "Ramallah"
+
+    def test_time_passthrough(self):
+        """time field passes through as-is."""
+        data = {
+            "message":      "News",
+            "time":         "2024-06-15T08:00:00",
+            "matched_city": "Gaza",
+            "lat":          31.5, "lon": 34.5,
+        }
+        row = _build_db_row_mocked(data)
+        assert row["time"] == "2024-06-15T08:00:00"
+
+    def test_total_views_passthrough(self):
+        """total_views is preserved."""
+        data = {"message": "News", "total_views": 12345, "matched_city": "Gaza", "lat": 31.5, "lon": 34.5}
+        row = _build_db_row_mocked(data)
+        assert row["total_views"] == 12345

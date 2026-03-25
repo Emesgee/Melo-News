@@ -1,9 +1,12 @@
 import os
 import json
+import logging
 from azure.storage.blob import BlobServiceClient, BlobSasPermissions, CorsRule
 from azure.core.exceptions import ResourceExistsError
 from urllib.parse import unquote
 from config import AZURE_CONNECTION_STRING, AZURE_CONTAINER_NAME, DOWNLOADS_FOLDER
+
+logger = logging.getLogger(__name__)
 
 blob_service_client = BlobServiceClient.from_connection_string(AZURE_CONNECTION_STRING)
 container_client = blob_service_client.get_container_client(AZURE_CONTAINER_NAME)
@@ -21,10 +24,10 @@ def upload_file_to_blob(local_file_path):
         with open(local_file_path, "rb") as data:
             blob_client.upload_blob(data, overwrite=True)
         blob_url = f"https://{blob_service_client.account_name}.blob.core.windows.net/{AZURE_CONTAINER_NAME}/{filename}"
-        print(f"[AZURE UPLOAD SUCCESS] {blob_url}")
+        logger.info("Azure upload success: %s", blob_url)
         return blob_url
     except Exception as e:
-        print(f"[AZURE UPLOAD FAILED] {local_file_path}: {e}")
+        logger.error("Azure upload failed for %s: %s", local_file_path, e)
         return None
 
 def setup_cors():
@@ -42,7 +45,6 @@ def setup_cors():
         properties = blob_service_client.get_service_properties()
         properties['cors'] = [cors_rule]
         blob_service_client.set_service_properties(properties)
-        print("[AZURE] CORS enabled for Blob Storage")
+        logger.info("Azure CORS enabled for Blob Storage")
     except Exception as e:
-        print(f"[AZURE CORS WARNING] Could not set CORS: {e}")
-        print("[AZURE] Continuing without CORS - manual configuration may be needed")
+        logger.warning("Could not set Azure CORS: %s. Manual configuration may be needed.", e)

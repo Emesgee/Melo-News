@@ -1,17 +1,21 @@
+import logging
+import os
+import json
+from datetime import datetime, timezone, timedelta
+
 from flask import Flask, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from flask_socketio import SocketIO
-import os
-import json
-from datetime import datetime, timedelta
 from sqlalchemy.exc import SQLAlchemyError
-from .models import db, InputTemplate, OutputTemplate, FileType, Telegram
+from .models import db, InputTemplate, OutputTemplate, FileType, Telegram, Prediction, PredictionVote, KeywordTrend, TensionIndex
+
+logger = logging.getLogger(__name__)
 
 # Initialize SocketIO globally
-socketio = SocketIO(cors_allowed_origins="*")
+socketio = SocketIO(cors_allowed_origins=["https://app.melonews.tech", "http://localhost:3000", "http://localhost:3001"])
 
 def create_app(config_name=None):
     """
@@ -37,19 +41,23 @@ def create_app(config_name=None):
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
         app.config['JWT_SECRET_KEY'] = 'test-secret-key'
 
-    # CORS Configuration
-    CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True,
-         methods=["GET", "POST", "OPTIONS", "PUT", "DELETE"],
-         allow_headers=["Content-Type", "Authorization"])
+    # CORS Configuration restricted to known frontends (wildcard is invalid with credentials)
+    CORS(
+        app,
+        resources={r"/*": {"origins": ["https://app.melonews.tech", "http://localhost:3000", "http://localhost:3001"]}},
+        supports_credentials=True,
+        methods=["GET", "POST", "OPTIONS", "PUT", "DELETE"],
+        allow_headers=["Content-Type", "Authorization"],
+    )
 
     # Log database URI for debugging (masked)
-    print(f"[APP] Environment: {config_name}")
+    logger.info("Environment: %s", config_name)
     db_uri = app.config.get('SQLALCHEMY_DATABASE_URI')
     if db_uri:
         masked_uri = db_uri.split('://')[0] + '://***:***@' + db_uri.split('@')[-1]
-        print(f"[APP] Connected to database: {masked_uri}")
+        logger.info("Connected to database: %s", masked_uri)
     else:
-        print("[APP] ERROR: SQLALCHEMY_DATABASE_URI is not set in config!")
+        logger.error("SQLALCHEMY_DATABASE_URI is not set in config!")
     # SQLAlchemy engine options
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
         "pool_pre_ping": True,
@@ -90,6 +98,7 @@ def create_app(config_name=None):
         from .city_history.chat_routes import news_chat_bp
         from .summary.summary import summary_bp
         from .ai_analyzer.routes import ai_analyzer_bp
+        from .analytics.routes import analytics_bp
 
         app.register_blueprint(auth_bp, url_prefix='/api/auth')
         app.register_blueprint(profile_bp, url_prefix='/api/profile')
@@ -103,16 +112,17 @@ def create_app(config_name=None):
         app.register_blueprint(news_chat_bp)
         app.register_blueprint(summary_bp)
         app.register_blueprint(ai_analyzer_bp, url_prefix='/api/ai')
+        app.register_blueprint(analytics_bp, url_prefix='/api/analytics')
         
-        print("[APP] All blueprints registered successfully")
+        logger.info("All blueprints registered successfully")
     except ImportError as e:
-        print(f"[WARNING] Could not import blueprints: {e}")
+        logger.warning("Could not import blueprints: %s", e)
     
     @app.route('/api/health')
     def health_check():
         return jsonify({
             'status': 'healthy',
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'version': '1.0.0',
             'environment': config_name
         })
@@ -127,22 +137,21 @@ def create_app(config_name=None):
         return jsonify({"error": "Server error"}), 500
 
     # Initialize Database and Populate Data (skip for testing)
+    # NOTE: In production, use `flask db upgrade` (Alembic migrations) instead of db.create_all().
+    # db.create_all() is kept here as a fallback for dev environments without migrations.
     if config_name != 'testing':
         with app.app_context():
             try:
-                # Create tables
-                print("[APP] Creating database tables...")
+                logger.info("Initializing database tables...")
                 db.create_all()
-
-                # Populate initial data
-                print("[APP] Populating initial data...")
+                logger.info("Populating initial data...")
                 populate_initial_data()
-                print("[APP] Initial data populated successfully.")
+                logger.info("Initial data populated successfully.")
             except SQLAlchemyError as e:
-                print(f"[ERROR] Database error during initialization: {e}")
+                logger.error("Database error during initialization: %s", e)
                 db.session.rollback()
             except Exception as e:
-                print(f"[ERROR] Unexpected error during initialization: {e}")
+                logger.error("Unexpected error during initialization: %s", e)
             finally:
                 db.session.close()
 
@@ -150,7 +159,7 @@ def create_app(config_name=None):
     @app.teardown_appcontext
     def shutdown_session(exception=None):
         if exception:
-            print(f"[ERROR] Exception during request: {exception}")
+            logger.error("Exception during request: %s", exception)
             db.session.rollback()
         db.session.remove()
 
@@ -164,7 +173,7 @@ def populate_initial_data():
         populate_input_templates()
         populate_output_templates()
     except Exception as e:
-        print(f"[ERROR] Failed to populate initial data: {e}")
+        logger.error("Failed to populate initial data: %s", e)
 
 def populate_file_types():
     """Populate FileType table"""
@@ -179,9 +188,9 @@ def populate_file_types():
         try:
             db.session.bulk_save_objects(templates)
             db.session.commit()
-            print("[APP] FileTypes populated successfully.")
+            logger.info("FileTypes populated successfully.")
         except SQLAlchemyError as e:
-            print(f"[ERROR] Error populating FileType: {e}")
+            logger.error("Error populating FileType: %s", e)
             db.session.rollback()
 
 def populate_input_templates():
@@ -197,9 +206,9 @@ def populate_input_templates():
         try:
             db.session.bulk_save_objects(templates)
             db.session.commit()
-            print("[APP] InputTemplates populated successfully.")
+            logger.info("InputTemplates populated successfully.")
         except SQLAlchemyError as e:
-            print(f"[ERROR] Error populating InputTemplate: {e}")
+            logger.error("Error populating InputTemplate: %s", e)
             db.session.rollback()
 
 def populate_output_templates():
@@ -214,21 +223,21 @@ def populate_output_templates():
         try:
             db.session.bulk_save_objects(templates)
             db.session.commit()
-            print("[APP] OutputTemplates populated successfully.")
+            logger.info("OutputTemplates populated successfully.")
         except SQLAlchemyError as e:
-            print(f"[ERROR] Error populating OutputTemplate: {e}")
+            logger.error("Error populating OutputTemplate: %s", e)
             db.session.rollback()
 
 # WebSocket Event Handlers
 @socketio.on('connect')
 def handle_connect():
-    print('[SOCKET] Client connected')
+    logger.debug('WebSocket client connected')
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    print('[SOCKET] Client disconnected')
+    logger.debug('WebSocket client disconnected')
 
 @socketio.on('message')
 def handle_message(message):
-    print(f'[SOCKET] Received message: {message}')
+    logger.debug('WebSocket message received: %s', message)
     socketio.send(f'Echo: {message}')

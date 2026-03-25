@@ -23,7 +23,12 @@ def get_testjson():
         "matched_city": record.matched_city,
         "city_result": record.city_result,
         "lat": record.lat,
-        "lon": record.lon
+        "lon": record.lon,
+        "confidence_score": record.confidence_score,
+        "severity": record.severity,
+        "source": record.source,
+        "source_count": record.source_count,
+        "escalation": record.escalation,
     } for record in results])
 
 # POST route to create a new TestJson record
@@ -74,7 +79,12 @@ def get_news_for_map():
             "video_links": record.video_links,
             "image_links": record.image_links,
             "tags": record.tags,
-            "subject": record.subject
+            "subject": record.subject,
+            "confidence_score": record.confidence_score,
+            "severity": record.severity,
+            "source": record.source,
+            "source_count": record.source_count,
+            "escalation": record.escalation,
         } for record in results]
         
         return jsonify(news_data), 200

@@ -5,7 +5,13 @@
 import json
 import os
 import sys
+
+import pytest
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
+
+# Skip the entire module if spaCy (required by location_detector) is not installed
+pytest.importorskip("spacy", reason="spaCy not installed; skipping geolocation tests")
 
 from modules.geocoder import GENERIC_LOCATIONS, load_geojson_coordinates, geocode_city
 from modules.location_detector import detect_palestine_location

@@ -1,19 +1,15 @@
 import json
 import os
+import logging
 import requests
 from fuzzywuzzy import fuzz
+from modules.constants import GENERIC_LOCATIONS
+
+logger = logging.getLogger(__name__)
 
 geocode_cache = {}
 geojson_coords = {}
 CACHE_FILE = "geocode_cache.json"
-
-# Generic locations fallback (for broad area references) - with high precision (5+ decimals)
-GENERIC_LOCATIONS = {
-    'gaza': {'lat': 31.50000, 'lon': 34.50000, 'name': 'Gaza'},
-    'gaza strip': {'lat': 31.50000, 'lon': 34.50000, 'name': 'Gaza'},
-    'west bank': {'lat': 31.95000, 'lon': 35.20000, 'name': 'West Bank'},
-    'occupied territories': {'lat': 31.95000, 'lon': 35.00000, 'name': 'Occupied Territories'},
-}
 
 def load_cache():
     """Load geocode cache from file"""
@@ -22,9 +18,9 @@ def load_cache():
         try:
             with open(CACHE_FILE, "r", encoding="utf-8") as f:
                 geocode_cache = json.load(f)
-                print(f"[CACHE] Loaded {len(geocode_cache)} cached coordinates")
+                logger.info("Loaded %d cached coordinates", len(geocode_cache))
         except Exception as e:
-            print(f"[CACHE ERROR] {e}")
+            logger.error("Cache load error: %s", e)
 
 def save_cache():
     """Save geocode cache to file"""
@@ -32,7 +28,7 @@ def save_cache():
         with open(CACHE_FILE, "w", encoding="utf-8") as f:
             json.dump(geocode_cache, f, indent=2, ensure_ascii=False)
     except Exception as e:
-        print(f"[CACHE SAVE ERROR] {e}")
+        logger.error("Cache save error: %s", e)
 
 def load_geojson_coordinates():
     """Load coordinates from palestinians_towns.geojson"""
@@ -67,11 +63,11 @@ def load_geojson_coordinates():
                         }
                 
                 geojson_coords = coords
-                print(f"[GEOCODER] Loaded {len(coords)} locations from GeoJSON")
+                logger.info("Loaded %d locations from GeoJSON", len(coords))
         else:
-            print(f"[GEOCODER WARNING] GeoJSON not found: {geojson_path}")
+            logger.warning("GeoJSON not found: %s", geojson_path)
     except Exception as e:
-        print(f"[GEOCODER ERROR] {e}")
+        logger.error("GeoJSON load error: %s", e)
     
     return coords
 
@@ -95,7 +91,7 @@ def geocode_with_fuzzy(text):
     # Only return if score is high enough
     if best_score >= 85 and best_match:
         location, data = best_match
-        print(f"[FUZZY MATCH] Score {best_score}% -> '{location}'")
+        logger.info("Fuzzy match score %d%% -> '%s'", best_score, location)
         return location, data['lat'], data['lon']
     
     return None, None, None
@@ -116,7 +112,7 @@ def geocode_city(city_name):
             "city": city_name_lower,
             "district": data['district']
         }
-        print(f"[GEOCODE GEOJSON] {city_name} -> ({data['lat']}, {data['lon']})")
+        logger.debug("GeoJSON match: %s -> (%s, %s)", city_name, data['lat'], data['lon'])
         return result
     
     # Strategy 2: Check generic locations (Gaza, West Bank, etc.)
@@ -128,7 +124,7 @@ def geocode_city(city_name):
             "city": generic_data['name'],
             "district": generic_data['name']
         }
-        print(f"[GEOCODE GENERIC] {city_name} -> ({generic_data['lat']}, {generic_data['lon']})")
+        logger.debug("Generic match: %s -> (%s, %s)", city_name, generic_data['lat'], generic_data['lon'])
         return result
     
     # Strategy 3: Check cache
@@ -170,12 +166,12 @@ def geocode_city(city_name):
             }
             geocode_cache[city_name_lower] = result
             save_cache()
-            print(f"[GEOCODE NOMINATIM] {city_name} -> ({result['lat']}, {result['lon']})")
+            logger.info("Nominatim match: %s -> (%s, %s)", city_name, result['lat'], result['lon'])
             return result
     except Exception as e:
-        print(f"[NOMINATIM ERROR] {city_name}: {e}")
+        logger.error("Nominatim error for %s: %s", city_name, e)
     
-    print(f"[GEOCODE FAILED] {city_name}")
+    logger.warning("Geocode failed for: %s", city_name)
     return None
 
 # Load on module import
