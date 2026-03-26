@@ -41,6 +41,13 @@ class FileUpload(db.Model):
     lat = db.Column(db.Float)
     lon = db.Column(db.Float)
     
+    # Analysis Fields (Citizen Journalism)
+    transcription = db.Column(db.Text)
+    confidence_score = db.Column(db.Float, default=0.0)
+    severity = db.Column(db.String(20), default='LOW')
+    exif_data = db.Column(JSON)
+    analysis_status = db.Column(db.String(20), default='PENDING')  # PENDING, PROCESSING, COMPLETED, FAILED
+    
     # Foreign keys
     user_id = db.Column(db.Integer, db.ForeignKey('users.userid'), nullable=False)
     file_type_id = db.Column(db.Integer, db.ForeignKey('file_types.filetypeid'), nullable=False)
