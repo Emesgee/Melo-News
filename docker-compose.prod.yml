@@ -1,0 +1,124 @@
+version: '3.8'
+
+services:
+  melo-database:
+    image: postgres:15-alpine
+    container_name: melo-postgres-prod
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER:-admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-admin}
+      POSTGRES_DB: ${DB_NAME:-melonews_prod}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+      - /backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - melo-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  melo-api:
+    build:
+      context: .
+      dockerfile: app/DockerFile
+    container_name: melo-api-prod
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "5000:5000"
+    environment:
+      ENVIRONMENT: production
+      FLASK_ENV: production
+      DATABASE_URL: postgresql://${DB_USER:-admin}:${DB_PASSWORD:-admin}@melo-database:5432/${DB_NAME:-melonews_prod}
+      FLASK_APP: main.py
+      AZURE_STORAGE_CONNECTION_STRING: ${AZURE_STORAGE_CONNECTION_STRING}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:9092}
+    depends_on:
+      melo-database:
+        condition: service_healthy
+    volumes:
+      - ./app:/app/app
+      - ./uploads:/app/uploads
+      - ./exports:/app/exports
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - melo-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  melo-scheduler:
+    build:
+      context: .
+      dockerfile: app/DockerFile
+    container_name: melo-scheduler-prod
+    restart: always
+    env_file:
+      - .env
+    command: python schedule_pipeline.py
+    environment:
+      ENVIRONMENT: production
+      DATABASE_URL: postgresql://${DB_USER:-admin}:${DB_PASSWORD:-admin}@melo-database:5432/${DB_NAME:-melonews_prod}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:9092}
+      AZURE_STORAGE_CONNECTION_STRING: ${AZURE_STORAGE_CONNECTION_STRING}
+      LOG_LEVEL: INFO
+    depends_on:
+      melo-database:
+        condition: service_healthy
+    volumes:
+      - ./app:/app/app
+      - ./logs:/app/logs
+    networks:
+      - melo-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  melo-nginx:
+    image: nginx:alpine
+    container_name: melo-nginx-prod
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - ./app/frontend/build:/usr/share/nginx/html:ro
+    depends_on:
+      - melo-api
+    networks:
+      - melo-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  postgres_data_prod:
+    driver: local
+
+networks:
+  melo-network:
+    driver: bridge

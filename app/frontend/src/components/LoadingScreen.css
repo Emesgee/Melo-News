@@ -1,0 +1,90 @@
+.loading-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: linear-gradient(135deg, #111 0%, #1a1a2e 50%, #16213e 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.loading-screen__title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.1em;
+}
+
+.loading-screen__subtitle {
+  font-size: 0.85rem;
+  color: #9ca3af;
+  margin-bottom: 2rem;
+}
+
+.loading-screen__progress {
+  width: 280px;
+  margin-bottom: 1.5rem;
+}
+
+.loading-screen__progress-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.loading-screen__progress-label {
+  font-size: 0.7rem;
+  color: #6b7280;
+}
+
+.loading-screen__bar-bg {
+  height: 4px;
+  background: #374151;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.loading-screen__bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #c81515, #f59e0b);
+  transition: width 0.4s ease;
+}
+
+.loading-screen__bar-fill--indeterminate {
+  width: 40%;
+  animation: indeterminate 1.2s ease-in-out infinite;
+}
+
+@keyframes indeterminate {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
+
+.loading-screen__steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.loading-screen__step {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.loading-screen__step--done {
+  color: #22c55e;
+}
+
+.loading-screen__step--active {
+  color: #f59e0b;
+}
+
+.loading-screen__step--pending {
+  color: #4b5563;
+}

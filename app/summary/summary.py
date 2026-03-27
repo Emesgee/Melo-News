@@ -87,7 +87,7 @@ SUMMARY:"""
                 {'role': 'user', 'content': prompt}
             ],
             'temperature': float(os.getenv('THAURA_TEMPERATURE', '0.7')),
-            'max_tokens': int(os.getenv('THAURA_MAX_TOKENS', '2048'))
+            'max_tokens': int(os.getenv('THAURA_MAX_TOKENS', '4096'))
         }
         
         response = requests.post(
@@ -100,7 +100,11 @@ SUMMARY:"""
         if response.status_code == 200:
             data = response.json()
             if 'choices' in data and len(data['choices']) > 0:
-                summary_text = data['choices'][0]['message']['content']
+                msg = data['choices'][0].get('message', {})
+                summary_text = msg.get('content', '')
+                # Thaura reasoning models may put output in 'reasoning' with empty 'content'
+                if not summary_text:
+                    summary_text = msg.get('reasoning', '')
                 if summary_text:
                     return {
                         "status": "success",

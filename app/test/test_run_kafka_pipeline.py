@@ -1,0 +1,132 @@
+import pytest
+import subprocess
+import os
+import sys
+import time
+from unittest.mock import MagicMock, patch
+
+# Add root directory to sys.path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
+# Now import normally
+from run_kafka_pipeline import KafkaPipeline
+
+# Get root directory
+ROOT_DIR = os.path.join(os.path.dirname(__file__), "../..")
+
+
+class TestKafkaPipelineInitialization:
+    """Test pipeline initialization"""
+    
+    def test_pipeline_init(self):
+        """Test pipeline initializes correctly"""
+        pipeline = KafkaPipeline()
+        assert pipeline.producer_process is None
+        assert pipeline.consumer_process is None
+    
+    def test_pipeline_attributes(self):
+        """Test pipeline has required attributes"""
+        pipeline = KafkaPipeline()
+        assert hasattr(pipeline, 'producer_process')
+        assert hasattr(pipeline, 'consumer_process')
+        assert hasattr(pipeline, 'run_producer')
+        assert hasattr(pipeline, 'run_consumer')
+        assert hasattr(pipeline, 'start_pipeline')
+        assert hasattr(pipeline, 'stop_pipeline')
+
+
+class TestKafkaPipelineShutdown:
+    """Test graceful shutdown"""
+    
+    def test_stop_pipeline_terminates_producer(self):
+        """Test stop_pipeline terminates producer"""
+        pipeline = KafkaPipeline()
+        mock_producer = MagicMock()
+        mock_producer.poll.return_value = None  # Simulate running process
+        pipeline.producer_process = mock_producer
+        pipeline.stop_pipeline()
+        mock_producer.terminate.assert_called_once()
+    
+    def test_stop_pipeline_terminates_consumer(self):
+        """Test stop_pipeline terminates consumer"""
+        pipeline = KafkaPipeline()
+        mock_consumer = MagicMock()
+        mock_consumer.poll.return_value = None  # Simulate running process
+        pipeline.consumer_process = mock_consumer
+        pipeline.stop_pipeline()
+        mock_consumer.terminate.assert_called_once()
+
+
+class TestKafkaPipelineFiles:
+    """Test required files exist"""
+    
+    def test_kafka_producer_exists(self):
+        """Test kafkaProducer.py exists"""
+        kafka_producer_path = os.path.join(ROOT_DIR, 'kafkaProducer.py')
+        assert os.path.exists(kafka_producer_path)
+    
+    def test_kafka_consumer_exists(self):
+        """Test kafkaConsumer.py exists"""
+        kafka_consumer_path = os.path.join(ROOT_DIR, 'kafkaConsumer.py')
+        assert os.path.exists(kafka_consumer_path)
+    
+    def test_run_kafka_pipeline_exists(self):
+        """Test run_kafka_pipeline.py exists"""
+        run_pipeline_path = os.path.join(ROOT_DIR, 'run_kafka_pipeline.py')
+        assert os.path.exists(run_pipeline_path)
+
+
+@pytest.mark.integration
+class TestKafkaPipelineIntegration:
+    """Integration tests - requires running Kafka broker"""
+    
+    def test_pipeline_produces_and_consumes_messages(self):
+        """Test full producer → Kafka → consumer flow"""
+        pipeline = KafkaPipeline()
+        
+        # Start producer thread
+        from threading import Thread
+        producer_thread = Thread(target=pipeline.run_producer, daemon=True)
+        producer_thread.start()
+        
+        # Wait for producer to produce messages
+        time.sleep(10)
+        
+        # Start consumer thread
+        consumer_thread = Thread(target=pipeline.run_consumer, daemon=True)
+        consumer_thread.start()
+        
+        # Wait for consumer to process messages
+        time.sleep(10)
+        
+        # Shutdown gracefully
+        pipeline.stop_pipeline()
+        
+        # Verify processes were started
+        assert pipeline.producer_process is not None
+        assert pipeline.consumer_process is not None
+    
+    def test_pipeline_survives_graceful_shutdown(self):
+        """Test pipeline shuts down without errors"""
+        pipeline = KafkaPipeline()
+        
+        # Start pipeline
+        from threading import Thread
+        producer_thread = Thread(target=pipeline.run_producer, daemon=True)
+        producer_thread.start()
+        
+        time.sleep(5)
+        
+        consumer_thread = Thread(target=pipeline.run_consumer, daemon=True)
+        consumer_thread.start()
+        
+        time.sleep(5)
+        
+        # Shutdown should not raise exception
+        try:
+            pipeline.stop_pipeline()
+            shutdown_success = True
+        except Exception as e:
+            shutdown_success = False
+        
+        assert shutdown_success is True

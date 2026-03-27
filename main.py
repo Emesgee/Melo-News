@@ -19,5 +19,11 @@ with app.app_context():
         print(f"An error occurred while creating tables: {e}")
 
 if __name__ == "__main__":
-    # Bind only to localhost; Nginx proxies requests to this port
-    socketio.run(app, host="127.0.0.1", port=8000, debug=True, allow_unsafe_werkzeug=True)
+    import os
+    env = os.getenv('ENVIRONMENT', 'development').lower()
+    if env == 'production':
+        # In production, use a proper WSGI server (gunicorn/uwsgi) instead
+        print("[WARNING] Use gunicorn or uwsgi for production. Running dev server.")
+        socketio.run(app, host="0.0.0.0", port=5000, debug=False)
+    else:
+        socketio.run(app, host="0.0.0.0", port=5000, debug=True, allow_unsafe_werkzeug=True)

@@ -1,0 +1,48 @@
+name: CI Debug - Find Issues
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+jobs:
+  debug-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libpq-dev
+          echo "✅ System dependencies installed"
+
+      - name: Upgrade pip and setuptools
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip --version
+
+      - name: Install from requirements.txt
+        run: |
+          pip install --no-cache-dir -r requirements.txt
+          echo "✅ All dependencies installed"
+          echo "Installed packages:"
+          pip list
+
+      - name: Run pytest with verbose output
+        run: |
+          pytest app/test/ -v --tb=short
+          echo "✅ Tests completed"
+
+      - name: Print test summary
+        if: always()
+        run: |
+          echo "=== Test Run Complete ==="
+          pytest app/test/ --tb=no -q

@@ -1,0 +1,45 @@
+name: Simple Test
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+jobs:
+  simple-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Check Python version
+        run: python --version
+
+      - name: Install pip only
+        run: |
+          python -m pip install --upgrade pip
+          pip --version
+
+      - name: List requirements.txt
+        run: |
+          echo "=== requirements.txt exists: ==="
+          ls -la requirements.txt
+          echo "=== First 20 lines ==="
+          head -20 requirements.txt
+
+      - name: Try pip install (with timeout)
+        run: |
+          timeout 120 pip install -r requirements.txt || echo "⚠️ Some packages failed to install"
+        continue-on-error: true
+
+      - name: Check installed packages
+        run: |
+          pip list | head -20
+          echo "..."
+          pip list | tail -10

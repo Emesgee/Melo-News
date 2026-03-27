@@ -5,6 +5,7 @@ from werkzeug.utils import secure_filename
 from datetime import datetime
 from app.models import db, FileUpload, FileType
 from app.utils.azure_blob import upload_file_to_azure_storage
+from .analysis_service import start_analysis_thread
 
 file_upload_bp = Blueprint('file_upload', __name__, url_prefix='/api/file_upload')
 
@@ -64,7 +65,7 @@ def upload_file():
         if not storage_account:
             raise Exception("AZURE_STORAGE_ACCOUNT_NAME not set in environment variables.")
         upload_file_to_azure_storage(file_path, unique_filename, container_name)
-        os.remove(file_path)  # Optionally delete local file after upload
+        # os.remove(file_path)  # Handled by analysis thread now
 
         # Construct Azure Blob URL
         blob_url = f"https://{storage_account}.blob.core.windows.net/{container_name}/{unique_filename}"
@@ -87,8 +88,11 @@ def upload_file():
         db.session.add(new_upload)
         db.session.commit()
 
+        # Trigger background analysis (citizen journalism verification)
+        start_analysis_thread(new_upload.id, file_path)
+
         return jsonify({
-            'message': f'File {secure_name} uploaded successfully to Azure Blob Storage!',
+            'message': f'File {secure_name} uploaded successfully! Analysis started.',
             'file_url': blob_url,
             'fileUrl': blob_url,  # for frontend JS convention
             'file_id': new_upload.id,
@@ -98,7 +102,8 @@ def upload_file():
             'city': city,
             'country': country,
             'lat': lat,
-            'lon': lon
+            'lon': lon,
+            'analysis_status': 'PENDING'
         }), 200
 
     except Exception as e:

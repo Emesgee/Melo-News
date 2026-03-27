@@ -7,7 +7,7 @@ const Intro = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Redirect to Home page after 3 seconds
+    // Redirect to Home page after 5 seconds
     const timer = setTimeout(() => {
       navigate('/');
     }, 5000);
@@ -16,10 +16,17 @@ const Intro = () => {
     return () => clearTimeout(timer);
   }, [navigate]);
 
+  const handleSkip = () => {
+    navigate('/');
+  };
+
   return (
     <div className="intro-container">
       <h1>Welcome to MeloNews</h1>
-      <p>“Where every beat meets the story”.</p>
+      <p>"Where every beat meets the story".</p>
+      <button className="intro-skip-btn" onClick={handleSkip}>
+        Continue to app
+      </button>
     </div>
   );
 };

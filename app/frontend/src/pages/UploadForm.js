@@ -1,130 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import Sidebar from '../components/navigation_bars/Sidebar';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import Sidebar from '../components/navigationBars/Sidebar';
 import './UploadForm.css';
-import axios from 'axios';
 import { api } from '../services/api';
+import { DRAFT_KEY, MAX_FILE_SIZE, ALLOWED_FILE_TYPES } from '../components/upload/uploadConstants';
+import { StepIndicator, GeneralInfoForm, LocationForm, FileUploadForm } from '../components/upload/UploadSubComponents';
 
-const GeneralInfoForm = ({ title, setTitle, tags, setTags, subject, setSubject }) => (
-  <div className="form-section">
-    <h3>📝 General Information</h3>
-    <div className="form-group">
-      <label className="form-label">Title *</label>
-      <input
-        type="text"
-        className="form-input"
-        placeholder="Enter a compelling headline for your news story"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        required
-      />
-    </div>
-    <div className="form-group">
-      <label className="form-label">Tags</label>
-      <input
-        type="text"
-        className="form-input"
-        placeholder="Enter relevant tags (comma separated)"
-        value={tags}
-        onChange={(e) => setTags(e.target.value)}
-      />
-    </div>
-    <div className="form-group">
-      <label className="form-label">Subject/Summary</label>
-      <textarea
-        className="form-textarea"
-        placeholder="Provide a brief summary or description of the news content"
-        value={subject}
-        onChange={(e) => setSubject(e.target.value)}
-        rows="3"
-      />
-    </div>
-  </div>
-);
-
-const LocationForm = ({ city, setCity, country, setCountry, lat, lon, onUseMyLocation, isLocating }) => (
-  <div className="form-section">
-    <h3>📍 Location Information</h3>
-    <div className="form-group">
-      <label className="form-label">City</label>
-      <input
-        type="text"
-        className="form-input"
-        placeholder="Enter the city where the news occurred"
-        value={city}
-        onChange={(e) => setCity(e.target.value)}
-      />
-    </div>
-    <div className="form-group">
-      <label className="form-label">Country</label>
-      <input
-        type="text"
-        className="form-input"
-        placeholder="Enter the country"
-        value={country}
-        onChange={(e) => setCountry(e.target.value)}
-      />
-    </div>
-    <button type="button" className="location-btn" onClick={onUseMyLocation} disabled={isLocating} style={{marginTop:8}}>
-      {isLocating ? 'Locating...' : '📡 Use My Location'}
-    </button>
-    {lat && lon && (
-      <div className="location-info">
-        📍 Coordinates: {lat.toFixed(6)}, {lon.toFixed(6)}
-      </div>
-    )}
-  </div>
-);
-
-const FileUploadForm = ({ fileTypes, fileTypeId, setFileTypeId, selectedFile, handleFileChange }) => (
-  <div className="form-section file-upload-section">
-    <div className="file-upload-icon">📎</div>
-    <h3>File Upload</h3>
-    <p>Select and upload your news media file</p>
-
-    <div className="form-group">
-      <label className="form-label">File Type *</label>
-      <select
-        className="form-select"
-        value={fileTypeId}
-        onChange={(e) => setFileTypeId(e.target.value)}
-        required
-      >
-        <option value="" disabled>
-          Choose file type
-        </option>
-        {fileTypes.map((type) => (
-          <option key={type.id} value={type.id}>
-            {type.type_name}
-          </option>
-        ))}
-      </select>
-    </div>
-
-    <div className="form-group">
-      <label className="form-label">File *</label>
-      <div className="file-input-wrapper">
-        <input
-          id="fileInput"
-          type="file"
-          className="file-input"
-          onChange={handleFileChange}
-          accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
-          required
-        />
-        <label htmlFor="fileInput" className="file-input-label">
-          <span>📁</span>
-          {selectedFile ? selectedFile.name : 'Choose File'}
-        </label>
-      </div>
-      {selectedFile && (
-        <div className="file-info">
-          <strong>Selected:</strong> {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
-        </div>
-      )}
-    </div>
-  </div>
-);
-
+/* ── Main Upload Form ───────────────────────────────────────────────────────────── */
 const UploadForm = () => {
   const [isSidebarVisible, setIsSidebarVisible] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -139,10 +20,57 @@ const UploadForm = () => {
   const [fileTypes, setFileTypes] = useState([]);
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [messageType, setMessageType] = useState(''); // 'success', 'error', 'info'
+  const [messageType, setMessageType] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState(null);
+  const [analysisSteps, setAnalysisSteps] = useState([]);
+  const [transcription, setTranscription] = useState('');
+  const [transcriptLanguage, setTranscriptLanguage] = useState('');
+  const [exifData, setExifData] = useState(null);
   const [isLocating, setIsLocating] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const draftRestoredRef = useRef(false);
+  const geocodeTimerRef = useRef(null);
+
+  // Compute current step
+  const currentStep = isAnalyzing ? 2 : selectedFile ? 3 : 1;
+
+  // ── Draft auto-save: restore on mount ────────────────────────────
+  useEffect(() => {
+    if (draftRestoredRef.current) return;
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (saved) {
+        const draft = JSON.parse(saved);
+        if (draft.title) setTitle(draft.title);
+        if (draft.tags) setTags(draft.tags);
+        if (draft.subject) setSubject(draft.subject);
+        if (draft.city) setCity(draft.city);
+        if (draft.country) setCountry(draft.country);
+        if (draft.fileTypeId) setFileTypeId(draft.fileTypeId);
+        setMessage('📝 Draft restored from your previous session.');
+        setMessageType('info');
+      }
+    } catch (_) { /* ignore corrupt data */ }
+    draftRestoredRef.current = true;
+  }, []);
+
+  // ── Draft auto-save: persist on change ───────────────────────────
+  useEffect(() => {
+    if (!draftRestoredRef.current) return;
+    const hasDraft = title || tags || subject || city || country || fileTypeId;
+    if (hasDraft) {
+      try {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify({ title, tags, subject, city, country, fileTypeId }));
+      } catch (_) { /* storage full, ignore */ }
+    }
+  }, [title, tags, subject, city, country, fileTypeId]);
+
+  const clearDraft = () => {
+    try { localStorage.removeItem(DRAFT_KEY); } catch (_) { /* ignore */ }
+  };
+
   // Handler for "Use My Location" button
   const handleUseMyLocation = () => {
     if (!navigator.geolocation) {
@@ -160,16 +88,12 @@ const UploadForm = () => {
         setLon(longitude);
         setMessage('Location detected!');
         setMessageType('success');
-        // Optionally, reverse geocode to get city/country
         try {
-          const response = await axios.get(GEODATA_API_URL, {
-            params: { q: `${latitude},${longitude}`, key: GEODATA_API_KEY },
+          const response = await api.get('/ai/geocode', {
+            params: { q: `${latitude},${longitude}` },
           });
-          if (response.data.results?.length > 0) {
-            const comp = response.data.results[0].components;
-            if (comp.city || comp.town || comp.village) setCity(comp.city || comp.town || comp.village);
-            if (comp.country) setCountry(comp.country);
-          }
+          if (response.data.city) setCity(response.data.city);
+          if (response.data.country) setCountry(response.data.country);
         } catch (e) {
           // Ignore reverse geocode errors
         }
@@ -183,22 +107,6 @@ const UploadForm = () => {
     );
   };
 
-  const MAX_FILE_SIZE = 60 * 1024 * 1024; // 60MB
-  const ALLOWED_FILE_TYPES = [
-    'image/jpeg','image/jpg', 'image/png', 'image/gif', 'image/webp',
-    'video/mp4', 'video/avi', 'video/mov', 'video/mpeg', 'video/ogg', 'video/webm',
-    'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4', 'audio/x-m4a',
-    'application/pdf',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/vnd.ms-excel',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'application/vnd.ms-powerpoint',
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-  ];
-
-  const GEODATA_API_URL = 'https://api.opencagedata.com/geocode/v1/json';
-  const GEODATA_API_KEY = '0bc1962b58b7482ebe0507debae9a885';
 
   const toggleSidebar = () => setIsSidebarVisible((prev) => !prev);
 
@@ -216,20 +124,20 @@ const UploadForm = () => {
   }, []);
 
   useEffect(() => {
+    if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current);
     if (city.trim() && country.trim()) {
-      const fetchGeolocation = async () => {
+      geocodeTimerRef.current = setTimeout(async () => {
         try {
           setMessage('Fetching location coordinates...');
           setMessageType('info');
 
-          const response = await axios.get(GEODATA_API_URL, {
-            params: { q: `${city.trim()}, ${country.trim()}`, key: GEODATA_API_KEY },
+          const response = await api.get('/ai/geocode', {
+            params: { q: `${city.trim()}, ${country.trim()}` },
           });
 
-          if (response.data.results?.length > 0) {
-            const { lat: latitude, lng: longitude } = response.data.results[0].geometry;
-            setLat(latitude);
-            setLon(longitude);
+          if (response.data.lat && response.data.lon) {
+            setLat(response.data.lat);
+            setLon(response.data.lon);
             setMessage('Location found successfully!');
             setMessageType('success');
           } else {
@@ -240,13 +148,70 @@ const UploadForm = () => {
           setMessage('Error fetching location data. Please try again.');
           setMessageType('error');
         }
-      };
-      fetchGeolocation();
+      }, 600);
     }
+    return () => { if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current); };
   }, [city, country]);
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
+  // ── Analyze uploaded media via AI ──────────────────────────────────
+  const analyzeMedia = useCallback(async (file) => {
+    setIsAnalyzing(true);
+    setAnalysisSteps([]);
+    setTranscription('');
+    setExifData(null);
+    setMessage('🔍 Analyzing media with AI... This may take a moment.');
+    setMessageType('info');
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await api.post('/ai/analyze', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      const data = response.data;
+      setAnalysisResult(data);
+
+      if (data.analysis_steps) setAnalysisSteps(data.analysis_steps);
+
+      if (data.title) setTitle(data.title);
+      if (data.tags) setTags(data.tags);
+      if (data.subject) setSubject(data.subject);
+      if (data.city) setCity(data.city);
+      if (data.country) setCountry(data.country);
+
+      if (data.transcription) {
+        setTranscription(data.transcription);
+        setTranscriptLanguage(data.transcript_language || '');
+      }
+
+      if (data.exif) {
+        setExifData(data.exif);
+        if (data.exif.has_gps) {
+          setLat(data.exif.lat);
+          setLon(data.exif.lon);
+        }
+      }
+
+      if (data.ai_used === false) {
+        setMessage('⚠️ AI service is not configured — please fill in the fields manually.');
+        setMessageType('error');
+      } else {
+        const confidencePct = data.confidence ? (data.confidence * 100).toFixed(0) : '?';
+        setMessage(`✅ AI Analysis complete! Confidence: ${confidencePct}% — Review and edit the fields before submitting.`);
+        setMessageType('success');
+      }
+    } catch (error) {
+      setMessage(`⚠️ AI analysis unavailable: ${error.response?.data?.error || error.message || 'Service error'}. Please fill form manually.`);
+      setMessageType('error');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }, []);
+
+  // ── Validate & set file (shared by click + drag-drop) ───────────
+  const processFile = useCallback((file) => {
     if (!file) {
       setMessage('No file selected. Please choose a file.');
       setMessageType('error');
@@ -270,45 +235,37 @@ const UploadForm = () => {
     setSelectedFile(file);
     setMessage(`File "${file.name}" selected successfully!`);
     setMessageType('success');
-    
+
     // Auto-analyze if image or video
     if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
       analyzeMedia(file);
     }
+  }, [analyzeMedia]);
+
+  const handleFileChange = (e) => {
+    processFile(e.target.files[0]);
   };
 
-  const analyzeMedia = async (file) => {
-    setIsAnalyzing(true);
-    setMessage('🔍 Analyzing media with AI... This may take a moment.');
-    setMessageType('info');
+  // ── Drag-and-drop handler ────────────────────────────────────────
+  const handleDrop = useCallback((e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    processFile(file);
+  }, [processFile]);
 
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      const response = await api.post('/ai/analyze', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-
-      const data = response.data;
-      setAnalysisResult(data);
-      
-      // Auto-fill form fields
-      if (data.title) setTitle(data.title);
-      if (data.tags) setTags(data.tags);
-      if (data.subject) setSubject(data.subject);
-      if (data.city) setCity(data.city);
-      if (data.country) setCountry(data.country);
-      
-      setMessage(`✅ AI Analysis complete! Confidence: ${(data.confidence * 100).toFixed(0)}% - Review and edit the fields before submitting.`);
-      setMessageType('success');
-    } catch (error) {
-      setMessage(`⚠️ AI analysis unavailable: ${error.response?.data?.error || error.message || 'Service error'}. Please fill form manually.`);
-      setMessageType('error');
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
+  // ── Remove file handler ──────────────────────────────────────────
+  const handleRemoveFile = useCallback(() => {
+    setSelectedFile(null);
+    setAnalysisResult(null);
+    setAnalysisSteps([]);
+    setExifData(null);
+    setTranscription('');
+    setTranscriptLanguage('');
+    const fileInput = document.getElementById('fileInput');
+    if (fileInput) fileInput.value = '';
+    setMessage('');
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -326,6 +283,7 @@ const UploadForm = () => {
     }
 
     setIsLoading(true);
+    setUploadProgress(0);
     setMessage('Uploading your file... Please wait.');
     setMessageType('info');
 
@@ -337,22 +295,17 @@ const UploadForm = () => {
     formData.append('subject', subject.trim());
     formData.append('city', city.trim());
     formData.append('country', country.trim());
-    formData.append('lat', lat !== null && !isNaN(lat) ? lat : null);
-    formData.append('lon', lon !== null && !isNaN(lon) ? lon : null);
+    if (lat !== null && !isNaN(lat)) formData.append('lat', lat);
+    if (lon !== null && !isNaN(lon)) formData.append('lon', lon);
 
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        setMessage('You are not authenticated. Please log in again.');
-        setMessageType('error');
-        setIsLoading(false);
-        return;
-      }
-
-      const response = await api.post('/file_upload/upload', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          Authorization: `Bearer ${token}`,
+      await api.post('/file_upload/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (progressEvent) => {
+          const pct = progressEvent.total
+            ? Math.round((progressEvent.loaded * 100) / progressEvent.total)
+            : 0;
+          setUploadProgress(pct);
         },
       });
 
@@ -369,27 +322,32 @@ const UploadForm = () => {
       setLat(null);
       setLon(null);
       setFileTypeId('');
+      setAnalysisResult(null);
+      setAnalysisSteps([]);
+      setExifData(null);
+      setTranscription('');
+      setUploadProgress(0);
+      clearDraft();
 
-        // Reset file input
-        const fileInput = document.getElementById('fileInput');
-        if (fileInput) fileInput.value = '';
+      const fileInput = document.getElementById('fileInput');
+      if (fileInput) fileInput.value = '';
 
-        // Optional: Auto-trigger a refresh to get the latest data
-        // You can dispatch an event or call a callback to refresh search results
-        // For now, just notify the user to search for it
-        setTimeout(() => {
-          setMessage('✅ Uploaded! Search by title or location to find it on the map.');
-          setMessageType('success');
-        }, 2000);
+      setTimeout(() => {
+        setMessage('✅ Uploaded! Search by title or location to find it on the map.');
+        setMessageType('success');
+      }, 2000);
     } catch (error) {
-      console.error('Error during upload:', error);
       const errorMsg = error.response?.data?.message || error.message || 'Network error occurred. Please check your connection and try again.';
       setMessage(errorMsg);
       setMessageType('error');
     } finally {
       setIsLoading(false);
+      setUploadProgress(0);
     }
   };
+
+  // Whether to show the details form (progressive disclosure)
+  const showDetails = !!selectedFile;
 
   return (
     <div className="upload-page">
@@ -413,25 +371,54 @@ const UploadForm = () => {
 
       {/* Main Content */}
       <div className="upload-content">
-        {/* AI Analysis Banner */}
+        {/* Step Indicator */}
+        <StepIndicator currentStep={currentStep} />
+
+        {/* AI Analysis Progress */}
         {isAnalyzing && (
           <div className="ai-analysis-banner">
             <div className="spinner"></div>
             <div className="text">
-              🤖 AI is analyzing your media... Extracting title, tags, and location.
+              <div>🤖 AI is analyzing your media...</div>
+              {analysisSteps.length > 0 && (
+                <div style={{fontSize: '0.85em', marginTop: 4, opacity: 0.9}}>
+                  {analysisSteps.map((step, i) => (
+                    <div key={i}>{i < analysisSteps.length - 1 ? '✓' : '⏳'} {step}</div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
-        
-        {analysisResult && !isAnalyzing && (
+
+        {analysisResult && !isAnalyzing && analysisResult.ai_used !== false && (
           <div className="ai-analysis-banner" style={{background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)'}}>
             <div className="icon">✨</div>
             <div className="text">
-              AI Analysis Complete! Confidence: {(analysisResult.confidence * 100).toFixed(0)}% - Review and edit the fields below.
+              <div>AI Analysis Complete! Confidence: {analysisResult.confidence ? (analysisResult.confidence * 100).toFixed(0) : '?'}%</div>
+              {analysisResult.event_type && (
+                <div style={{fontSize: '0.85em', marginTop: 2, opacity: 0.9}}>
+                  Event type: {analysisResult.event_type}
+                  {analysisResult.content_warnings && ` · ⚠️ ${analysisResult.content_warnings}`}
+                </div>
+              )}
             </div>
           </div>
         )}
-        
+
+        {analysisResult && !isAnalyzing && analysisResult.ai_used === false && (
+          <div className="ai-analysis-banner" style={{background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'}}>
+            <div className="icon">⚠️</div>
+            <div className="text">
+              <div>AI service not configured</div>
+              <div style={{fontSize: '0.85em', marginTop: 2, opacity: 0.9}}>
+                Set <code>OPENAI_API_KEY</code> in your environment to enable AI-powered analysis.
+                Fill in the fields manually for now.
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="upload-container">
           <form className="upload-form-content" onSubmit={handleSubmit}>
             <div className="form-columns">
@@ -443,58 +430,115 @@ const UploadForm = () => {
                   setFileTypeId={setFileTypeId}
                   selectedFile={selectedFile}
                   handleFileChange={handleFileChange}
+                  handleDrop={handleDrop}
+                  handleRemoveFile={handleRemoveFile}
+                  isDragging={isDragging}
+                  setIsDragging={setIsDragging}
                 />
 
-                <GeneralInfoForm
-                  title={title}
-                  setTitle={setTitle}
-                  tags={tags}
-                  setTags={setTags}
-                  subject={subject}
-                  setSubject={setSubject}
-                />
+                <div className={`form-details-reveal ${showDetails ? 'visible' : ''}`}>
+                  <GeneralInfoForm
+                    title={title}
+                    setTitle={setTitle}
+                    tags={tags}
+                    setTags={setTags}
+                    subject={subject}
+                    setSubject={setSubject}
+                  />
+                </div>
               </div>
 
-              {/* Right Column: Location Info */}
-              <div className="form-column form-column-side">
-                <LocationForm
-                  city={city}
-                  setCity={setCity}
-                  country={country}
-                  setCountry={setCountry}
-                  lat={lat}
-                  lon={lon}
-                  onUseMyLocation={handleUseMyLocation}
-                  isLocating={isLocating}
-                />
+              {/* Right Column: Location + AI Results */}
+              <div className={`form-column form-column-side ${showDetails ? '' : 'hidden-section'}`}>
+                <div className={`form-details-reveal ${showDetails ? 'visible' : ''}`}>
+                  <LocationForm
+                    city={city}
+                    setCity={setCity}
+                    country={country}
+                    setCountry={setCountry}
+                    lat={lat}
+                    lon={lon}
+                    onUseMyLocation={handleUseMyLocation}
+                    isLocating={isLocating}
+                  />
 
-                {/* Messages */}
-                {message && (
-                  <div className={`message ${messageType}`}>
-                    {message}
+                  {/* EXIF Metadata Display */}
+                  {exifData && exifData.has_gps && (
+                    <div className="form-section" style={{background: 'rgba(16,185,129,0.08)', borderRadius: 8, padding: '10px 14px', marginTop: 8}}>
+                      <h3 style={{fontSize: '0.9em', margin: '0 0 6px'}}>📷 Photo Metadata (EXIF)</h3>
+                      <div style={{fontSize: '0.82em', lineHeight: 1.6}}>
+                        <div>📍 GPS: {exifData.lat?.toFixed(5)}, {exifData.lon?.toFixed(5)}</div>
+                        {exifData.timestamp && <div>🕐 Taken: {new Date(exifData.timestamp).toLocaleString()}</div>}
+                        {exifData.device && <div>📱 Device: {exifData.device}</div>}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Transcription Display */}
+                  {transcription && (
+                    <div className="form-section" style={{marginTop: 8}}>
+                      <h3 style={{fontSize: '0.9em', margin: '0 0 6px'}}>
+                        🎙️ Audio Transcript {transcriptLanguage && `(${transcriptLanguage})`}
+                      </h3>
+                      <textarea
+                        className="form-textarea"
+                        value={transcription}
+                        onChange={(e) => setTranscription(e.target.value)}
+                        rows="4"
+                        style={{fontSize: '0.85em'}}
+                        placeholder="AI-generated transcript — edit if needed"
+                      />
+                    </div>
+                  )}
+
+                  {/* Messages (only when details are visible) */}
+                  {showDetails && message && (
+                    <div className={`message ${messageType}`}>
+                      {message}
+                    </div>
+                  )}
+
+                  {/* Upload Progress Bar */}
+                  {isLoading && (
+                    <div className="upload-progress">
+                      <div className="upload-progress-bar">
+                        <div
+                          className="upload-progress-fill"
+                          style={{ width: `${uploadProgress}%` }}
+                        />
+                      </div>
+                      <span className="upload-progress-text">{uploadProgress}%</span>
+                    </div>
+                  )}
+
+                  {/* Form Actions */}
+                  <div className="form-actions-side">
+                    <button type="submit" className={`submit-btn ${isLoading ? 'loading' : ''}`} disabled={isLoading}>
+                      {isLoading ? (
+                        <>
+                          <div className="spinner"></div>
+                          Uploading... {uploadProgress}%
+                        </>
+                      ) : (
+                        <>
+                          <span>🚀</span>
+                          Publish
+                        </>
+                      )}
+                    </button>
                   </div>
-                )}
-
-                {/* Form Actions */}
-                <div className="form-actions-side">
-                  <button type="submit" className={`submit-btn ${isLoading ? 'loading' : ''}`} disabled={isLoading}>
-                    {isLoading ? (
-                      <>
-                        <div className="spinner"></div>
-                        Uploading...
-                      </>
-                    ) : (
-                      <>
-                        <span>�</span>
-                        Publish
-                      </>
-                    )}
-                  </button>
                 </div>
               </div>
             </div>
           </form>
         </div>
+
+        {/* Message shown when no file selected (outside container) */}
+        {!showDetails && message && (
+          <div className={`message ${messageType}`} style={{marginTop: '1rem'}}>
+            {message}
+          </div>
+        )}
       </div>
     </div>
   );

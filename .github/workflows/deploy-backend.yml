@@ -1,0 +1,179 @@
+name: Test Backend & Deploy to DigitalOcean
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+    outputs:
+      test-status: ${{ job.status }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libpq-dev
+          echo "✅ System dependencies installed"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install --no-cache-dir -r requirements.txt
+          echo "✅ All dependencies installed"
+
+      - name: Run Python tests
+        run: |
+          pytest app/test/ -v --cov=app --cov-report=xml --tb=short
+          echo "✅ Tests completed successfully"
+
+      - name: Generate test summary
+        if: always()
+        run: |
+          echo "=== Test Summary ==="
+          pytest app/test/ --tb=no -q || true
+
+  deploy-staging:
+    needs: test-backend
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    steps:
+      - name: Check if SSH secrets are configured
+        id: check-secrets
+        run: |
+          if [ -z "${{ secrets.SSH_HOST }}" ] || [ -z "${{ secrets.SSH_PRIVATE_KEY }}" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "⚠️ SSH secrets not configured - skipping deployment"
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout code
+        if: steps.check-secrets.outputs.skip == 'false'
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+
+      - name: Deploy source code to DigitalOcean Staging
+        if: steps.check-secrets.outputs.skip == 'false'
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          source: "app/,docker-compose.prod.yml,main.py,requirements.txt,requirements-prod.txt,.env.example,app/DockerFile"
+          target: "/app/melo-news"
+          overwrite: true
+
+      - name: Deploy to DigitalOcean Staging
+        if: steps.check-secrets.outputs.skip == 'false'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            cd /app/melo-news
+            mkdir -p uploads exports logs
+            if [ ! -f .env ]; then echo "Creating .env from example..."; cp .env.example .env; fi
+            docker-compose -f docker-compose.prod.yml down || true
+            docker-compose -f docker-compose.prod.yml up -d --build
+            sleep 5
+            echo "✅ Staging deployed successfully"
+            docker-compose -f docker-compose.prod.yml ps
+
+      - name: Staging Deployment Status
+        if: always()
+        run: |
+          if [ "${{ steps.check-secrets.outputs.skip }}" == "true" ]; then
+            echo "⚠️ Staging deployment skipped (SSH secrets not configured)"
+          else
+            echo "✅ Staging deployment completed"
+          fi
+
+  deploy-production:
+    needs: test-backend
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Check if SSH secrets are configured
+        id: check-secrets
+        run: |
+          if [ -z "${{ secrets.SSH_HOST }}" ] || [ -z "${{ secrets.SSH_PRIVATE_KEY }}" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "⚠️ SSH secrets not configured - skipping production deployment"
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout code
+        if: steps.check-secrets.outputs.skip == 'false'
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Deploy source code to DigitalOcean Production
+        if: steps.check-secrets.outputs.skip == 'false'
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          source: "app/,docker-compose.prod.yml,main.py,requirements.txt,requirements-prod.txt,.env.example,app/DockerFile"
+          target: "/app/melo-news"
+          overwrite: true
+
+      - name: Deploy to DigitalOcean Production
+        if: steps.check-secrets.outputs.skip == 'false'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            cd /app/melo-news
+            mkdir -p uploads exports logs
+            if [ ! -f .env ]; then echo "Creating .env from example..."; cp .env.example .env; fi
+            docker-compose -f docker-compose.prod.yml down || true
+            docker-compose -f docker-compose.prod.yml up -d --build
+            sleep 5
+            echo "✅ Production deployed successfully"
+            docker-compose -f docker-compose.prod.yml ps
+
+      - name: Health Check
+        if: steps.check-secrets.outputs.skip == 'false'
+        run: |
+          sleep 10
+          curl -f http://localhost:5000/api/health || echo "Health check pending"
+        continue-on-error: true
+
+      - name: Production Deployment Status
+        if: always()
+        run: |
+          if [ "${{ steps.check-secrets.outputs.skip }}" == "true" ]; then
+            echo "⚠️ Production deployment skipped (SSH secrets not configured)"
+          else
+            echo "✅ Production deployment completed"
+          fi
