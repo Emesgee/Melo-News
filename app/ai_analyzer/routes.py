@@ -29,9 +29,14 @@ logger = logging.getLogger(__name__)
 ai_analyzer_bp = Blueprint('ai_analyzer', __name__)
 
 # ── Configuration ───────────────────────────────────────────────────────
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY') or os.getenv('AZURE_OPENAI_KEY', '')
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY') or os.getenv('AZURE_OPENAI_KEY') or os.getenv('THAURA_AI', '')
 OPENAI_MODEL = os.getenv('OPENAI_ANALYSIS_MODEL', 'gpt-4o')
 OPENCAGE_API_KEY = os.getenv('OPENCAGE_API_KEY', '')
+
+# Azure AI Configuration
+AZURE_OPENAI_ENDPOINT = os.getenv('AZURE_OPENAI_ENDPOINT')
+AZURE_OPENAI_KEY = os.getenv('AZURE_OPENAI_KEY')
+AZURE_OPENAI_DEPLOYMENT = os.getenv('AZURE_OPENAI_DEPLOYMENT', 'gpt-4o')
 
 # System prompt for structured citizen journalism analysis
 ANALYSIS_SYSTEM_PROMPT = """You are an AI assistant for a citizen journalism platform focused on Palestine.
@@ -221,13 +226,23 @@ def _analyze_audio(audio_path: str, steps: list) -> dict:
 
 def _call_gpt4o_vision(images_b64: list, text_context: str) -> dict:
     """Send images + text to GPT-4o and get structured JSON."""
-    if not OPENAI_API_KEY:
-        logger.warning("No OpenAI API key — using fallback analysis")
+    if not OPENAI_API_KEY and not AZURE_OPENAI_KEY:
+        logger.warning("No OpenAI or Azure OpenAI key — using fallback analysis")
         return _fallback_analysis()
 
     try:
-        from openai import OpenAI
-        client = OpenAI(api_key=OPENAI_API_KEY)
+        if AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_KEY:
+            from openai import AzureOpenAI
+            client = AzureOpenAI(
+                api_key=AZURE_OPENAI_KEY,
+                api_version="2024-02-01",
+                azure_endpoint=AZURE_OPENAI_ENDPOINT,
+            )
+            model = AZURE_OPENAI_DEPLOYMENT
+        else:
+            from openai import OpenAI
+            client = OpenAI(api_key=OPENAI_API_KEY)
+            model = OPENAI_MODEL
 
         # Build message content with images
         content = [{"type": "text", "text": text_context}]
@@ -241,7 +256,7 @@ def _call_gpt4o_vision(images_b64: list, text_context: str) -> dict:
             })
 
         response = client.chat.completions.create(
-            model=OPENAI_MODEL,
+            model=model,
             messages=[
                 {"role": "system", "content": ANALYSIS_SYSTEM_PROMPT},
                 {"role": "user", "content": content},
@@ -266,15 +281,25 @@ def _call_gpt4o_vision(images_b64: list, text_context: str) -> dict:
 
 def _call_gpt4o_text(text_context: str) -> dict:
     """Send text-only to GPT-4o and get structured JSON (for audio)."""
-    if not OPENAI_API_KEY:
+    if not OPENAI_API_KEY and not AZURE_OPENAI_KEY:
         return _fallback_analysis()
 
     try:
-        from openai import OpenAI
-        client = OpenAI(api_key=OPENAI_API_KEY)
+        if AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_KEY:
+            from openai import AzureOpenAI
+            client = AzureOpenAI(
+                api_key=AZURE_OPENAI_KEY,
+                api_version="2024-02-01",
+                azure_endpoint=AZURE_OPENAI_ENDPOINT,
+            )
+            model = AZURE_OPENAI_DEPLOYMENT
+        else:
+            from openai import OpenAI
+            client = OpenAI(api_key=OPENAI_API_KEY)
+            model = OPENAI_MODEL
 
         response = client.chat.completions.create(
-            model=OPENAI_MODEL,
+            model=model,
             messages=[
                 {"role": "system", "content": ANALYSIS_SYSTEM_PROMPT},
                 {"role": "user", "content": text_context},

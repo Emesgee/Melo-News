@@ -113,6 +113,20 @@ export const getNewsFeed = async (limit = 100) => {
   return api.get('telegram/news', { params: { limit } });
 };
 
+// --- Citizen Upload Management ---
+
+export const getMyUploads = async () => {
+  return api.get('file_upload/my-uploads');
+};
+
+export const editUpload = async (id, data) => {
+  return api.put(`file_upload/${id}`, data);
+};
+
+export const deleteUpload = async (id) => {
+  return api.delete(`file_upload/${id}`);
+};
+
 // Financial data (P2-12) - uses free Yahoo Finance API proxy
 export const getMarketData = async () => {
   try {

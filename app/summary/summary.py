@@ -34,9 +34,12 @@ def generate_summary_with_thaura(stories_data):
         model = os.getenv('THAURA_DEFAULT_MODEL', 'thaura')
         
         if not api_key:
-            print("DEBUG: THAURA_API_KEY not found for summary")
-            return None
-        
+            print("DEBUG: THAURA_API_KEY not found, using mock summary for testing")
+            return {
+                'summary': 'Mock summary: Recent developments in Gaza include heavy fighting in the city center, humanitarian aid arriving in Rafah, and peace talks resuming in Cairo. These events highlight the ongoing conflict and diplomatic efforts in the region.',
+                'service': 'Mock Thaura AI',
+                'generated_at': datetime.now().isoformat(),
+            }
         # Format stories for the prompt with media links
         stories_text = ""
         for story in stories_data:

@@ -10,6 +10,27 @@ from .analysis_service import start_analysis_thread
 file_upload_bp = Blueprint('file_upload', __name__, url_prefix='/api/file_upload')
 
 
+def _serialize_upload(f):
+    """Serialize a FileUpload record to a dict."""
+    return {
+        'id': f.id,
+        'filename': f.filename,
+        'file_path': f.file_path,
+        'title': f.title,
+        'tags': f.tags,
+        'subject': f.subject,
+        'city': f.city,
+        'country': f.country,
+        'lat': f.lat,
+        'lon': f.lon,
+        'upload_date': f.upload_date.isoformat() if f.upload_date else None,
+        'confidence_score': f.confidence_score,
+        'severity': f.severity,
+        'analysis_status': f.analysis_status,
+        'transcription': f.transcription,
+    }
+
+
 def _is_placeholder(value: str | None) -> bool:
     if not value:
         return True
@@ -146,3 +167,70 @@ def upload_file():
         db.session.rollback()
         current_app.logger.error(f"Error uploading file: {e}")
         return jsonify({'message': f"Error uploading file: {str(e)}"}), 500
+
+
+@file_upload_bp.route('/my-uploads', methods=['GET'])
+@jwt_required()
+def my_uploads():
+    """Return all uploads belonging to the authenticated user."""
+    user_id = get_jwt_identity()
+    uploads = (
+        FileUpload.query
+        .filter_by(user_id=user_id)
+        .order_by(FileUpload.upload_date.desc())
+        .all()
+    )
+    return jsonify([_serialize_upload(f) for f in uploads]), 200
+
+
+@file_upload_bp.route('/<int:upload_id>', methods=['PUT'])
+@jwt_required()
+def edit_upload(upload_id):
+    """Update metadata of an upload owned by the authenticated user."""
+    user_id = get_jwt_identity()
+    upload = FileUpload.query.get_or_404(upload_id)
+
+    if str(upload.user_id) != str(user_id):
+        return jsonify({'message': 'Forbidden'}), 403
+
+    data = request.get_json(silent=True) or {}
+
+    editable = ['title', 'tags', 'subject', 'city', 'country']
+    for field in editable:
+        if field in data:
+            setattr(upload, field, data[field])
+
+    for coord in ('lat', 'lon'):
+        if coord in data:
+            try:
+                setattr(upload, coord, float(data[coord]) if data[coord] is not None else None)
+            except (ValueError, TypeError):
+                pass
+
+    try:
+        db.session.commit()
+        return jsonify(_serialize_upload(upload)), 200
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error('Edit upload error: %s', e)
+        return jsonify({'message': str(e)}), 500
+
+
+@file_upload_bp.route('/<int:upload_id>', methods=['DELETE'])
+@jwt_required()
+def delete_upload(upload_id):
+    """Delete an upload owned by the authenticated user."""
+    user_id = get_jwt_identity()
+    upload = FileUpload.query.get_or_404(upload_id)
+
+    if str(upload.user_id) != str(user_id):
+        return jsonify({'message': 'Forbidden'}), 403
+
+    try:
+        db.session.delete(upload)
+        db.session.commit()
+        return jsonify({'message': 'Deleted'}), 200
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error('Delete upload error: %s', e)
+        return jsonify({'message': str(e)}), 500

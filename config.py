@@ -73,6 +73,7 @@ class Config:
         "max_overflow": 20,
     }
     PORT = 5000
+    UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'app', 'uploads')
 
     # JWT cookie configuration (httpOnly for XSS protection)
     JWT_TOKEN_LOCATION = ["cookies", "headers"]  # Accept both during migration
@@ -86,6 +87,15 @@ AZURE_CONNECTION_STRING = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
 AZURE_CONTAINER_NAME = os.getenv("AZURE_BLOB_CONTAINER", "uploads")
 DOWNLOADS_FOLDER = os.getenv("DOWNLOAD_FOLDER", "./downloads")
 os.makedirs(DOWNLOADS_FOLDER, exist_ok=True)
+
+# ── Azure AI Services ──────────────────────────────────────────────
+AZURE_VISION_ENDPOINT = os.getenv("AZURE_VISION_ENDPOINT")
+AZURE_VISION_KEY = os.getenv("AZURE_VISION_KEY")
+AZURE_SPEECH_KEY = os.getenv("AZURE_SPEECH_KEY")
+AZURE_SPEECH_REGION = os.getenv("AZURE_SPEECH_REGION")
+AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
+AZURE_OPENAI_KEY = os.getenv("AZURE_OPENAI_KEY")
+AZURE_OPENAI_DEPLOYMENT = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o")
 
 # ── Kafka ─────────────────────────────────────────────────────────────
 KAFKA_CONF = {

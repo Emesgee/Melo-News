@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request, send_from_directory
+from flask import Blueprint, jsonify, request, send_from_directory, current_app
 from datetime import datetime
 from dateutil import parser
 from sqlalchemy import or_
@@ -21,9 +21,7 @@ def safe_json_load(value, default):
     return default
 
 # Define the uploads folder path
-UPLOAD_FOLDER = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), '..', 'uploads'
-)
+# UPLOAD_FOLDER moved inside the function to use current_app
 
 search_bp = Blueprint('search', __name__, url_prefix='/api')
 
@@ -33,7 +31,10 @@ def uploaded_file(filename):
     """
     Serve files from the uploads directory.
     """
-    return send_from_directory(UPLOAD_FOLDER, filename)
+    upload_folder = current_app.config.get('UPLOAD_FOLDER', os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), '..', 'uploads'
+    ))
+    return send_from_directory(upload_folder, filename)
 
 @search_bp.route('/search', methods=['POST'])
 def search():

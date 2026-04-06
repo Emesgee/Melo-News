@@ -23,6 +23,7 @@ const FileUpload = React.lazy(() => import('./pages/UploadForm'));
 const Intro = React.lazy(() => import('./pages/Intro'));
 const ProfileTest = React.lazy(() => import('./pages/Profile'));
 const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
+const MyUploads = React.lazy(() => import('./pages/MyUploads'));
 
 function App({ isLoggedIn: isLoggedInProp }) {
   return (
@@ -140,6 +141,23 @@ const AppContent = () => {
             </svg>
           </button>
 
+          {isLoggedIn && (
+            <button
+              className="topbar-action-btn"
+              onClick={() => navigate('/my-uploads')}
+              title="My Stories"
+              aria-label="My Stories"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <polyline points="10 9 9 9 8 9" />
+              </svg>
+            </button>
+          )}
+
           {/* Dark mode toggle */}
           <button
             className="topbar-action-btn dark-btn"
@@ -195,6 +213,7 @@ const AppContent = () => {
         <nav className={`topbar-nav ${sidebarOpen ? 'open' : ''}`}>
           <Link to="/" className="nav-link">Home</Link>
           <Link to="/upload" className="nav-link">Upload</Link>
+          <Link to="/my-uploads" className="nav-link">My Stories</Link>
           <Link to={isLoggedIn ? '#' : '/login'} className="nav-link" onClick={isLoggedIn ? handleLogout : undefined}>
             {isLoggedIn ? 'Logout' : 'Login'}
           </Link>
@@ -224,6 +243,7 @@ const AppContent = () => {
             <Route path="/intro" element={<Suspense fallback={null}><Intro /></Suspense>} />
             <Route path="/profile" element={<Suspense fallback={null}><ProfileTest /></Suspense>} />
             <Route path="/upload" element={<Suspense fallback={null}><FileUpload /></Suspense>} />
+            <Route path="/my-uploads" element={<Suspense fallback={null}><MyUploads /></Suspense>} />
             <Route path="/admin" element={<Suspense fallback={null}><AdminDashboard /></Suspense>} />
           </Route>
         </Routes>

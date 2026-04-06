@@ -184,22 +184,37 @@ def populate_initial_data():
 def ensure_schema_compatibility():
     """Backfill columns that exist in models but may be missing in legacy databases."""
     try:
-        existing_cols = {
-            row[0] for row in db.session.execute(text(
+        if db.engine.dialect.name == 'postgresql':
+            query = text(
                 """
                 SELECT column_name
                 FROM information_schema.columns
                 WHERE table_name = 'file_uploads'
                 """
-            )).fetchall()
-        }
+            )
+        elif db.engine.dialect.name == 'sqlite':
+            query = text(
+                """
+                PRAGMA table_info(file_uploads)
+                """
+            )
+            # For sqlite, column name is in second position
+        else:
+            logger.warning("Unsupported database dialect: %s", db.engine.dialect.name)
+            return
+
+        result = db.session.execute(query).fetchall()
+        if db.engine.dialect.name == 'postgresql':
+            existing_cols = {row[0] for row in result}
+        else:  # sqlite
+            existing_cols = {row[1] for row in result}  # column name is row[1]
 
         # Keep this list minimal and explicit for safe startup compatibility.
         required_columns = {
             'transcription': 'TEXT',
-            'confidence_score': 'DOUBLE PRECISION DEFAULT 0.0',
+            'confidence_score': 'DOUBLE PRECISION DEFAULT 0.0' if db.engine.dialect.name == 'postgresql' else 'REAL DEFAULT 0.0',
             'severity': "VARCHAR(20) DEFAULT 'LOW'",
-            'exif_data': 'JSONB',
+            'exif_data': 'JSONB' if db.engine.dialect.name == 'postgresql' else 'TEXT',
             'analysis_status': "VARCHAR(20) DEFAULT 'PENDING'",
         }
 

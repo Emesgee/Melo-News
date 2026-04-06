@@ -40,6 +40,39 @@ const UploadForm = () => {
   const draftRestoredRef = useRef(false);
   const geocodeTimerRef = useRef(null);
 
+  // ── EXIF safety state ─────────────────────────────────────────────
+  const [exifGpsWarning, setExifGpsWarning] = useState(false);   // show warning banner
+  const [strippedFile, setStrippedFile] = useState(null);         // file with GPS removed
+  const rawFileRef = useRef(null);                                 // original file before strip
+
+  /**
+   * Strip GPS/device EXIF from an image by re-encoding through canvas.
+   * Returns a new File with the same name but clean metadata.
+   */
+  const stripExifFromImage = useCallback((file) => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        canvas.getContext('2d').drawImage(img, 0, 0);
+        URL.revokeObjectURL(url);
+        canvas.toBlob(
+          (blob) => {
+            const clean = new File([blob], file.name, { type: file.type, lastModified: Date.now() });
+            resolve(clean);
+          },
+          file.type,
+          0.92
+        );
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+      img.src = url;
+    });
+  }, []);
+
   // Compute current step
   const currentStep = isAnalyzing ? 2 : selectedFile ? 3 : 1;
 
@@ -274,6 +307,7 @@ const UploadForm = () => {
         setMessage(`✅ AI Analysis complete! Confidence: ${confidencePct}% — Review and edit the fields before submitting.`);
         setMessageType('success');
       }
+      return data;
     } catch (error) {
       if (error?.response?.status === 400) {
         setAiAnalyzeAvailable(false);
@@ -283,6 +317,7 @@ const UploadForm = () => {
         setMessage(`⚠️ AI analysis unavailable: ${error.response?.data?.error || error.message || 'Service error'}. Please fill form manually.`);
       }
       setMessageType('error');
+      return null;
     } finally {
       setIsAnalyzing(false);
     }
@@ -311,6 +346,10 @@ const UploadForm = () => {
     }
 
     setSelectedFile(file);
+    rawFileRef.current = file;
+    setStrippedFile(null);
+    setExifGpsWarning(false);
+
     const inferredTypeId = findMatchingFileTypeId(file);
     if (inferredTypeId) {
       setFileTypeId(inferredTypeId);
@@ -325,7 +364,12 @@ const UploadForm = () => {
       file.type.startsWith('audio/')
     );
     if (canAutoAnalyze) {
-      analyzeMedia(file);
+      analyzeMedia(file).then((result) => {
+        // After analysis, if GPS found in EXIF, show safety warning
+        if (result?.exif?.has_gps) {
+          setExifGpsWarning(true);
+        }
+      });
     }
   }, [analyzeMedia, aiAnalyzeAvailable, findMatchingFileTypeId]);
 
@@ -349,6 +393,9 @@ const UploadForm = () => {
     setExifData(null);
     setTranscription('');
     setTranscriptLanguage('');
+    setExifGpsWarning(false);
+    setStrippedFile(null);
+    rawFileRef.current = null;
     const fileInput = document.getElementById('fileInput');
     if (fileInput) fileInput.value = '';
     setMessage('');
@@ -393,7 +440,7 @@ const UploadForm = () => {
     setMessageType('info');
 
     const formData = new FormData();
-    formData.append('file', selectedFile);
+    formData.append('file', strippedFile || selectedFile);
     formData.append('file_type_id', fileTypeId);
     formData.append('title', title.trim());
     formData.append('tags', tags.trim());
@@ -431,6 +478,9 @@ const UploadForm = () => {
       setExifData(null);
       setTranscription('');
       setUploadProgress(0);
+      setExifGpsWarning(false);
+      setStrippedFile(null);
+      rawFileRef.current = null;
       clearDraft();
 
       const fileInput = document.getElementById('fileInput');
@@ -528,6 +578,42 @@ const UploadForm = () => {
               <div style={{fontSize: '0.85em', marginTop: 2, opacity: 0.9}}>
                 Set <code>OPENAI_API_KEY</code> in your environment to enable AI-powered analysis.
                 Fill in the fields manually for now.
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* EXIF GPS Safety Warning */}
+        {exifGpsWarning && (
+          <div className="ai-analysis-banner" style={{background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)'}}>
+            <div className="icon">🛡️</div>
+            <div className="text">
+              <div style={{fontWeight: 700}}>Safety Warning: GPS location found in photo metadata</div>
+              <div style={{fontSize: '0.85em', marginTop: 4, opacity: 0.95}}>
+                Your photo contains embedded GPS coordinates that could reveal where it was taken.
+                In conflict zones, this can be dangerous.
+              </div>
+              <div style={{display: 'flex', gap: '0.5rem', marginTop: 8, flexWrap: 'wrap'}}>
+                <button
+                  type="button"
+                  style={{background: '#fff', color: '#b91c1c', border: 'none', borderRadius: 6, padding: '4px 12px', fontWeight: 700, cursor: 'pointer', fontSize: '0.82em'}}
+                  onClick={async () => {
+                    const clean = await stripExifFromImage(rawFileRef.current || selectedFile);
+                    setStrippedFile(clean);
+                    setExifGpsWarning(false);
+                    setMessage('✅ GPS metadata removed. Your photo is safe to upload.');
+                    setMessageType('success');
+                  }}
+                >
+                  Remove GPS data before upload
+                </button>
+                <button
+                  type="button"
+                  style={{background: 'rgba(255,255,255,0.2)', color: '#fff', border: '1px solid rgba(255,255,255,0.4)', borderRadius: 6, padding: '4px 12px', cursor: 'pointer', fontSize: '0.82em'}}
+                  onClick={() => setExifGpsWarning(false)}
+                >
+                  Keep GPS and continue
+                </button>
               </div>
             </div>
           </div>
