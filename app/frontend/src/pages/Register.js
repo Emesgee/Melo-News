@@ -13,11 +13,26 @@ const Register = () => {
   const [registered, setRegistered] = useState(false);
   const navigate = useNavigate();
 
+  const passwordChecks = [
+    { test: password.length >= 8, label: 'at least 8 characters' },
+    { test: /[a-z]/.test(password), label: 'one lowercase letter' },
+    { test: /[A-Z]/.test(password), label: 'one uppercase letter' },
+    { test: /\d/.test(password), label: 'one number' },
+    { test: /[@$!%*?&]/.test(password), label: 'one special character (@$!%*?&)' },
+  ];
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (password.length < 8) {
-      setMessage('Password must be at least 8 characters.');
+    if (!username.trim()) {
+      setMessage('Name is required.');
+      setMessageType('error');
+      return;
+    }
+
+    const failedPasswordRule = passwordChecks.find((rule) => !rule.test);
+    if (failedPasswordRule) {
+      setMessage(`Password must include ${failedPasswordRule.label}.`);
       setMessageType('error');
       return;
     }
@@ -34,7 +49,7 @@ const Register = () => {
       setMessageType('success');
       setRegistered(true);
     } catch (error) {
-      setMessage(error.response?.data?.message || 'Registration failed');
+      setMessage(error.response?.data?.error || error.response?.data?.message || 'Registration failed');
       setMessageType('error');
     } finally {
       setIsLoading(false);
@@ -75,7 +90,7 @@ const Register = () => {
             required
             minLength={8}
           />
-          <span className="field-hint">Minimum 8 characters</span>
+          <span className="field-hint">8+ chars, uppercase, lowercase, number, and @$!%*?&</span>
         </div>
         <button type="submit" disabled={isLoading}>
           {isLoading ? 'Registering\u2026' : 'Register'}

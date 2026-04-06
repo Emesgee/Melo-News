@@ -71,11 +71,15 @@ def analyze_media():
     confidence, transcription, exif, analysis_steps
     """
     if 'file' not in request.files:
-        return jsonify({'error': 'No file provided'}), 400
+        fallback = _fallback_analysis()
+        fallback['error'] = 'No file provided'
+        return jsonify(fallback), 200
 
     file = request.files['file']
     if file.filename == '':
-        return jsonify({'error': 'Empty filename'}), 400
+        fallback = _fallback_analysis()
+        fallback['error'] = 'Empty filename'
+        return jsonify(fallback), 200
 
     filename = secure_filename(file.filename)
     temp_path = os.path.join(tempfile.gettempdir(), f"melo_analyze_{filename}")
@@ -92,7 +96,12 @@ def analyze_media():
         elif mime_type and mime_type.startswith('audio'):
             result = _analyze_audio(temp_path, analysis_steps)
         else:
-            return jsonify({'error': f'Unsupported file type: {mime_type}'}), 400
+            fallback = _fallback_analysis()
+            fallback['title'] = 'Uploaded File'
+            fallback['subject'] = 'AI analysis unavailable for this file type. Fill in the details manually.'
+            fallback['note'] = f'Unsupported file type for AI analysis: {mime_type or "unknown"}'
+            fallback['analysis_steps'] = analysis_steps
+            return jsonify(fallback), 200
 
         result['analysis_steps'] = analysis_steps
         return jsonify(result), 200
@@ -360,7 +369,15 @@ def geocode_proxy():
 
     api_key = OPENCAGE_API_KEY
     if not api_key:
-        return jsonify({'error': 'Geocoding not configured'}), 503
+        return jsonify({
+            'lat': None,
+            'lon': None,
+            'city': '',
+            'country': '',
+            'formatted': '',
+            'configured': False,
+            'note': 'Geocoding not configured'
+        }), 200
 
     try:
         import requests as http_requests
@@ -388,4 +405,12 @@ def geocode_proxy():
 
     except Exception as e:
         logger.error("Geocode proxy error: %s", e)
-        return jsonify({'error': 'Geocoding service unavailable'}), 503
+        return jsonify({
+            'lat': None,
+            'lon': None,
+            'city': '',
+            'country': '',
+            'formatted': '',
+            'configured': True,
+            'note': 'Geocoding service unavailable'
+        }), 200

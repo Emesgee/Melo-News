@@ -1,5 +1,5 @@
 // Service Worker for Melo-News PWA (P2-13)
-const CACHE_NAME = 'melo-news-v1';
+const CACHE_NAME = 'melo-news-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -67,6 +67,17 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
         }
         return response;
+      }).catch(async () => {
+        // For client-side routes, return cached app shell when offline.
+        if (request.mode === 'navigate') {
+          const fallback = await caches.match('/index.html');
+          if (fallback) return fallback;
+        }
+        return new Response('Offline', {
+          status: 503,
+          statusText: 'Service Unavailable',
+          headers: { 'Content-Type': 'text/plain' },
+        });
       });
     })
   );

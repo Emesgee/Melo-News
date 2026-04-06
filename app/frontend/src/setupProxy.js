@@ -10,7 +10,7 @@
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const PROXY_TARGET =
-  process.env.REACT_APP_PROXY_TARGET || 'http://localhost:5000';
+  process.env.REACT_APP_PROXY_TARGET || 'http://127.0.0.1:5000';
 
 module.exports = function (app) {
   app.use(
@@ -18,9 +18,10 @@ module.exports = function (app) {
     createProxyMiddleware({
       target: PROXY_TARGET,
       changeOrigin: true,
-      secure: true,
-      // Rewrite Set-Cookie domain so cookies work on localhost
-      cookieDomainRewrite: { '*': 'localhost' },
+      secure: false,
+      // Remove cookie Domain attribute so browser scopes cookies to current host
+      // (works for both localhost and 127.0.0.1 in local dev).
+      cookieDomainRewrite: '',
       on: {
         error: (err, req, res) => {
           console.error('[proxy error]', err.message);

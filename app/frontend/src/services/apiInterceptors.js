@@ -1,7 +1,41 @@
-import { api } from './api';
+import { api, getAccessToken } from './api';
 
 const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 1000;
+
+const isSilentProbeEndpoint = (url = '') => {
+  const normalized = String(url).toLowerCase();
+  return (
+    normalized.includes('/auth/me') ||
+    normalized.endsWith('auth/me') ||
+    normalized.includes('/health') ||
+    normalized.endsWith('health')
+  );
+};
+
+const isUploadEndpoint = (url = '') => {
+  const normalized = String(url).toLowerCase();
+  return normalized.includes('/file_upload/upload');
+};
+
+const isGeocodeEndpoint = (url = '') => {
+  const normalized = String(url).toLowerCase();
+  return normalized.includes('/ai/geocode');
+};
+
+const isAnalyzeEndpoint = (url = '') => {
+  const normalized = String(url).toLowerCase();
+  return normalized.includes('/ai/analyze');
+};
+
+const getCookie = (name) => {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie
+    .split(';')
+    .map((c) => c.trim())
+    .find((c) => c.startsWith(`${name}=`));
+  return match ? decodeURIComponent(match.split('=').slice(1).join('=')) : null;
+};
 
 /**
  * Determine if a failed request should be retried.
@@ -28,6 +62,24 @@ export const setupInterceptors = (addToast, onAuthExpired) => {
   // ── Request interceptor: attach retry counter ──────────────────
   api.interceptors.request.use((config) => {
     config.__retryCount = config.__retryCount || 0;
+
+    // Header token fallback (backend accepts JWT in headers during migration).
+    const token = getAccessToken();
+    if (token && !config.headers?.Authorization) {
+      config.headers = config.headers || {};
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    // Send CSRF header for cookie-based JWT protection on state-changing methods.
+    const method = String(config.method || 'get').toLowerCase();
+    if (['post', 'put', 'patch', 'delete'].includes(method)) {
+      const csrf = getCookie('csrf_access_token');
+      if (csrf) {
+        config.headers = config.headers || {};
+        config.headers['X-CSRF-TOKEN'] = csrf;
+      }
+    }
+
     return config;
   });
 
@@ -36,9 +88,13 @@ export const setupInterceptors = (addToast, onAuthExpired) => {
     (response) => response,
     async (error) => {
       const config = error.config || {};
+      const isSilentProbe = isSilentProbeEndpoint(config.url);
+      const isUploadRequest = isUploadEndpoint(config.url);
+      const isGeocodeRequest = isGeocodeEndpoint(config.url);
+      const isAnalyzeRequest = isAnalyzeEndpoint(config.url);
 
       // ── Retry logic ────────────────────────────────────────────
-      if (shouldRetry(error) && config.__retryCount < MAX_RETRIES) {
+      if (!isSilentProbe && !isUploadRequest && !isGeocodeRequest && !isAnalyzeRequest && shouldRetry(error) && config.__retryCount < MAX_RETRIES) {
         config.__retryCount += 1;
         const delay = RETRY_DELAY_MS * Math.pow(2, config.__retryCount - 1);
         await new Promise((resolve) => setTimeout(resolve, delay));
@@ -76,6 +132,9 @@ export const setupInterceptors = (addToast, onAuthExpired) => {
 
       // Server errors (after retries failed)
       if (status >= 500) {
+        if (isGeocodeRequest) {
+          return Promise.reject(error);
+        }
         addToast(
           serverMessage || 'Server error. Please try again later.',
           'error',
@@ -85,10 +144,18 @@ export const setupInterceptors = (addToast, onAuthExpired) => {
 
       // Network error (no response at all, retries exhausted)
       if (!error.response) {
+        if (isSilentProbe) {
+          return Promise.reject(error);
+        }
         addToast(
           'Network error. Please check your connection.',
           'error',
         );
+        return Promise.reject(error);
+      }
+
+      // Suppress noisy toasts for silent probe endpoints (health/auth checks)
+      if (isSilentProbe) {
         return Promise.reject(error);
       }
 

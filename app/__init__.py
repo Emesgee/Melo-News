@@ -10,12 +10,16 @@ from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from flask_socketio import SocketIO
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import text
 from .models import db, InputTemplate, OutputTemplate, FileType, Telegram, Prediction, PredictionVote, KeywordTrend, TensionIndex
 
 logger = logging.getLogger(__name__)
 
 # Initialize SocketIO globally
-socketio = SocketIO(cors_allowed_origins=["https://app.melonews.tech", "http://localhost:3000", "http://localhost:3001"])
+socketio = SocketIO(
+    cors_allowed_origins=["https://app.melonews.tech", "http://localhost:3000", "http://localhost:3001"],
+    async_mode="threading",
+)
 
 def create_app(config_name=None):
     """
@@ -169,29 +173,74 @@ def create_app(config_name=None):
 def populate_initial_data():
     """Populate database with initial data"""
     try:
+        ensure_schema_compatibility()
         populate_file_types()
         populate_input_templates()
         populate_output_templates()
     except Exception as e:
         logger.error("Failed to populate initial data: %s", e)
 
+
+def ensure_schema_compatibility():
+    """Backfill columns that exist in models but may be missing in legacy databases."""
+    try:
+        existing_cols = {
+            row[0] for row in db.session.execute(text(
+                """
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_name = 'file_uploads'
+                """
+            )).fetchall()
+        }
+
+        # Keep this list minimal and explicit for safe startup compatibility.
+        required_columns = {
+            'transcription': 'TEXT',
+            'confidence_score': 'DOUBLE PRECISION DEFAULT 0.0',
+            'severity': "VARCHAR(20) DEFAULT 'LOW'",
+            'exif_data': 'JSONB',
+            'analysis_status': "VARCHAR(20) DEFAULT 'PENDING'",
+        }
+
+        altered = False
+        for col_name, col_ddl in required_columns.items():
+            if col_name not in existing_cols:
+                db.session.execute(text(f"ALTER TABLE file_uploads ADD COLUMN {col_name} {col_ddl}"))
+                altered = True
+                logger.info("Added missing column file_uploads.%s", col_name)
+
+        if altered:
+            db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logger.warning("Schema compatibility check failed: %s", e)
+
 def populate_file_types():
     """Populate FileType table"""
-    if not FileType.query.first():
-        templates = [
-            FileType(type_name="Audio", allowed_extensions="m4a, mp3, wav"),
-            FileType(type_name="Image", allowed_extensions="jpg, png, jpeg, gif"),
-            FileType(type_name="Video", allowed_extensions="mp4, avi, mpeg, mov"),
-            FileType(type_name="Documents", allowed_extensions="docx, pdf, ppt"),
-            FileType(type_name="Data Files", allowed_extensions="csv")
-        ]
-        try:
-            db.session.bulk_save_objects(templates)
-            db.session.commit()
-            logger.info("FileTypes populated successfully.")
-        except SQLAlchemyError as e:
-            logger.error("Error populating FileType: %s", e)
-            db.session.rollback()
+    desired_types = {
+        "Audio": "m4a, mp3, wav, ogg",
+        "Image": "jpg, png, jpeg, gif, webp",
+        "Video": "mp4, avi, mpeg, mov, webm, ogv",
+        "Documents": "doc, docx, pdf, ppt, pptx, xls, xlsx",
+        "Data Files": "csv",
+    }
+
+    try:
+        existing_types = {ft.type_name: ft for ft in FileType.query.all()}
+
+        for type_name, allowed_extensions in desired_types.items():
+            existing = existing_types.get(type_name)
+            if existing is None:
+                db.session.add(FileType(type_name=type_name, allowed_extensions=allowed_extensions))
+            elif existing.allowed_extensions != allowed_extensions:
+                existing.allowed_extensions = allowed_extensions
+
+        db.session.commit()
+        logger.info("FileTypes synchronized successfully.")
+    except SQLAlchemyError as e:
+        logger.error("Error populating FileType: %s", e)
+        db.session.rollback()
 
 def populate_input_templates():
     """Populate InputTemplate table"""

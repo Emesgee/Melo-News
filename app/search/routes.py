@@ -7,6 +7,19 @@ import traceback
 import json
 import os
 
+def safe_json_load(value, default):
+    if isinstance(value, list):
+        return value
+    if isinstance(value, str):
+        if value.startswith('['):
+            try:
+                return json.loads(value)
+            except json.JSONDecodeError:
+                return default
+        else:
+            return value.split('|') if '|' in value else [value]
+    return default
+
 # Define the uploads folder path
 UPLOAD_FOLDER = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), '..', 'uploads'
@@ -37,7 +50,7 @@ def search():
         # Validate required fields
         if not term or not isinstance(term, str):
             return jsonify({"error": "Invalid or missing term"}), 400
-        if not template_ids or not isinstance(template_ids, list):
+        if not template_ids or not isinstance(template_ids, list) or len(template_ids) == 0:
             return jsonify({"error": "Invalid or missing template_ids"}), 400
 
         # Parse filters
@@ -144,10 +157,10 @@ def search():
                 "city": record.matched_city,
                 "message": record.message,
                 "tags": record.tags,
-                "image_links": (json.loads(record.image_links) if isinstance(record.image_links, str) and record.image_links.startswith('[') else (record.image_links.split('|') if isinstance(record.image_links, str) else [])),
-                "video_links": (record.video_links if isinstance(record.video_links, list) else (json.loads(record.video_links) if isinstance(record.video_links, str) and record.video_links.startswith('[') else [])),
-                "fileUrl": (json.loads(record.image_links) if isinstance(record.image_links, str) and record.image_links.startswith('[') else record.image_links),
-                "videoUrl": (record.video_links if isinstance(record.video_links, list) else (json.loads(record.video_links) if isinstance(record.video_links, str) and record.video_links.startswith('[') else record.video_links)),
+                "image_links": safe_json_load(record.image_links, []),
+                "video_links": safe_json_load(record.video_links, []),
+                "fileUrl": safe_json_load(record.image_links, record.image_links),
+                "videoUrl": safe_json_load(record.video_links, record.video_links),
                 "description": record.message,
                 "time": record.time.isoformat() if record.time else None,
             } for record in telegram_results if record.lat is not None and record.lon is not None

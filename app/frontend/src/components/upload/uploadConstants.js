@@ -6,6 +6,7 @@ export const ALLOWED_FILE_TYPES = [
   'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
   'video/mp4', 'video/avi', 'video/mov', 'video/mpeg', 'video/ogg', 'video/webm',
   'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4', 'audio/x-m4a',
+  'text/csv',
   'application/pdf',
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',

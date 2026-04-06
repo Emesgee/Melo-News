@@ -25,8 +25,7 @@ MANIFEST
 .env
 .env.local
 .env.production
-.venv
-env/
+venv312/
 venv/
 ENV/
 env.bak/

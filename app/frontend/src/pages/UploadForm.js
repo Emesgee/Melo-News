@@ -1,12 +1,16 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/navigationBars/Sidebar';
 import './UploadForm.css';
 import { api } from '../services/api';
+import { useAuth } from '../utils/AuthContext';
 import { DRAFT_KEY, MAX_FILE_SIZE, ALLOWED_FILE_TYPES } from '../components/upload/uploadConstants';
 import { StepIndicator, GeneralInfoForm, LocationForm, FileUploadForm } from '../components/upload/UploadSubComponents';
 
 /* ── Main Upload Form ───────────────────────────────────────────────────────────── */
 const UploadForm = () => {
+  const navigate = useNavigate();
+  const { isLoggedIn, authLoading } = useAuth();
   const [isSidebarVisible, setIsSidebarVisible] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [title, setTitle] = useState('');
@@ -30,6 +34,9 @@ const UploadForm = () => {
   const [isLocating, setIsLocating] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [apiReachable, setApiReachable] = useState(true);
+  const [geocodeAvailable, setGeocodeAvailable] = useState(true);
+  const [aiAnalyzeAvailable, setAiAnalyzeAvailable] = useState(true);
   const draftRestoredRef = useRef(false);
   const geocodeTimerRef = useRef(null);
 
@@ -71,6 +78,54 @@ const UploadForm = () => {
     try { localStorage.removeItem(DRAFT_KEY); } catch (_) { /* ignore */ }
   };
 
+  const getFileExtension = useCallback((filename) => {
+    const name = String(filename || '');
+    const parts = name.split('.');
+    return parts.length > 1 ? parts.pop().toLowerCase() : '';
+  }, []);
+
+  const findMatchingFileTypeId = useCallback((file) => {
+    const ext = getFileExtension(file?.name);
+    if (!ext || !Array.isArray(fileTypes)) return '';
+
+    const match = fileTypes.find((type) =>
+      String(type.allowed_extensions || '')
+        .split(',')
+        .map((value) => value.trim().toLowerCase())
+        .includes(ext)
+    );
+
+    return match ? String(match.id) : '';
+  }, [fileTypes, getFileExtension]);
+
+  const selectedFileTypeAllowsFile = useCallback(() => {
+    if (!selectedFile || !fileTypeId) return false;
+    const ext = getFileExtension(selectedFile.name);
+    const type = fileTypes.find((item) => String(item.id) === String(fileTypeId));
+    if (!type) return false;
+
+    return String(type.allowed_extensions || '')
+      .split(',')
+      .map((value) => value.trim().toLowerCase())
+      .includes(ext);
+  }, [selectedFile, fileTypeId, fileTypes, getFileExtension]);
+
+  // Lightweight backend health probe to catch tunnel/backend-down cases early.
+  const checkApiReachability = useCallback(async ({ silent = false } = {}) => {
+    try {
+      await api.get('/health', { timeout: 5000 });
+      setApiReachable(true);
+      return true;
+    } catch (_) {
+      setApiReachable(false);
+      if (!silent) {
+        setMessage('Cannot reach backend API. Start your backend or ensure SSH tunnel mapping is active for the API target, then try again.');
+        setMessageType('error');
+      }
+      return false;
+    }
+  }, []);
+
   // Handler for "Use My Location" button
   const handleUseMyLocation = () => {
     if (!navigator.geolocation) {
@@ -92,10 +147,15 @@ const UploadForm = () => {
           const response = await api.get('/ai/geocode', {
             params: { q: `${latitude},${longitude}` },
           });
+          setGeocodeAvailable(true);
           if (response.data.city) setCity(response.data.city);
           if (response.data.country) setCountry(response.data.country);
         } catch (e) {
-          // Ignore reverse geocode errors
+          if (e?.response?.status === 503) {
+            setGeocodeAvailable(false);
+            setMessage('Geocoding service is unavailable. Coordinates were captured, but city/country autofill is disabled for now.');
+            setMessageType('info');
+          }
         }
         setIsLocating(false);
       },
@@ -109,6 +169,10 @@ const UploadForm = () => {
 
 
   const toggleSidebar = () => setIsSidebarVisible((prev) => !prev);
+
+  useEffect(() => {
+    checkApiReachability({ silent: true });
+  }, [checkApiReachability]);
 
   useEffect(() => {
     const fetchFileTypes = async () => {
@@ -125,6 +189,9 @@ const UploadForm = () => {
 
   useEffect(() => {
     if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current);
+    if (!geocodeAvailable) {
+      return () => { if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current); };
+    }
     if (city.trim() && country.trim()) {
       geocodeTimerRef.current = setTimeout(async () => {
         try {
@@ -136,6 +203,7 @@ const UploadForm = () => {
           });
 
           if (response.data.lat && response.data.lon) {
+            setGeocodeAvailable(true);
             setLat(response.data.lat);
             setLon(response.data.lon);
             setMessage('Location found successfully!');
@@ -145,13 +213,19 @@ const UploadForm = () => {
             setMessageType('error');
           }
         } catch (error) {
-          setMessage('Error fetching location data. Please try again.');
-          setMessageType('error');
+          if (error?.response?.status === 503) {
+            setGeocodeAvailable(false);
+            setMessage('Geocoding service is currently unavailable. You can still continue and submit by entering coordinates manually.');
+            setMessageType('info');
+          } else {
+            setMessage('Error fetching location data. Please try again.');
+            setMessageType('error');
+          }
         }
       }, 600);
     }
     return () => { if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current); };
-  }, [city, country]);
+  }, [city, country, geocodeAvailable]);
 
   // ── Analyze uploaded media via AI ──────────────────────────────────
   const analyzeMedia = useCallback(async (file) => {
@@ -166,9 +240,7 @@ const UploadForm = () => {
     formData.append('file', file);
 
     try {
-      const response = await api.post('/ai/analyze', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      const response = await api.post('/ai/analyze', formData);
 
       const data = response.data;
       setAnalysisResult(data);
@@ -203,7 +275,13 @@ const UploadForm = () => {
         setMessageType('success');
       }
     } catch (error) {
-      setMessage(`⚠️ AI analysis unavailable: ${error.response?.data?.error || error.message || 'Service error'}. Please fill form manually.`);
+      if (error?.response?.status === 400) {
+        setAiAnalyzeAvailable(false);
+        setMessage(`⚠️ AI analysis request was rejected: ${error.response?.data?.error || error.response?.data?.message || 'Invalid request'}. You can continue by filling fields manually.`);
+      } else {
+        setAiAnalyzeAvailable(false);
+        setMessage(`⚠️ AI analysis unavailable: ${error.response?.data?.error || error.message || 'Service error'}. Please fill form manually.`);
+      }
       setMessageType('error');
     } finally {
       setIsAnalyzing(false);
@@ -233,14 +311,23 @@ const UploadForm = () => {
     }
 
     setSelectedFile(file);
+    const inferredTypeId = findMatchingFileTypeId(file);
+    if (inferredTypeId) {
+      setFileTypeId(inferredTypeId);
+    }
     setMessage(`File "${file.name}" selected successfully!`);
     setMessageType('success');
 
-    // Auto-analyze if image or video
-    if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+    // Auto-analyze only when AI endpoint is currently available.
+    const canAutoAnalyze = aiAnalyzeAvailable && (
+      file.type.startsWith('image/') ||
+      file.type.startsWith('video/') ||
+      file.type.startsWith('audio/')
+    );
+    if (canAutoAnalyze) {
       analyzeMedia(file);
     }
-  }, [analyzeMedia]);
+  }, [analyzeMedia, aiAnalyzeAvailable, findMatchingFileTypeId]);
 
   const handleFileChange = (e) => {
     processFile(e.target.files[0]);
@@ -270,6 +357,12 @@ const UploadForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (authLoading || !isLoggedIn) {
+      setMessage('You need to log in before publishing uploads.');
+      setMessageType('error');
+      return;
+    }
+
     if (!fileTypeId || !selectedFile) {
       setMessage('Please select a file and file type.');
       setMessageType('error');
@@ -279,6 +372,18 @@ const UploadForm = () => {
     if (!title.trim()) {
       setMessage('Please provide a title for your news story.');
       setMessageType('error');
+      return;
+    }
+
+    if (!selectedFileTypeAllowsFile()) {
+      const ext = getFileExtension(selectedFile?.name);
+      setMessage(`Selected file type does not allow .${ext} files. Choose the matching file type before publishing.`);
+      setMessageType('error');
+      return;
+    }
+
+    const backendUp = await checkApiReachability();
+    if (!backendUp) {
       return;
     }
 
@@ -300,7 +405,6 @@ const UploadForm = () => {
 
     try {
       await api.post('/file_upload/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
         onUploadProgress: (progressEvent) => {
           const pct = progressEvent.total
             ? Math.round((progressEvent.loaded * 100) / progressEvent.total)
@@ -337,7 +441,11 @@ const UploadForm = () => {
         setMessageType('success');
       }, 2000);
     } catch (error) {
-      const errorMsg = error.response?.data?.message || error.message || 'Network error occurred. Please check your connection and try again.';
+      const errorMsg = !error.response
+        ? 'Network error: backend is unreachable. Verify local backend or SSH tunnel, then retry.'
+        : error.response?.status === 401
+          ? 'Your session is not authenticated. Please log in, then try upload again.'
+          : (error.response?.data?.message || error.message || 'Network error occurred. Please check your connection and try again.');
       setMessage(errorMsg);
       setMessageType('error');
     } finally {
@@ -373,6 +481,12 @@ const UploadForm = () => {
       <div className="upload-content">
         {/* Step Indicator */}
         <StepIndicator currentStep={currentStep} />
+
+        {!apiReachable && (
+          <div className="message error" style={{ marginTop: '0.75rem' }}>
+            Backend API is unreachable. Check local backend startup or SSH tunnel/API port mapping, then retry.
+          </div>
+        )}
 
         {/* AI Analysis Progress */}
         {isAnalyzing && (
@@ -513,7 +627,29 @@ const UploadForm = () => {
 
                   {/* Form Actions */}
                   <div className="form-actions-side">
-                    <button type="submit" className={`submit-btn ${isLoading ? 'loading' : ''}`} disabled={isLoading}>
+                    {!isLoggedIn && !authLoading && (
+                      <div className="message error" style={{ marginBottom: '0.75rem' }}>
+                        Session expired or not authenticated. Please log in to publish.
+                      </div>
+                    )}
+
+                    {!isLoggedIn && !authLoading && (
+                      <button
+                        type="button"
+                        className="submit-btn"
+                        onClick={() => navigate('/login')}
+                        style={{ marginBottom: '0.75rem' }}
+                      >
+                        Go to Login
+                      </button>
+                    )}
+
+                    <button
+                      type="submit"
+                      className={`submit-btn ${isLoading ? 'loading' : ''}`}
+                      disabled={isLoading || authLoading || !isLoggedIn}
+                      title={!isLoggedIn ? 'Login required to publish' : 'Publish'}
+                    >
                       {isLoading ? (
                         <>
                           <div className="spinner"></div>

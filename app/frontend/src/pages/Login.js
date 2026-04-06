@@ -1,7 +1,7 @@
 // src/pages/Login.js
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { loginUser } from '../services/api';
+import { loginUser, setAccessToken } from '../services/api';
 import { useAuth } from '../utils/AuthContext';
 import './Login.css';
 
@@ -19,7 +19,13 @@ const Login = () => {
     setIsLoading(true);
     setMessage('');
     try {
-      await loginUser({ email: email.trim(), password });
+      const response = await loginUser({ email: email.trim(), password });
+
+      // Keep header-token fallback for endpoints expecting Authorization header.
+      const accessToken = response?.data?.access_token;
+      if (accessToken) {
+        setAccessToken(accessToken);
+      }
 
       // Auth cookie is set automatically by the server
       login();

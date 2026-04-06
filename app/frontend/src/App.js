@@ -8,8 +8,6 @@ import ErrorBoundary from './components/ErrorBoundary';
 import Toast from './components/Toast';
 import MapArea from './components/leafletMap/MapArea';
 import MeloSummary from './components/leafletMap/MeloSummary';
-import PulseFeed from './components/pulseFeed/PulseFeed';
-import IntelSidebar from './components/intelligence/IntelSidebar';
 import LoadingScreen from './components/LoadingScreen';
 import { DarkModeProvider, useDarkMode } from './utils/DarkModeContext';
 import { AuthProvider, useAuth } from './utils/AuthContext';
@@ -51,8 +49,6 @@ const AppContent = () => {
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
   const [showMeloSummary, setShowMeloSummary] = React.useState(false);
   const [searchOpen, setSearchOpen] = React.useState(false);
-  const [showPulseFeed, setShowPulseFeed] = React.useState(false);
-  const [showIntelPanel, setShowIntelPanel] = React.useState(false);
   const { isDark, toggle: toggleDark } = useDarkMode();
   const { isLoggedIn, authLoading, logout } = useAuth();
   const { searchResults } = useSearch();
@@ -131,27 +127,16 @@ const AppContent = () => {
         
         {/* Right side action buttons */}
         <div className="topbar-actions">
-          {/* Pulse Feed toggle */}
           <button
-            className={`topbar-action-btn pulse-btn ${showPulseFeed ? 'active' : ''}`}
-            onClick={() => setShowPulseFeed(!showPulseFeed)}
-            title="Pulse Feed"
-            aria-label="Toggle Pulse Feed"
+            className="topbar-action-btn upload-btn"
+            onClick={handleUploadClick}
+            title="Upload news"
+            aria-label="Upload"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-            </svg>
-          </button>
-
-          {/* Intelligence Panel toggle */}
-          <button
-            className={`topbar-action-btn intel-btn ${showIntelPanel ? 'active' : ''}`}
-            onClick={() => setShowIntelPanel(!showIntelPanel)}
-            title="Intelligence Panel"
-            aria-label="Toggle Intelligence Panel"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M18 20V10" /><path d="M12 20V4" /><path d="M6 20v-6" />
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
             </svg>
           </button>
 
@@ -185,19 +170,6 @@ const AppContent = () => {
           </button>
 
           <button 
-            className="topbar-action-btn upload-btn"
-            onClick={handleUploadClick}
-            title="Upload news"
-            aria-label="Upload"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="17 8 12 3 7 8" />
-              <line x1="12" y1="3" x2="12" y2="15" />
-            </svg>
-          </button>
-          
-          <button 
             className={`topbar-action-btn auth-btn ${isLoggedIn ? 'logout' : 'login'}`}
             onClick={isLoggedIn ? handleLogout : () => navigate('/login')}
             title={isLoggedIn ? 'Logout' : 'Login'}
@@ -228,16 +200,6 @@ const AppContent = () => {
           </Link>
         </nav>
       </header>
-
-      {/* Pulse Feed Panel (left side) */}
-      {showPulseFeed && (
-        <div className="pulse-feed-panel">
-          <PulseFeed onStoryClick={(story) => { /* TODO: handle story click */ }} />
-        </div>
-      )}
-
-      {/* Intelligence Panel (right side) */}
-      <IntelSidebar isOpen={showIntelPanel} onClose={() => setShowIntelPanel(false)} />
 
       {/* Main content */}
       <main id="main-content" className="main" ref={mainRef} tabIndex={-1}>

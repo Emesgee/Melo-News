@@ -2,12 +2,36 @@ import axios from 'axios';
 
 // Use relative /api path so all requests go through Nginx proxy
 const API_URL = process.env.REACT_APP_API_URL || '/api';
+const ACCESS_TOKEN_KEY = 'melo_access_token';
+
+export const getAccessToken = () => {
+  try {
+    return localStorage.getItem(ACCESS_TOKEN_KEY);
+  } catch (_) {
+    return null;
+  }
+};
+
+export const setAccessToken = (token) => {
+  try {
+    if (token) localStorage.setItem(ACCESS_TOKEN_KEY, token);
+  } catch (_) {
+    // Ignore storage failures in private browsing/restricted environments.
+  }
+};
+
+export const clearAccessToken = () => {
+  try {
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
+  } catch (_) {
+    // Ignore storage failures.
+  }
+};
 
 // Axios instance — cookies are sent automatically via withCredentials
 export const api = axios.create({
   baseURL: API_URL,
   headers: {
-    'Content-Type': 'application/json',
     'X-Requested-With': 'XMLHttpRequest',  // CSRF protection: server can reject non-XHR requests
   },
   withCredentials: true,
@@ -26,7 +50,9 @@ export const loginUser = async (credentials) => {
 
 // User Logout (server clears httpOnly cookie)
 export const logoutUser = async () => {
-  return api.post('auth/logout');
+  const resp = await api.post('auth/logout');
+  clearAccessToken();
+  return resp;
 };
 
 // Check current auth status via cookie

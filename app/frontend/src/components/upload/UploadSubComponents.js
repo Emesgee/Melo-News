@@ -181,7 +181,7 @@ export const FileUploadForm = ({ fileTypes, fileTypeId, setFileTypeId, selectedF
               type="file"
               className="file-input"
               onChange={handleFileChange}
-              accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+              accept="image/*,video/*,audio/*,.csv,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
               required
             />
             <label htmlFor="fileInput" className="file-input-label">
