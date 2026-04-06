@@ -28,6 +28,9 @@ def _serialize_upload(f):
         'severity': f.severity,
         'analysis_status': f.analysis_status,
         'transcription': f.transcription,
+        'witness_statement': f.witness_statement,
+        'source_type': f.source_type,
+        'is_sensitive': f.is_sensitive,
     }
 
 
@@ -89,6 +92,9 @@ def upload_file():
     subject = request.form.get('subject')
     city = request.form.get('city')
     country = request.form.get('country')
+    witness_statement = request.form.get('witness_statement')
+    source_type = request.form.get('source_type', 'eyewitness')
+    is_sensitive = request.form.get('is_sensitive', 'false').lower() == 'true'
     
     # Convert lat/lon to floats - CRITICAL for search/map to work
     lat_raw = request.form.get('lat')
@@ -141,7 +147,10 @@ def upload_file():
             user_id=user_id,
             file_type_id=file_type_id,
             lat=lat,
-            lon=lon
+            lon=lon,
+            witness_statement=witness_statement,
+            source_type=source_type,
+            is_sensitive=is_sensitive,
         )
         db.session.add(new_upload)
         db.session.commit()
@@ -195,10 +204,13 @@ def edit_upload(upload_id):
 
     data = request.get_json(silent=True) or {}
 
-    editable = ['title', 'tags', 'subject', 'city', 'country']
+    editable = ['title', 'tags', 'subject', 'city', 'country', 'witness_statement', 'source_type']
     for field in editable:
         if field in data:
             setattr(upload, field, data[field])
+
+    if 'is_sensitive' in data:
+        upload.is_sensitive = bool(data['is_sensitive'])
 
     for coord in ('lat', 'lon'):
         if coord in data:
@@ -233,4 +245,142 @@ def delete_upload(upload_id):
     except Exception as e:
         db.session.rollback()
         current_app.logger.error('Delete upload error: %s', e)
+        return jsonify({'message': str(e)}), 500
+
+
+# ── Chunked upload support ────────────────────────────────────────────────────
+
+import uuid
+import tempfile
+
+# In-memory chunk registry: { upload_id: { 'dir': str, 'chunks': set, 'total': int, 'filename': str, 'file_type': str } }
+_CHUNK_REGISTRY = {}
+
+
+@file_upload_bp.route('/chunk', methods=['POST'])
+@jwt_required()
+def receive_chunk():
+    """Accept a single chunk of a multi-part upload."""
+    chunk = request.files.get('chunk')
+    if not chunk:
+        return jsonify({'message': 'No chunk provided'}), 400
+
+    chunk_index = int(request.form.get('chunk_index', 0))
+    total_chunks = int(request.form.get('total_chunks', 1))
+    filename = secure_filename(request.form.get('filename', 'upload'))
+    file_type = request.form.get('file_type', 'application/octet-stream')
+    upload_id = request.form.get('upload_id') or str(uuid.uuid4())
+
+    if upload_id not in _CHUNK_REGISTRY:
+        tmp_dir = tempfile.mkdtemp(prefix='melo_chunk_')
+        _CHUNK_REGISTRY[upload_id] = {
+            'dir': tmp_dir,
+            'chunks': set(),
+            'total': total_chunks,
+            'filename': filename,
+            'file_type': file_type,
+        }
+
+    reg = _CHUNK_REGISTRY[upload_id]
+    chunk_path = os.path.join(reg['dir'], f'chunk_{chunk_index:05d}')
+    chunk.save(chunk_path)
+    reg['chunks'].add(chunk_index)
+
+    return jsonify({'upload_id': upload_id, 'received': chunk_index}), 200
+
+
+@file_upload_bp.route('/chunk-complete', methods=['POST'])
+@jwt_required()
+def complete_chunk_upload():
+    """Assemble chunks and create the FileUpload record."""
+    user_id = get_jwt_identity()
+    data = request.get_json(silent=True) or {}
+
+    upload_id = data.get('upload_id')
+    if not upload_id or upload_id not in _CHUNK_REGISTRY:
+        return jsonify({'message': 'Unknown upload_id'}), 400
+
+    reg = _CHUNK_REGISTRY.pop(upload_id)
+
+    if len(reg['chunks']) != reg['total']:
+        return jsonify({'message': f"Missing chunks: expected {reg['total']}, got {len(reg['chunks'])}"}), 400
+
+    filename = reg['filename']
+    file_extension = filename.split('.')[-1].lower()
+
+    # Resolve file_type_id from extension if not provided
+    file_type_id_raw = data.get('file_type_id')
+    file_type_id = None
+    if file_type_id_raw:
+        try:
+            file_type_id = int(file_type_id_raw)
+        except (ValueError, TypeError):
+            pass
+
+    if not file_type_id:
+        ft = FileType.query.filter(FileType.allowed_extensions.ilike(f'%{file_extension}%')).first()
+        file_type_id = ft.filetypeid if ft else None
+
+    if not file_type_id:
+        return jsonify({'message': 'Could not determine file type'}), 400
+
+    # Assemble chunks into final file
+    unique_filename = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{filename}"
+    upload_folder = current_app.config.get('UPLOAD_FOLDER', '/tmp')
+    os.makedirs(upload_folder, exist_ok=True)
+    final_path = os.path.join(upload_folder, unique_filename)
+
+    with open(final_path, 'wb') as out:
+        for i in range(reg['total']):
+            chunk_path = os.path.join(reg['dir'], f'chunk_{i:05d}')
+            with open(chunk_path, 'rb') as cf:
+                out.write(cf.read())
+            os.remove(chunk_path)
+
+    import shutil
+    shutil.rmtree(reg['dir'], ignore_errors=True)
+
+    blob_url = f"/api/uploads/{unique_filename}"
+    if _should_use_azure():
+        try:
+            container_name = current_app.config.get('AZURE_BLOB_CONTAINER', 'uploads')
+            storage_account = os.getenv('AZURE_STORAGE_ACCOUNT_NAME')
+            upload_file_to_azure_storage(final_path, unique_filename, container_name)
+            blob_url = f"https://{storage_account}.blob.core.windows.net/{container_name}/{unique_filename}"
+        except Exception as e:
+            current_app.logger.warning("Azure upload failed for chunk assembly: %s", e)
+
+    try:
+        lat = float(data['lat']) if data.get('lat') is not None else None
+        lon = float(data['lon']) if data.get('lon') is not None else None
+    except (ValueError, TypeError):
+        lat = lon = None
+
+    try:
+        new_upload = FileUpload(
+            filename=unique_filename,
+            file_path=blob_url,
+            title=data.get('title'),
+            tags=data.get('tags'),
+            subject=data.get('subject'),
+            city=data.get('city'),
+            country=data.get('country'),
+            upload_date=datetime.utcnow(),
+            user_id=user_id,
+            file_type_id=file_type_id,
+            lat=lat,
+            lon=lon,
+        )
+        db.session.add(new_upload)
+        db.session.commit()
+        start_analysis_thread(new_upload.id, final_path)
+        return jsonify({
+            'message': 'Upload complete.',
+            'file_id': new_upload.id,
+            'file_url': blob_url,
+            'analysis_status': 'PENDING',
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error('Chunk complete error: %s', e)
         return jsonify({'message': str(e)}), 500

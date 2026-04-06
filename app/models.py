@@ -46,7 +46,12 @@ class FileUpload(db.Model):
     confidence_score = db.Column(db.Float, default=0.0)
     severity = db.Column(db.String(20), default='LOW')
     exif_data = db.Column(JSON)
-    analysis_status = db.Column(db.String(20), default='PENDING')  # PENDING, PROCESSING, COMPLETED, FAILED
+    analysis_status = db.Column(db.String(20), default='PENDING')
+
+    # Citizen journalism provenance
+    witness_statement = db.Column(db.Text)
+    source_type = db.Column(db.String(30), default='eyewitness')  # eyewitness|secondhand|official|unknown
+    is_sensitive = db.Column(db.Boolean, default=False)  # flagged for editorial review
     
     # Foreign keys
     user_id = db.Column(db.Integer, db.ForeignKey('users.userid'), nullable=False)

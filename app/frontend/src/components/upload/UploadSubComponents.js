@@ -72,73 +72,78 @@ export const MediaPreview = ({ file, onRemove }) => {
 };
 
 /* ── General Info Form ──────────────────────────────────────────────── */
-export const GeneralInfoForm = ({ title, setTitle, tags, setTags, subject, setSubject }) => (
-  <div className="form-section">
-    <h3>📝 General Information</h3>
+export const GeneralInfoForm = ({ title, setTitle, tags, setTags, subject, setSubject, rtl = false, labels = {} }) => (
+  <div className="form-section" dir={rtl ? 'rtl' : undefined}>
+    <h3>📝 {rtl ? 'معلومات عامة' : 'General Information'}</h3>
     <div className="form-group">
-      <label className="form-label">Title *</label>
+      <label className="form-label">{labels.title || 'Title *'}</label>
       <input
         type="text"
         className="form-input"
-        placeholder="Enter a compelling headline for your news story"
+        placeholder={labels.titlePlaceholder || 'Enter a compelling headline for your news story'}
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         required
+        dir={rtl ? 'rtl' : undefined}
       />
     </div>
     <div className="form-group">
-      <label className="form-label">Tags</label>
+      <label className="form-label">{labels.tags || 'Tags'}</label>
       <input
         type="text"
         className="form-input"
-        placeholder="Enter relevant tags (comma separated)"
+        placeholder={labels.tagsPlaceholder || 'Enter relevant tags (comma separated)'}
         value={tags}
         onChange={(e) => setTags(e.target.value)}
+        dir={rtl ? 'rtl' : undefined}
       />
     </div>
     <div className="form-group">
-      <label className="form-label">Subject/Summary</label>
+      <label className="form-label">{labels.subject || 'Subject/Summary'}</label>
       <textarea
         className="form-textarea"
-        placeholder="Provide a brief summary or description of the news content"
+        placeholder={labels.subjectPlaceholder || 'Provide a brief summary or description of the news content'}
         value={subject}
         onChange={(e) => setSubject(e.target.value)}
         rows="3"
+        dir={rtl ? 'rtl' : undefined}
       />
     </div>
   </div>
 );
 
 /* ── Location Form ──────────────────────────────────────────────────── */
-export const LocationForm = ({ city, setCity, country, setCountry, lat, lon, onUseMyLocation, isLocating }) => (
-  <div className="form-section">
-    <h3>📍 Location Information</h3>
+export const LocationForm = ({ city, setCity, country, setCountry, lat, lon, onUseMyLocation, isLocating, rtl = false, labels = {} }) => (
+  <div className="form-section" dir={rtl ? 'rtl' : undefined}>
+    <h3>📍 {rtl ? 'معلومات الموقع' : 'Location Information'}</h3>
     <div className="form-group">
-      <label className="form-label">City</label>
+      <label className="form-label">{labels.city || 'City'}</label>
       <input
         type="text"
         className="form-input"
-        placeholder="Enter the city where the news occurred"
+        placeholder={labels.cityPlaceholder || 'Enter the city where the news occurred'}
         value={city}
         onChange={(e) => setCity(e.target.value)}
+        dir={rtl ? 'rtl' : undefined}
       />
     </div>
     <div className="form-group">
-      <label className="form-label">Country</label>
+      <label className="form-label">{labels.country || 'Country'}</label>
       <input
         type="text"
         className="form-input"
-        placeholder="Enter the country"
+        placeholder={labels.countryPlaceholder || 'Enter the country'}
         value={country}
         onChange={(e) => setCountry(e.target.value)}
+        dir={rtl ? 'rtl' : undefined}
       />
     </div>
     <button type="button" className="location-btn" onClick={onUseMyLocation} disabled={isLocating} style={{marginTop:8}}>
-      {isLocating ? 'Locating...' : '📡 Use My Location'}
+      {isLocating ? (labels.locating || 'Locating...') : (labels.useLocation || '📡 Use My Location')}
     </button>
     {lat && lon && (
       <div className="location-info">
-        📍 Coordinates: {lat.toFixed(6)}, {lon.toFixed(6)}
+        📍 {rtl ? 'الإحداثيات' : 'Coordinates'}: {lat.toFixed(6)}, {lon.toFixed(6)}
       </div>
     )}
   </div>

@@ -6,12 +6,45 @@ import { api } from '../services/api';
 import { useAuth } from '../utils/AuthContext';
 import { DRAFT_KEY, MAX_FILE_SIZE, ALLOWED_FILE_TYPES } from '../components/upload/uploadConstants';
 import { StepIndicator, GeneralInfoForm, LocationForm, FileUploadForm } from '../components/upload/UploadSubComponents';
+import { chunkedUpload } from '../utils/chunkedUpload';
+import { enqueue, getAll, remove, updateStatus } from '../utils/offlineQueue';
+
+const CHUNK_THRESHOLD = 5 * 1024 * 1024; // use chunked upload for files > 5 MB
 
 /* ── Main Upload Form ───────────────────────────────────────────────────────────── */
+
+// Detect if browser is set to Arabic
+const isArabic = () => {
+  const lang = (navigator.language || navigator.userLanguage || '').toLowerCase();
+  return lang.startsWith('ar');
+};
+
+// Arabic label map for form fields
+const AR = {
+  shareNews: 'شارك خبرك',
+  tagline: 'سريع وبسيط. انشر خبرك على الخريطة في ثوانٍ.',
+  title: 'العنوان *',
+  titlePlaceholder: 'أدخل عنواناً للقصة الإخبارية',
+  tags: 'الوسوم',
+  tagsPlaceholder: 'أدخل وسوماً ذات صلة (مفصولة بفواصل)',
+  subject: 'الموضوع / الملخص',
+  subjectPlaceholder: 'أدخل وصفاً موجزاً للمحتوى',
+  city: 'المدينة',
+  cityPlaceholder: 'المدينة التي وقع فيها الحدث',
+  country: 'الدولة',
+  countryPlaceholder: 'أدخل اسم الدولة',
+  useLocation: '📡 استخدم موقعي',
+  locating: 'جارٍ التحديد...',
+  publish: '🚀 نشر',
+  uploading: 'جارٍ الرفع...',
+  offlineQueued: 'أنت غير متصل. سيتم رفع القصة تلقائياً عند الاتصال.',
+};
+
 const UploadForm = () => {
   const navigate = useNavigate();
   const { isLoggedIn, authLoading } = useAuth();
   const [isSidebarVisible, setIsSidebarVisible] = useState(false);
+  const [rtl] = useState(isArabic); // Arabic RTL detection
   const [selectedFile, setSelectedFile] = useState(null);
   const [title, setTitle] = useState('');
   const [tags, setTags] = useState('');
@@ -37,6 +70,10 @@ const UploadForm = () => {
   const [apiReachable, setApiReachable] = useState(true);
   const [geocodeAvailable, setGeocodeAvailable] = useState(true);
   const [aiAnalyzeAvailable, setAiAnalyzeAvailable] = useState(true);
+  const [lowBandwidth, setLowBandwidth] = useState(false);
+  const [witnessStatement, setWitnessStatement] = useState('');
+  const [sourceType, setSourceType] = useState('eyewitness');
+  const [isSensitive, setIsSensitive] = useState(false);
   const draftRestoredRef = useRef(false);
   const geocodeTimerRef = useRef(null);
 
@@ -44,6 +81,56 @@ const UploadForm = () => {
   const [exifGpsWarning, setExifGpsWarning] = useState(false);   // show warning banner
   const [strippedFile, setStrippedFile] = useState(null);         // file with GPS removed
   const rawFileRef = useRef(null);                                 // original file before strip
+
+  // ── Connectivity & offline queue ──────────────────────────────────
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [queuedCount, setQueuedCount] = useState(0);
+
+  useEffect(() => {
+    const up = () => setIsOnline(true);
+    const down = () => setIsOnline(false);
+    window.addEventListener('online', up);
+    window.addEventListener('offline', down);
+    return () => { window.removeEventListener('online', up); window.removeEventListener('offline', down); };
+  }, []);
+
+  const refreshQueueCount = useCallback(async () => {
+    try { const items = await getAll(); setQueuedCount(items.filter((i) => i.status === 'pending').length); }
+    catch (_) {}
+  }, []);
+
+  useEffect(() => { refreshQueueCount(); }, [refreshQueueCount]);
+
+  // Auto-flush queue when back online
+  useEffect(() => {
+    if (!isOnline) return;
+    (async () => {
+      const items = await getAll().catch(() => []);
+      const pending = items.filter((i) => i.status === 'pending');
+      if (pending.length === 0) return;
+      setMessage(`📶 Back online — uploading ${pending.length} queued story${pending.length > 1 ? 's' : ''}…`);
+      setMessageType('info');
+      for (const item of pending) {
+        try {
+          await updateStatus(item.id, 'uploading');
+          const fileToSend = item.file;
+          if (fileToSend.size > CHUNK_THRESHOLD) {
+            await chunkedUpload(api, fileToSend, item.metadata, () => {});
+          } else {
+            const fd = new FormData();
+            fd.append('file', fileToSend);
+            Object.entries(item.metadata).forEach(([k, v]) => { if (v != null) fd.append(k, v); });
+            await api.post('/file_upload/upload', fd);
+          }
+          await remove(item.id);
+        } catch { await updateStatus(item.id, 'failed'); }
+      }
+      await refreshQueueCount();
+      setMessage('✅ Queued stories uploaded successfully.');
+      setMessageType('success');
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOnline]);
 
   /**
    * Strip GPS/device EXIF from an image by re-encoding through canvas.
@@ -357,8 +444,8 @@ const UploadForm = () => {
     setMessage(`File "${file.name}" selected successfully!`);
     setMessageType('success');
 
-    // Auto-analyze only when AI endpoint is currently available.
-    const canAutoAnalyze = aiAnalyzeAvailable && (
+    // Auto-analyze only when AI endpoint is currently available and not in low-bandwidth mode.
+    const canAutoAnalyze = !lowBandwidth && aiAnalyzeAvailable && (
       file.type.startsWith('image/') ||
       file.type.startsWith('video/') ||
       file.type.startsWith('audio/')
@@ -439,26 +526,73 @@ const UploadForm = () => {
     setMessage('Uploading your file... Please wait.');
     setMessageType('info');
 
+    const fileToUpload = strippedFile || selectedFile;
+    const metadata = {
+      file_type_id: fileTypeId,
+      title: title.trim(),
+      tags: tags.trim(),
+      subject: subject.trim(),
+      city: city.trim(),
+      country: country.trim(),
+      lat: lat !== null && !isNaN(lat) ? lat : null,
+      lon: lon !== null && !isNaN(lon) ? lon : null,
+      witness_statement: witnessStatement.trim() || null,
+      source_type: sourceType,
+      is_sensitive: isSensitive,
+    };
+
+    // ── Offline: queue and bail ───────────────────────────────────────
+    if (!isOnline) {
+      try {
+        await enqueue(fileToUpload, metadata);
+        await refreshQueueCount();
+        setMessage('📵 You\'re offline. Story saved — it will upload automatically when you reconnect.');
+        setMessageType('info');
+        setSelectedFile(null); setTitle(''); setTags(''); setSubject('');
+        setCity(''); setCountry(''); setLat(null); setLon(null); setFileTypeId('');
+        setAnalysisResult(null); setAnalysisSteps([]); setExifData(null); setTranscription('');
+        setExifGpsWarning(false); setStrippedFile(null); rawFileRef.current = null;
+        clearDraft();
+        const fileInput = document.getElementById('fileInput');
+        if (fileInput) fileInput.value = '';
+      } catch {
+        setMessage('Failed to save story offline. Please try again.');
+        setMessageType('error');
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    // ── Online: chunked for large files, direct for small ────────────
     const formData = new FormData();
-    formData.append('file', strippedFile || selectedFile);
+    formData.append('file', fileToUpload);
     formData.append('file_type_id', fileTypeId);
     formData.append('title', title.trim());
     formData.append('tags', tags.trim());
     formData.append('subject', subject.trim());
     formData.append('city', city.trim());
     formData.append('country', country.trim());
+    if (witnessStatement.trim()) formData.append('witness_statement', witnessStatement.trim());
+    formData.append('source_type', sourceType);
+    formData.append('is_sensitive', isSensitive ? 'true' : 'false');
     if (lat !== null && !isNaN(lat)) formData.append('lat', lat);
     if (lon !== null && !isNaN(lon)) formData.append('lon', lon);
 
     try {
-      await api.post('/file_upload/upload', formData, {
-        onUploadProgress: (progressEvent) => {
-          const pct = progressEvent.total
-            ? Math.round((progressEvent.loaded * 100) / progressEvent.total)
-            : 0;
-          setUploadProgress(pct);
-        },
-      });
+      if (fileToUpload.size > CHUNK_THRESHOLD) {
+        setMessage('📡 Uploading in chunks — safe for slow connections…');
+        await chunkedUpload(api, fileToUpload, metadata, (pct) => setUploadProgress(pct));
+      } else {
+        await api.post('/file_upload/upload', formData, {
+          onUploadProgress: (progressEvent) => {
+            const pct = progressEvent.total
+              ? Math.round((progressEvent.loaded * 100) / progressEvent.total)
+              : 0;
+            setUploadProgress(pct);
+          },
+        });
+      }
 
       setMessage('🎉 File uploaded successfully! Your news story is now live on the map.');
       setMessageType('success');
@@ -508,7 +642,7 @@ const UploadForm = () => {
   const showDetails = !!selectedFile;
 
   return (
-    <div className="upload-page">
+    <div className="upload-page" dir={rtl ? 'rtl' : 'ltr'} lang={rtl ? 'ar' : undefined}>
       {/* Burger Menu */}
       <button className={`burger-menu ${isSidebarVisible ? 'active' : ''}`} onClick={toggleSidebar} aria-label="Toggle sidebar">
         <div className="burger-line"></div>
@@ -522,8 +656,8 @@ const UploadForm = () => {
       {/* Quick Upload Header */}
       <section className="upload-header">
         <div className="upload-header-content">
-          <h1>🚀 Share News</h1>
-          <p>Fast and simple. Get your news on the map in seconds.</p>
+          <h1>🚀 {rtl ? AR.shareNews : 'Share News'}</h1>
+          <p>{rtl ? AR.tagline : 'Fast and simple. Get your news on the map in seconds.'}</p>
         </div>
       </section>
 
@@ -532,9 +666,37 @@ const UploadForm = () => {
         {/* Step Indicator */}
         <StepIndicator currentStep={currentStep} />
 
+        {/* Low-bandwidth mode toggle */}
+        <div style={{display:'flex', justifyContent:'flex-end', marginBottom:'0.5rem'}}>
+          <label style={{display:'flex', alignItems:'center', gap:'0.4rem', fontSize:'0.82rem', cursor:'pointer', opacity:0.75}}>
+            <input
+              type="checkbox"
+              checked={lowBandwidth}
+              onChange={e => setLowBandwidth(e.target.checked)}
+              style={{accentColor:'#f59e0b'}}
+            />
+            {rtl ? '🐢 وضع الاتصال البطيء (بدون تحليل AI)' : '🐢 Low bandwidth mode (skip AI analysis)'}
+          </label>
+        </div>
+
         {!apiReachable && (
           <div className="message error" style={{ marginTop: '0.75rem' }}>
             Backend API is unreachable. Check local backend startup or SSH tunnel/API port mapping, then retry.
+          </div>
+        )}
+
+        {/* Offline banner */}
+        {!isOnline && (
+          <div className="offline-banner">
+            <span>📵 You're offline.</span>
+            {queuedCount > 0
+              ? ` ${queuedCount} story${queuedCount > 1 ? 's' : ''} queued — will upload when reconnected.`
+              : ' Stories will be saved locally and uploaded when you reconnect.'}
+          </div>
+        )}
+        {isOnline && queuedCount > 0 && (
+          <div className="offline-banner offline-banner--syncing">
+            📶 {queuedCount} queued story{queuedCount > 1 ? 's' : ''} pending upload…
           </div>
         )}
 
@@ -644,7 +806,40 @@ const UploadForm = () => {
                     setTags={setTags}
                     subject={subject}
                     setSubject={setSubject}
+                    rtl={rtl}
+                    labels={rtl ? AR : {}}
                   />
+
+                  {/* Source type + Witness statement */}
+                  {showDetails && (
+                    <div className="form-section" dir={rtl ? 'rtl' : undefined}>
+                      <h3>🎙️ {rtl ? 'مصدر الشهادة' : 'Source & Witness'}</h3>
+                      <div className="form-group">
+                        <label className="form-label">{rtl ? 'نوع المصدر' : 'Source type'}</label>
+                        <select className="form-select" value={sourceType} onChange={e => setSourceType(e.target.value)}>
+                          <option value="eyewitness">{rtl ? '👁️ شاهد عيان' : '👁️ Eyewitness'}</option>
+                          <option value="secondhand">{rtl ? '🗣️ رواية ثانوية' : '🗣️ Secondhand account'}</option>
+                          <option value="official">{rtl ? '📋 بيان رسمي' : '📋 Official statement'}</option>
+                          <option value="unknown">{rtl ? '❓ غير معروف' : '❓ Unknown'}</option>
+                        </select>
+                      </div>
+                      <div className="form-group" style={{marginBottom:0}}>
+                        <label className="form-label">{rtl ? 'شهادتك (اختياري)' : 'Your witness statement (optional)'}</label>
+                        <textarea
+                          className="form-textarea"
+                          placeholder={rtl ? 'صِف ما رأيته أو سمعته بكلماتك الخاصة…' : 'Describe what you saw or heard in your own words…'}
+                          value={witnessStatement}
+                          onChange={e => setWitnessStatement(e.target.value)}
+                          rows="3"
+                          dir={rtl ? 'rtl' : undefined}
+                        />
+                      </div>
+                      <label style={{display:'flex', alignItems:'center', gap:'0.5rem', marginTop:'0.75rem', fontSize:'0.83rem', cursor:'pointer', color:'#f87171'}}>
+                        <input type="checkbox" checked={isSensitive} onChange={e => setIsSensitive(e.target.checked)} style={{accentColor:'#ef4444'}} />
+                        {rtl ? '⚠️ محتوى حساس — يتطلب مراجعة تحريرية قبل النشر' : '⚠️ Sensitive content — hold for editorial review before publishing'}
+                      </label>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -660,6 +855,8 @@ const UploadForm = () => {
                     lon={lon}
                     onUseMyLocation={handleUseMyLocation}
                     isLocating={isLocating}
+                    rtl={rtl}
+                    labels={rtl ? AR : {}}
                   />
 
                   {/* EXIF Metadata Display */}
@@ -695,6 +892,30 @@ const UploadForm = () => {
                   {showDetails && message && (
                     <div className={`message ${messageType}`}>
                       {message}
+                    </div>
+                  )}
+
+                  {/* Confidence score preview */}
+                  {analysisResult && analysisResult.confidence != null && !isAnalyzing && (
+                    <div className="form-section" style={{padding:'10px 14px', marginTop:8}}>
+                      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6}}>
+                        <span style={{fontSize:'0.82rem', fontWeight:600}}>🎯 {rtl ? 'درجة المصداقية' : 'Credibility score'}</span>
+                        <span style={{fontWeight:700, fontSize:'1rem', color: analysisResult.confidence > 0.6 ? '#10b981' : analysisResult.confidence > 0.35 ? '#f59e0b' : '#ef4444'}}>
+                          {Math.round(analysisResult.confidence * 100)}%
+                        </span>
+                      </div>
+                      <div style={{height:6, background:'rgba(255,255,255,0.1)', borderRadius:3, overflow:'hidden'}}>
+                        <div style={{
+                          height:'100%', borderRadius:3, transition:'width 0.4s',
+                          width:`${Math.round(analysisResult.confidence * 100)}%`,
+                          background: analysisResult.confidence > 0.6 ? '#10b981' : analysisResult.confidence > 0.35 ? '#f59e0b' : '#ef4444'
+                        }}/>
+                      </div>
+                      <div style={{fontSize:'0.75rem', opacity:0.55, marginTop:4}}>
+                        {rtl
+                          ? 'تُحسَّن الدرجة بإضافة موقع وتفاصيل أكثر'
+                          : 'Score improves with location, media, and more detail'}
+                      </div>
                     </div>
                   )}
 
@@ -739,12 +960,12 @@ const UploadForm = () => {
                       {isLoading ? (
                         <>
                           <div className="spinner"></div>
-                          Uploading... {uploadProgress}%
+                          {rtl ? AR.uploading : `Uploading... ${uploadProgress}%`}
                         </>
                       ) : (
                         <>
                           <span>🚀</span>
-                          Publish
+                          {rtl ? AR.publish : 'Publish'}
                         </>
                       )}
                     </button>
