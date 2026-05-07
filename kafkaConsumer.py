@@ -15,7 +15,7 @@ from confluent_kafka import Consumer, KafkaError
 from config import KAFKA_CONF
 from modules.pipeline_task import build_db_row
 from modules.video_handler import download_and_upload_videos, process_image_links
-from modules.database import connect_db, insert_message
+from modules.database import connect_db, insert_message, validate_row
 from modules.azure_handler import setup_cors
 from modules.geocoder import load_geojson_coordinates
 
@@ -95,6 +95,12 @@ try:
             print(f"[LOCATION] {row['matched_city']} -> ({row['lat']}, {row['lon']})")
         elif not row.get("lat"):
             print(f"[LOCATION] No location resolved for this message")
+
+        # Validate before insert
+        valid, reason = validate_row(row)
+        if not valid:
+            print(f"[VALIDATION] ⚠️  Skipping message: {reason}")
+            continue
 
         # Insert into database
         success, msg = insert_message(conn, row)

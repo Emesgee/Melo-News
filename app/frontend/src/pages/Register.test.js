@@ -41,7 +41,7 @@ describe('Register', () => {
 
     fireEvent.change(screen.getByLabelText(/name/i), { target: { value: 'John' } });
     fireEvent.change(screen.getByLabelText(/email/i), { target: { value: 'john@test.com' } });
-    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: 'secret123' } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: 'Secret@123' } });
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /register/i }));
@@ -50,7 +50,7 @@ describe('Register', () => {
     expect(mockRegisterUser).toHaveBeenCalledWith({
       username: 'John',
       email: 'john@test.com',
-      password: 'secret123',
+      password: 'Secret@123',
     });
   });
 
@@ -63,7 +63,7 @@ describe('Register', () => {
 
     fireEvent.change(screen.getByLabelText(/name/i), { target: { value: 'John' } });
     fireEvent.change(screen.getByLabelText(/email/i), { target: { value: 'dup@test.com' } });
-    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: 'password123' } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: 'Secret@123' } });
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /register/i }));
@@ -81,7 +81,7 @@ describe('Register', () => {
 
     fireEvent.change(screen.getByLabelText(/name/i), { target: { value: 'X' } });
     fireEvent.change(screen.getByLabelText(/email/i), { target: { value: 'x@x.com' } });
-    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: 'longpassword' } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: 'LongPass@1' } });
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /register/i }));

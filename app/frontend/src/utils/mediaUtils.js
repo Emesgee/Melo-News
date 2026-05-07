@@ -16,6 +16,41 @@ export const parseMediaLinks = (field) => {
   return [];
 };
 
+/**
+ * Construct a proper URL from a filename or incomplete URL
+ * Handles Azure Blob Storage URLs and local API endpoints
+ */
+export const normalizeMediaUrl = (url) => {
+  if (!url) return null;
+  
+  const urlStr = String(url).trim();
+  const urlLower = urlStr.toLowerCase();
+  
+  // Already a full URL (http, https, or blob.core.windows.net)
+  if (urlLower.startsWith('http://') || urlLower.startsWith('https://') || urlLower.includes('blob.core.windows.net')) {
+    return urlStr;
+  }
+  
+  // Just a filename (no slashes and has an extension)
+  if (!urlStr.includes('/') && /\.\w{2,4}$/.test(urlStr)) {
+    // Return a URL that the backend can serve
+    // This assumes the backend has a file_download or download endpoint
+    return `/api/file_upload/download/${encodeURIComponent(urlStr)}`;
+  }
+  
+  // Already has path structure, ensure it starts with /api or is absolute
+  if (urlLower.startsWith('/')) {
+    return urlStr;
+  }
+  
+  // Relative path without leading slash
+  if (!urlLower.startsWith('/api')) {
+    return `/api/${urlStr}`;
+  }
+  
+  return urlStr;
+};
+
 const VIDEO_EXT_RE = /\.(mp4|webm|ogg|mov|avi)$/i;
 const IMAGE_EXT_RE = /\.(jpg|jpeg|png|gif|bmp|webp)$/i;
 

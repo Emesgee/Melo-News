@@ -14,7 +14,28 @@ const PulseFeed = ({ onStoryClick, filter = 'all' }) => {
   const fetchStories = useCallback(async () => {
     try {
       const resp = await getNewsFeed(100);
-      let data = resp.data || [];
+      // Handle both {items:[]} (Story API) and bare array (legacy shape)
+      const raw = resp.data?.items ?? (Array.isArray(resp.data) ? resp.data : []);
+      // Flatten nested Story shape so the rest of the component stays unchanged
+      const normalized = raw.map(s => {
+        const loc  = s.location   || {};
+        const met  = s.metrics    || {};
+        const ts   = s.timestamps || {};
+        const prov = s.provenance || {};
+        return {
+          ...s,
+          subject:          s.subject          || s.title,
+          message:          s.body             || s.message,
+          matched_city:     loc.city           || s.matched_city,
+          severity:         met.severity       || s.severity        || 'LOW',
+          confidence_score: met.confidence_score ?? s.confidence_score ?? null,
+          time:             ts.published_at    || s.time,
+          source:           prov.source_name   || s.source_type     || s.source,
+          source_count:     met.source_count   ?? s.source_count    ?? 1,
+          escalation:       met.escalation     || s.escalation      || null,
+        };
+      });
+      let data = normalized;
       if (filter !== 'all') {
         data = data.filter(s => s.severity === filter);
       }

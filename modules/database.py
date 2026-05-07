@@ -44,6 +44,46 @@ def connect_db() -> Optional[psycopg2.extensions.connection]:
         return None
 
 
+def validate_row(row: dict[str, Any]) -> tuple[bool, str]:
+    """
+    Validate a pipeline row before insertion.
+
+    Returns (True, '') when valid, or (False, reason) when not.
+    Coerces safe defaults for optional truncatable fields in-place.
+    """
+    if not row.get('message'):
+        return False, "Missing required field: message"
+    if not row.get('time'):
+        return False, "Missing required field: time"
+
+    # Enforce column-length limits (mirrors Telegram model VARCHAR lengths)
+    _TRUNCATE = {
+        'message':         250,
+        'matched_city':    250,
+        'city_result':     250,
+        'video_durations': 250,
+        'subject':         255,
+        'tags':            500,
+    }
+    for field, limit in _TRUNCATE.items():
+        val = row.get(field)
+        if isinstance(val, str) and len(val) > limit:
+            row[field] = val[:limit]
+            logger.warning("validate_row: truncated '%s' to %d chars", field, limit)
+
+    # Coerce numeric fields — reject clearly bad values
+    for field in ('lat', 'lon'):
+        val = row.get(field)
+        if val is not None:
+            try:
+                row[field] = float(val)
+            except (TypeError, ValueError):
+                logger.warning("validate_row: invalid %s=%r — setting to None", field, val)
+                row[field] = None
+
+    return True, ''
+
+
 def insert_message(conn: psycopg2.extensions.connection, row: dict[str, Any]) -> tuple[bool, str]:
     """Insert message into database with duplicate detection."""
     cur = conn.cursor()

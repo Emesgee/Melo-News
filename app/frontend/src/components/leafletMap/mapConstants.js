@@ -23,7 +23,11 @@ export const createThumbnailIcon = (thumbnailUrl, hasVideo = false, severity = '
   const dotColor = SEVERITY_COLORS[severity] || SEVERITY_COLORS.MEDIUM;
   const iconHtml = thumbnailUrl
     ? `<div class="thumbnail-marker ${hasVideo ? 'has-video' : ''}" style="border-color: ${dotColor}">
-         <img src="${thumbnailUrl}" alt="thumbnail" />
+         <img 
+           src="${thumbnailUrl}" 
+           alt="thumbnail"
+           onerror="this.parentElement.innerHTML='<div style=\"background-color: ${dotColor}; width: 100%; height: 100%; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px;\">📍</div>'" 
+         />
          ${hasVideo ? '<span class="video-badge">▶</span>' : ''}
        </div>`
     : `<div class="red-dot-marker">

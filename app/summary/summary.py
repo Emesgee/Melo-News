@@ -7,7 +7,8 @@ import os
 import json
 from flask import Blueprint, jsonify, request
 from datetime import datetime
-from app.models import Telegram
+from app.models import db, Telegram, FileUpload
+from app.story.service import list_stories, get_story
 
 summary_bp = Blueprint('summary', __name__, url_prefix='/api')
 
@@ -205,167 +206,139 @@ SUMMARY:"""
         print(f"DEBUG: Error generating summary with Claude: {e}")
         return None
 
+def _story_for_prompt(story):
+    """Adapt a normalized Story dict to the shape expected by the AI prompt builders."""
+    return {
+        'title': story['title'],
+        'description': story['body'],
+        'matched_city': (
+            story['location']['city']
+            or story['location']['country']
+            or 'Unknown'
+        ),
+        'lat': story['location']['lat'],
+        'lon': story['location']['lon'],
+        'time': story['timestamps']['published_at'],
+        'views': story['metrics']['total_views'] or 0,
+        'video_links': story['media']['videos'],
+        'image_links': story['media']['images'],
+    }
+
+
 @summary_bp.route('/generate-melo-summary', methods=['POST'])
 def generate_melo_summary():
     """
-    Generate a professional news summary from selected stories
-    Expected JSON options:
-    1. { "stories": [list of story objects] }          - Custom stories list
-    2. { "story_ids": [1, 2, 3...] }                   - By story IDs
-    3. { "search": "keyword", "limit": 50 }            - By search query
-    4. {}                                               - All stories (50 latest)
+    Generate a professional news summary from selected stories.
+
+    Accepted JSON options:
+    1. { "stories": [...] }                     — custom story objects (passed through)
+    2. { "story_ids": ["telegram:1", ...] }     — by prefixed story IDs
+    3. { "story_ids": [1, 2, ...] }             — legacy: bare ints treated as telegram IDs
+    4. { "search": "keyword", "limit": 50 }     — by search query
+    5. {}                                        — 50 latest stories from all sources
     """
     try:
-        print("DEBUG: generate_melo_summary called")
         data = request.get_json() or {}
-        print(f"DEBUG: Received data: {data}")
         stories = data.get('stories', [])
-        
-        # Option 1: Custom stories provided
+
+        # Option 1: custom story objects provided directly
         if stories:
             print(f"DEBUG: Using {len(stories)} custom stories from request")
-        
-        # Option 2: Story IDs provided (visible on map)
+
+        # Option 2 / 3: story IDs
         elif data.get('story_ids'):
-            print(f"DEBUG: Fetching stories by IDs: {data.get('story_ids')}")
-            try:
-                story_ids = data.get('story_ids', [])
-                telegram_stories = Telegram.query.filter(Telegram.id.in_(story_ids)).all()
-                print(f"DEBUG: Found {len(telegram_stories)} stories by ID")
-                stories = [
-                    {
-                        'title': s.subject or 'Untitled',
-                        'description': s.message or '',
-                        'matched_city': s.matched_city or s.city_result or 'Unknown',
-                        'lat': s.lat,
-                        'lon': s.lon,
-                        'time': s.time.isoformat() if s.time else None,
-                        'views': s.total_views or 0,
-                        'video_links': safe_json_parse(s.video_links),
-                        'image_links': safe_json_parse(s.image_links)
-                    }
-                    for s in telegram_stories
-                ]
-            except Exception as db_error:
-                print(f"DEBUG: Error fetching by IDs: {db_error}")
-                return jsonify({
-                    "error": "Database error",
-                    "message": f"Failed to fetch stories: {str(db_error)}"
-                }), 500
-        
-        # Option 3: Search query provided
+            raw_ids = data['story_ids']
+            print(f"DEBUG: Fetching stories by IDs: {raw_ids}")
+            fetched = []
+            for raw_id in raw_ids:
+                if isinstance(raw_id, str) and ':' in raw_id:
+                    source_type, _, record_id = raw_id.partition(':')
+                    story = get_story(source_type, int(record_id))
+                else:
+                    # Legacy: bare integer → assume telegram
+                    story = get_story('telegram', int(raw_id))
+                if story:
+                    fetched.append(_story_for_prompt(story))
+            stories = fetched
+            print(f"DEBUG: Found {len(stories)} stories by ID")
+
+        # Option 4: keyword search
         elif data.get('search'):
-            print(f"DEBUG: Searching for: {data.get('search')}")
-            try:
-                search_term = f"%{data.get('search')}%"
-                limit = data.get('limit', 50)
-                telegram_stories = Telegram.query.filter(
-                    (Telegram.message.ilike(search_term)) |
-                    (Telegram.subject.ilike(search_term)) |
-                    (Telegram.matched_city.ilike(search_term))
-                ).order_by(Telegram.time.desc()).limit(limit).all()
-                print(f"DEBUG: Search found {len(telegram_stories)} stories")
-                stories = [
-                    {
-                        'title': s.subject or 'Untitled',
-                        'description': s.message or '',
-                        'matched_city': s.matched_city or s.city_result or 'Unknown',
-                        'lat': s.lat,
-                        'lon': s.lon,
-                        'time': s.time.isoformat() if s.time else None,
-                        'views': s.total_views or 0,
-                        'video_links': safe_json_parse(s.video_links),
-                        'image_links': safe_json_parse(s.image_links)
-                    }
-                    for s in telegram_stories
-                ]
-            except Exception as db_error:
-                print(f"DEBUG: Search error: {db_error}")
-                return jsonify({
-                    "error": "Search error",
-                    "message": f"Failed to search stories: {str(db_error)}"
-                }), 500
-        
-        # Option 4: No filter, fetch all latest
+            q = data['search']
+            limit = data.get('limit', 50)
+            print(f"DEBUG: Searching for: {q}")
+            result = list_stories(source='all', q=q, sort='published_at', order='desc', limit=limit)
+            stories = [_story_for_prompt(s) for s in result['items']]
+            print(f"DEBUG: Search found {len(stories)} stories")
+
+        # Option 5: latest from all sources
         else:
             print("DEBUG: No filter, fetching latest 50 stories")
-            try:
-                telegram_stories = Telegram.query.order_by(Telegram.time.desc()).limit(50).all()
-                print(f"DEBUG: Found {len(telegram_stories)} stories in database")
-                stories = [
-                    {
-                        'title': s.subject or 'Untitled',
-                        'description': s.message or '',
-                        'matched_city': s.matched_city or s.city_result or 'Unknown',
-                        'lat': s.lat,
-                        'lon': s.lon,
-                        'time': s.time.isoformat() if s.time else None,
-                        'views': s.total_views or 0,
-                        'video_links': safe_json_parse(s.video_links),
-                        'image_links': safe_json_parse(s.image_links)
-                    }
-                    for s in telegram_stories
-                ]
-            except Exception as db_error:
-                print(f"DEBUG: Database error: {db_error}")
-                return jsonify({
-                    "error": "Database error",
-                    "message": f"Failed to fetch stories: {str(db_error)}"
-                }), 500
-        
+            result = list_stories(source='all', sort='published_at', order='desc', limit=50)
+            stories = [_story_for_prompt(s) for s in result['items']]
+            print(f"DEBUG: Found {len(stories)} stories")
+
         if not stories:
-            print("DEBUG: No stories available")
             return jsonify({
                 "error": "No stories available",
-                "message": "Please add some news stories first or check your filters"
+                "message": "Please add some news stories first or check your filters",
             }), 400
-        
+
         print(f"DEBUG: Generating summary for {len(stories)} stories")
-        
-        # Use Thaura AI only
+
         summary_result = generate_summary_with_thaura(stories)
-        
+
         if not summary_result:
-            print("DEBUG: Thaura AI summary generation failed")
             return jsonify({
                 "error": "Summary generation failed",
-                "message": "Unable to generate summary. Check that THAURA_API_KEY is configured."
+                "message": "Unable to generate summary. Check that THAURA_API_KEY is configured.",
             }), 500
-        
+
         return jsonify({
             "status": "success",
             "summary": summary_result.get('summary'),
             "service": summary_result.get('service'),
             "generated_at": summary_result.get('generated_at'),
-            "stories_count": len(stories)
+            "stories_count": len(stories),
         }), 200
-        
+
     except Exception as e:
         print(f"ERROR in generate_melo_summary: {e}")
-        return jsonify({
-            "error": "Internal server error",
-            "details": str(e)
-        }), 500
+        return jsonify({"error": "Internal server error", "details": str(e)}), 500
+
 
 @summary_bp.route('/summary-metadata', methods=['GET'])
 def get_summary_metadata():
-    """Get metadata about available stories for summary generation"""
+    """Get metadata about available stories for summary generation."""
     try:
-        story_count = Telegram.query.count()
-        latest_story = Telegram.query.order_by(Telegram.time.desc()).first()
-        
-        cities = Telegram.query.with_entities(Telegram.matched_city).distinct().count()
-        
+        telegram_count = db.session.query(Telegram.id).count()
+        upload_count = db.session.query(FileUpload.id).count()
+        total = telegram_count + upload_count
+
+        latest_telegram = Telegram.query.order_by(Telegram.time.desc()).first()
+        latest_upload = FileUpload.query.order_by(FileUpload.upload_date.desc()).first()
+
+        # Pick the most recent across both sources
+        candidates = [
+            latest_telegram.time if latest_telegram and latest_telegram.time else None,
+            latest_upload.upload_date if latest_upload and latest_upload.upload_date else None,
+        ]
+        latest_date = max((d for d in candidates if d), default=None)
+
+        unique_cities = (
+            db.session.query(Telegram.matched_city).distinct().count()
+            + db.session.query(FileUpload.city).filter(FileUpload.city.isnot(None)).distinct().count()
+        )
+
         return jsonify({
-            "total_stories": story_count,
-            "unique_cities": cities,
-            "latest_story_date": latest_story.time.isoformat() if latest_story and latest_story.time else None,
-            "ready_for_summary": story_count > 0
+            "total_stories": total,
+            "telegram_count": telegram_count,
+            "upload_count": upload_count,
+            "unique_cities": unique_cities,
+            "latest_story_date": latest_date.isoformat() if latest_date else None,
+            "ready_for_summary": total > 0,
         }), 200
-        
+
     except Exception as e:
         print(f"ERROR in get_summary_metadata: {e}")
-        return jsonify({
-            "error": "Failed to get metadata",
-            "details": str(e)
-        }), 500
+        return jsonify({"error": "Failed to get metadata", "details": str(e)}), 500

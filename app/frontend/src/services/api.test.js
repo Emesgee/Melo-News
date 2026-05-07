@@ -16,8 +16,8 @@ describe('api instance', () => {
     expect(api.defaults.withCredentials).toBe(true);
   });
 
-  it('has Content-Type header set', () => {
-    expect(api.defaults.headers['Content-Type']).toBe('application/json');
+  it('has X-Requested-With header set for CSRF protection', () => {
+    expect(api.defaults.headers['X-Requested-With']).toBe('XMLHttpRequest');
   });
 });
 
@@ -56,12 +56,12 @@ describe('data functions', () => {
 
   it('getNewsFeed passes limit parameter', async () => {
     await getNewsFeed(50);
-    expect(api.get).toHaveBeenCalledWith('telegram/news', { params: { limit: 50 } });
+    expect(api.get).toHaveBeenCalledWith('stories/map', { params: { limit: 50 } });
   });
 
   it('getNewsFeed uses default limit of 100', async () => {
     await getNewsFeed();
-    expect(api.get).toHaveBeenCalledWith('telegram/news', { params: { limit: 100 } });
+    expect(api.get).toHaveBeenCalledWith('stories/map', { params: { limit: 100 } });
   });
 });
 

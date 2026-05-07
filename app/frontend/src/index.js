@@ -12,11 +12,18 @@ root.render(
   </React.StrictMode>
 );
 
-// Register service worker for PWA + push notifications (P2-13)
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker
-      .register('/sw.js')
-      .catch(() => { /* SW registration failed */ });
-  });
+  if (process.env.NODE_ENV === 'production') {
+    // Register service worker only in production to avoid stale dev builds.
+    window.addEventListener('load', () => {
+      navigator.serviceWorker
+        .register('/sw.js')
+        .catch(() => { /* SW registration failed */ });
+    });
+  } else {
+    // Clear old registrations in non-production so normal refresh always picks latest changes.
+    navigator.serviceWorker.getRegistrations()
+      .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
+      .catch(() => { /* Ignore SW cleanup failures */ });
+  }
 }

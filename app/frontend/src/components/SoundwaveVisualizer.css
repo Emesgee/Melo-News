@@ -1,0 +1,16 @@
+/* src/components/SoundwaveVisualizer.css */
+
+.soundwave-visualizer {
+  display: block;
+  image-rendering: crisp-edges;
+  filter: drop-shadow(0 0 8px rgba(100, 225, 255, 0.2));
+  transition: filter 0.3s ease;
+}
+
+.soundwave-visualizer.active {
+  filter: drop-shadow(0 0 12px rgba(100, 225, 255, 0.4));
+}
+
+.soundwave-visualizer.inactive {
+  opacity: 0.8;
+}

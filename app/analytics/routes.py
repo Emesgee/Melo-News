@@ -8,11 +8,11 @@ API routes for analytics features:
 """
 
 from flask import Blueprint, jsonify, request
-from app.models import db, Telegram, Prediction, PredictionVote, KeywordTrend, TensionIndex
+from app.models import db, Prediction, PredictionVote
 from app.analytics.engine import (
-    calculate_all_escalations,
-    get_trending_keywords,
-    calculate_tension_index,
+    calculate_all_escalations_multi,
+    get_trending_keywords_multi,
+    calculate_tension_index_multi,
 )
 from flask_jwt_extended import jwt_required, get_jwt_identity
 import logging
@@ -28,7 +28,7 @@ analytics_bp = Blueprint('analytics', __name__)
 def get_escalation():
     """Get escalation/de-escalation status for all active cities."""
     hours = request.args.get('hours', default=24, type=int)
-    escalations = calculate_all_escalations(db, Telegram, hours)
+    escalations = calculate_all_escalations_multi(db, hours)
     return jsonify({
         'escalations': escalations,
         'summary': {
@@ -46,7 +46,7 @@ def get_trending():
     """Get trending keywords over the last N hours."""
     hours = request.args.get('hours', default=24, type=int)
     limit = request.args.get('limit', default=10, type=int)
-    keywords = get_trending_keywords(db, Telegram, hours, limit)
+    keywords = get_trending_keywords_multi(db, hours, limit)
     return jsonify({
         'keywords': [{'keyword': kw, 'count': cnt} for kw, cnt in keywords],
         'period_hours': hours,
@@ -59,7 +59,7 @@ def get_trending():
 def get_tension():
     """Get the current global tension index."""
     hours = request.args.get('hours', default=24, type=int)
-    tension = calculate_tension_index(db, Telegram, hours)
+    tension = calculate_tension_index_multi(db, hours)
     return jsonify(tension), 200
 
 

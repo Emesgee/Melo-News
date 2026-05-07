@@ -339,9 +339,12 @@ class TestAnalyzeEndpoint:
     """Test the /api/ai/analyze endpoint with mocked AI services."""
 
     def test_analyze_no_file(self, client):
-        """Returns 400 when no file is provided."""
+        """Returns 200 with fallback payload and error field when no file is provided."""
         response = client.post('/api/ai/analyze')
-        assert response.status_code == 400
+        assert response.status_code == 200
+        data = response.get_json()
+        assert 'error' in data
+        assert data['error'] == 'No file provided'
 
     def test_analyze_image_fallback(self, client, tmp_path):
         """Image analysis works with fallback when no API key is set."""
@@ -416,9 +419,12 @@ class TestAnalyzeEndpoint:
         assert response.status_code == 400
 
     def test_geocode_proxy_no_key(self, client):
-        """Geocode proxy returns 503 when API key not configured."""
+        """Geocode proxy returns 200 with configured=False when API key not set."""
         with patch.dict(os.environ, {}, clear=False):
             os.environ.pop('OPENCAGE_API_KEY', None)
             response = client.get('/api/ai/geocode?q=Gaza')
 
-        assert response.status_code == 503
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['configured'] is False
+        assert data['lat'] is None

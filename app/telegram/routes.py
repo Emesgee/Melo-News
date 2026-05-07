@@ -54,39 +54,4 @@ def create_testjson():
     db.session.commit()
     return jsonify({'message': 'TestJson record created'}), 201
 
-# GET route for map visualization - returns news data with coordinates
-@telegram_bp.route('/news', methods=['GET'])
-def get_news_for_map():
-    """Fetch news data with locations for map visualization"""
-    try:
-        # Get limit from query params (default 500)
-        limit = request.args.get('limit', default=500, type=int)
-        
-        # Query records with coordinates, ordered by newest first
-        results = Telegram.query.filter(
-            Telegram.lat.isnot(None),
-            Telegram.lon.isnot(None)
-        ).order_by(Telegram.time.desc()).limit(limit).all()
-        
-        news_data = [{
-            "id": record.id,
-            "matched_city": record.matched_city,
-            "message": record.message,
-            "lat": record.lat,
-            "lon": record.lon,
-            "time": record.time.isoformat() if record.time else None,
-            "total_views": record.total_views,
-            "video_links": record.video_links,
-            "image_links": record.image_links,
-            "tags": record.tags,
-            "subject": record.subject,
-            "confidence_score": record.confidence_score,
-            "severity": record.severity,
-            "source": record.source,
-            "source_count": record.source_count,
-            "escalation": record.escalation,
-        } for record in results]
-        
-        return jsonify(news_data), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+# /news retired — use GET /api/stories/map instead

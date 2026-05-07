@@ -78,6 +78,60 @@
   z-index: 10;
 }
 
+.bandwidth-indicator {
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 10px;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.7rem;
+  background: rgba(15,23,42,0.6);
+}
+
+.bandwidth-indicator.low {
+  border-color: rgba(245,158,11,0.65);
+  background: rgba(245,158,11,0.12);
+}
+
+.bandwidth-indicator.critical {
+  border-color: rgba(239,68,68,0.7);
+  background: rgba(239,68,68,0.14);
+}
+
+.bandwidth-indicator.normal {
+  border-color: rgba(16,185,129,0.45);
+  background: rgba(16,185,129,0.1);
+}
+
+.bandwidth-indicator-head {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.2rem;
+  font-size: 0.84rem;
+}
+
+.bandwidth-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 0 2px rgba(16,185,129,0.2);
+}
+
+.bandwidth-indicator.low .bandwidth-dot {
+  background: #f59e0b;
+  box-shadow: 0 0 0 2px rgba(245,158,11,0.2);
+}
+
+.bandwidth-indicator.critical .bandwidth-dot {
+  background: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239,68,68,0.24);
+}
+
+.bandwidth-indicator small {
+  font-size: 0.74rem;
+  opacity: 0.82;
+}
+
 /* ============ STEP INDICATOR ============ */
 .step-indicator {
   display: flex;

@@ -1,47 +1,28 @@
 from flask import Blueprint, jsonify, request, send_from_directory, current_app
-from datetime import datetime
+from datetime import datetime, timezone
 from dateutil import parser
-from sqlalchemy import or_
-from app.models import db, Search, Input, FileUpload, InputTemplate, Telegram
+from app.models import db, Search, Input, InputTemplate
+from app.story.service import list_stories
 import traceback
 import json
 import os
 
-def safe_json_load(value, default):
-    if isinstance(value, list):
-        return value
-    if isinstance(value, str):
-        if value.startswith('['):
-            try:
-                return json.loads(value)
-            except json.JSONDecodeError:
-                return default
-        else:
-            return value.split('|') if '|' in value else [value]
-    return default
-
-# Define the uploads folder path
-# UPLOAD_FOLDER moved inside the function to use current_app
-
 search_bp = Blueprint('search', __name__, url_prefix='/api')
 
-# Route to serve uploaded files
+
 @search_bp.route('/uploads/<path:filename>')
 def uploaded_file(filename):
-    """
-    Serve files from the uploads directory.
-    """
+    """Serve files from the uploads directory."""
     upload_folder = current_app.config.get('UPLOAD_FOLDER', os.path.join(
         os.path.dirname(os.path.abspath(__file__)), '..', 'uploads'
     ))
     return send_from_directory(upload_folder, filename)
 
+
 @search_bp.route('/search', methods=['POST'])
 def search():
     try:
-        # Parse and log the incoming request data
         data = request.get_json()
-        print("Request data:", data)
 
         user_id = 1  # Hardcoded for now
         term = data.get('term')
@@ -54,122 +35,74 @@ def search():
         if not template_ids or not isinstance(template_ids, list) or len(template_ids) == 0:
             return jsonify({"error": "Invalid or missing template_ids"}), 400
 
-        # Parse filters
         try:
-            filters = json.loads(json.dumps(filters))  # Clean problematic types
+            filters = json.loads(json.dumps(filters))
         except Exception as e:
             return jsonify({"error": "Invalid filters format", "details": str(e)}), 400
 
-        # Parse ISO date strings
-        from_date = parser.isoparse(filters.get("from_date")) if filters.get("from_date") else None
-        to_date = parser.isoparse(filters.get("to_date")) if filters.get("to_date") else None
-
-        # Create and save new Search record
-        primary_template_id = template_ids[0] if template_ids else None
+        # --- Audit trail (unchanged) ---
+        primary_template_id = template_ids[0]
         new_search = Search(userid=user_id)
         db.session.add(new_search)
-        db.session.flush()  # Get searchid
+        db.session.flush()
 
-        # Save Input
         new_input = Input(
             searchid=new_search.searchid,
             keyword=term,
             filters=filters,
-            date_input=datetime.utcnow(),
-            templateid=primary_template_id
+            date_input=datetime.now(timezone.utc),
+            templateid=primary_template_id,
         )
         db.session.add(new_input)
         db.session.commit()
 
-        # Start queries
-        file_query = FileUpload.query
-        telegram_query = Telegram.query
+        # --- Translate template types into story service params ---
+        q = None
+        from_date = None
+        to_date = None
+        city = None
+        country = None
 
         for template_id in template_ids:
-            template = InputTemplate.query.get(template_id)
+            template = db.session.get(InputTemplate, template_id)
             if not template:
-                print(f"Template ID {template_id} not found.")
                 continue
 
             if template.template_type == "Keyword Search":
-                # Skip wildcard-only searches to avoid returning everything
+                # Wildcard '*' means no text filter
                 if term and term != '*':
-                    file_query = file_query.filter(or_(
-                        FileUpload.filename.ilike(f'%{term}%'),
-                        FileUpload.title.ilike(f'%{term}%'),
-                        FileUpload.tags.ilike(f'%{term}%'),
-                        FileUpload.subject.ilike(f'%{term}%')
-                    ))
-                    telegram_query = telegram_query.filter(or_(
-                        Telegram.message.ilike(f'%{term}%'),
-                        Telegram.tags.ilike(f'%{term}%'),
-                        Telegram.subject.ilike(f'%{term}%')
-                    ))
-                else:
-                    # For wildcard, get all recent uploads (ordered by date)
-                    file_query = file_query.order_by(FileUpload.upload_date.desc())
-                    telegram_query = telegram_query.order_by(Telegram.time.desc())
+                    q = term
+
             elif template.template_type == "Date Range Search":
-                if from_date:
-                    file_query = file_query.filter(FileUpload.upload_date >= from_date)
-                    telegram_query = telegram_query.filter(Telegram.time >= from_date)
-                if to_date:
-                    file_query = file_query.filter(FileUpload.upload_date <= to_date)
-                    telegram_query = telegram_query.filter(Telegram.time <= to_date)
+                raw_from = filters.get("from_date")
+                raw_to = filters.get("to_date")
+                if raw_from:
+                    from_date = parser.isoparse(raw_from)
+                if raw_to:
+                    to_date = parser.isoparse(raw_to)
+
             elif template.template_type == "Location-Based Search":
-                if filters.get("city"):
-                    file_query = file_query.filter(FileUpload.city.ilike(f'%{filters["city"]}%'))
-                    telegram_query = telegram_query.filter(Telegram.matched_city.ilike(f'%{filters["city"]}%'))
-                if filters.get("country"):
-                    file_query = file_query.filter(FileUpload.country.ilike(f'%{filters["country"]}%'))
-                    telegram_query = telegram_query.filter(Telegram.city_result.ilike(f'%{filters["country"]}%'))
+                city = filters.get("city") or city
+                country = filters.get("country") or country
 
-        # Execute queries
-        file_results = file_query.all()
-        telegram_results = telegram_query.all()
-
-        print("File query results:", file_results)
-        print("Telegram query results:", telegram_results)
-
-        # Combine results - ONLY include results with valid lat/lon
-        combined_results = [
-            {
-                "source": "FileUpload",
-                "id": file.id,
-                "title": file.title,
-                "lat": float(file.lat) if file.lat is not None else None,
-                "lon": float(file.lon) if file.lon is not None else None,
-                "country": file.country,
-                "city": file.city,
-                "file": file.file_path,
-                "fileUrl": file.file_path,
-                "description": file.subject,
-                "tags": file.tags,
-                "time": file.upload_date.isoformat() if file.upload_date else None,
-            } for file in file_results if file.lat is not None and file.lon is not None
-        ] + [
-            {
-                "source": "Telegram",
-                "id": record.id,
-                "title": record.subject,
-                "lat": float(record.lat) if record.lat is not None else None,
-                "lon": float(record.lon) if record.lon is not None else None,
-                "country": record.city_result,
-                "city": record.matched_city,
-                "message": record.message,
-                "tags": record.tags,
-                "image_links": safe_json_load(record.image_links, []),
-                "video_links": safe_json_load(record.video_links, []),
-                "fileUrl": safe_json_load(record.image_links, record.image_links),
-                "videoUrl": safe_json_load(record.video_links, record.video_links),
-                "description": record.message,
-                "time": record.time.isoformat() if record.time else None,
-            } for record in telegram_results if record.lat is not None and record.lon is not None
-        ]
+        # --- Query via story service ---
+        result = list_stories(
+            source='all',
+            q=q,
+            city=city,
+            country=country,
+            has_location=True,
+            from_date=from_date,
+            to_date=to_date,
+            sort='published_at',
+            order='desc',
+            limit=500,
+            offset=0,
+        )
 
         return jsonify({
             "message": "Search completed successfully.",
-            "results": combined_results
+            "results": result['items'],
         }), 200
 
     except Exception as e:

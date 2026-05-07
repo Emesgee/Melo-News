@@ -4,13 +4,16 @@ Analytics engine implementing:
   P0-4: Escalation / De-escalation indicators
   P1-5: Keyword trending
   P1-6: Global Tension Index
+
+Each feature has a legacy Telegram-only function (kept for backward compat)
+and a source-agnostic *_multi variant that queries both Telegram and FileUpload.
 """
 
 import re
 import logging
 from datetime import datetime, timezone, timedelta
 from collections import Counter
-from sqlalchemy import func, and_
+from sqlalchemy import and_
 
 logger = logging.getLogger(__name__)
 
@@ -261,6 +264,183 @@ def calculate_tension_index(db, Telegram, hours=24):
         }
     except Exception as e:
         logger.error("Error calculating tension index: %s", e)
+        return {
+            'score': 0.0,
+            'story_count': 0,
+            'avg_severity': 0.0,
+            'escalation_pct': 0.0,
+            'change_vs_previous': 0.0,
+        }
+
+
+# ---------------------------------------------------------------------------
+# Source-agnostic variants — query both Telegram and FileUpload
+# ---------------------------------------------------------------------------
+
+def _story_rows_in_window(db, from_dt, to_dt):
+    """
+    Return lightweight (city, severity) tuples from both sources within [from_dt, to_dt).
+    Used by escalation and tension index calculations.
+    """
+    import config
+    from app.models import Telegram, FileUpload
+
+    telegram_rows = []
+    if config.TELEGRAM_ENABLED:
+        telegram_rows = db.session.query(
+            Telegram.matched_city.label('city'),
+            Telegram.severity.label('severity'),
+        ).filter(
+            Telegram.time >= from_dt,
+            Telegram.time < to_dt,
+        ).all()
+
+    upload_rows = db.session.query(
+        FileUpload.city.label('city'),
+        FileUpload.severity.label('severity'),
+    ).filter(
+        FileUpload.upload_date >= from_dt,
+        FileUpload.upload_date < to_dt,
+        FileUpload.lat.isnot(None),   # only geolocated, matching existing Telegram behaviour
+    ).all()
+
+    return telegram_rows + upload_rows
+
+
+def calculate_all_escalations_multi(db, hours=24):
+    """
+    Source-agnostic escalation calculation across Telegram and FileUpload.
+    Returns dict: {city_name: 'escalation'|'de-escalation'|'stable'}
+    """
+    now = datetime.now(timezone.utc)
+    recent_start = now - timedelta(hours=hours)
+    previous_start = recent_start - timedelta(hours=hours)
+
+    try:
+        recent_rows = _story_rows_in_window(db, recent_start, now)
+        previous_rows = _story_rows_in_window(db, previous_start, recent_start)
+
+        recent_counts = Counter(r.city for r in recent_rows if r.city)
+        previous_counts = Counter(r.city for r in previous_rows if r.city)
+
+        all_cities = set(recent_counts) | set(previous_counts)
+        results = {}
+
+        for city in all_cities:
+            recent = recent_counts.get(city, 0)
+            previous = previous_counts.get(city, 0)
+
+            if previous == 0 and recent > 0:
+                results[city] = 'escalation'
+            elif previous == 0:
+                results[city] = 'stable'
+            else:
+                ratio = recent / previous
+                if ratio >= 1.5:
+                    results[city] = 'escalation'
+                elif ratio <= 0.5:
+                    results[city] = 'de-escalation'
+                else:
+                    results[city] = 'stable'
+
+        return results
+    except Exception as e:
+        logger.error("Multi-source escalation error: %s", e)
+        return {}
+
+
+def get_trending_keywords_multi(db, hours=24, limit=10):
+    """
+    Source-agnostic keyword trending from Telegram messages and
+    FileUpload title/subject/transcription fields.
+    """
+    import config
+    from app.models import Telegram, FileUpload
+
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(hours=hours)
+
+    try:
+        telegram_texts = []
+        if config.TELEGRAM_ENABLED:
+            telegram_texts = [
+                r[0] for r in
+                db.session.query(Telegram.message).filter(Telegram.time >= cutoff).all()
+                if r[0]
+            ]
+        upload_texts = []
+        for row in db.session.query(
+            FileUpload.title, FileUpload.subject, FileUpload.transcription
+        ).filter(FileUpload.upload_date >= cutoff).all():
+            upload_texts.append(' '.join(p for p in row if p))
+
+        all_keywords: Counter = Counter()
+        for text in telegram_texts + upload_texts:
+            for keyword, count in extract_keywords(text, max_keywords=20):
+                all_keywords[keyword] += count
+
+        return all_keywords.most_common(limit)
+    except Exception as e:
+        logger.error("Multi-source keyword trending error: %s", e)
+        return []
+
+
+def calculate_tension_index_multi(db, hours=24):
+    """
+    Source-agnostic global tension index across Telegram and FileUpload.
+    """
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(hours=hours)
+    previous_cutoff = cutoff - timedelta(hours=hours)
+
+    try:
+        recent_rows = _story_rows_in_window(db, cutoff, now)
+        previous_count = len(_story_rows_in_window(db, previous_cutoff, cutoff))
+        story_count = len(recent_rows)
+
+        if story_count == 0:
+            return {
+                'score': 0.0,
+                'story_count': 0,
+                'avg_severity': 0.0,
+                'escalation_pct': 0.0,
+                'change_vs_previous': 0.0,
+            }
+
+        severity_sum = sum(
+            SEVERITY_WEIGHTS.get(r.severity or 'LOW', 0.5) for r in recent_rows
+        )
+        avg_severity = severity_sum / story_count
+
+        escalations = calculate_all_escalations_multi(db, hours)
+        escalating = sum(1 for v in escalations.values() if v == 'escalation')
+        escalation_pct = escalating / max(len(escalations), 1)
+
+        volume_score = min(story_count / 50.0, 1.0) * 30
+        severity_score = (avg_severity / 3.0) * 40
+        escalation_score = escalation_pct * 20
+
+        if previous_count > 0:
+            growth = (story_count - previous_count) / previous_count
+            change_score = min(max(growth, 0), 1.0) * 10
+            change_pct = round(((story_count - previous_count) / previous_count) * 100, 1)
+        else:
+            change_score = 5.0 if story_count > 0 else 0.0
+            change_pct = 100.0 if story_count > 0 else 0.0
+
+        total_score = round(
+            min(volume_score + severity_score + escalation_score + change_score, 100.0), 1
+        )
+
+        return {
+            'score': total_score,
+            'story_count': story_count,
+            'avg_severity': round(avg_severity, 2),
+            'escalation_pct': round(escalation_pct * 100, 1),
+            'change_vs_previous': change_pct,
+        }
+    except Exception as e:
+        logger.error("Multi-source tension index error: %s", e)
         return {
             'score': 0.0,
             'story_count': 0,

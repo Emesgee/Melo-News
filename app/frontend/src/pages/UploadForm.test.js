@@ -23,6 +23,11 @@ jest.mock('../services/api', () => ({
   },
 }));
 
+// Mock AuthContext so useAuth() doesn't return undefined
+jest.mock('../utils/AuthContext', () => ({
+  useAuth: () => ({ isLoggedIn: true, authLoading: false }),
+}));
+
 // Mock CSS import
 jest.mock('./UploadForm.css', () => ({}));
 
@@ -245,8 +250,8 @@ describe('UploadForm - AI Analysis', () => {
     expect(screen.getByDisplayValue('Gaza')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Palestine')).toBeInTheDocument();
 
-    // EXIF metadata should be displayed
-    expect(screen.getByText(/Photo Metadata/i)).toBeInTheDocument();
+    // EXIF metadata section heading should be displayed
+    expect(screen.getByText(/📷 Photo Metadata/i)).toBeInTheDocument();
     expect(screen.getByText(/Samsung Galaxy S24/i)).toBeInTheDocument();
 
     // Confidence banner

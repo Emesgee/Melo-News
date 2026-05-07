@@ -104,6 +104,12 @@ KAFKA_CONF = {
     'auto.offset.reset': 'earliest'
 }
 
+# ── Source toggles ───────────────────────────────────────────────────
+# Set TELEGRAM_ENABLED=false to run without any Telegram dependency.
+# When disabled the story service skips the Telegram table entirely and
+# the /api/telegram blueprint is not registered.
+TELEGRAM_ENABLED = os.getenv('TELEGRAM_ENABLED', 'true').lower() not in ('false', '0', 'no')
+
 # ── Geocoding ─────────────────────────────────────────────────────────
 ISRAEL_PALESTINE_BOUNDS = [29.5, 33.5, 34.0, 35.9]
 CACHE_FILE = "geocode_cache.json"
@@ -115,3 +121,4 @@ logger.info(f"Kafka servers: {KAFKA_CONF['bootstrap.servers']}")
 logger.info(f"Scheduler enabled: {SCHEDULER_ENABLED}")
 logger.info(f"Log level: {LOG_LEVEL}")
 logger.info(f"Database: {DB_USER}@{DB_HOST}:{DB_PORT}/{DB_NAME}")
+logger.info(f"Telegram source enabled: {TELEGRAM_ENABLED}")

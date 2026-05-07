@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/navigationBars/Sidebar';
 import './UploadForm.css';
 import { api } from '../services/api';
@@ -8,6 +8,7 @@ import { DRAFT_KEY, MAX_FILE_SIZE, ALLOWED_FILE_TYPES } from '../components/uplo
 import { StepIndicator, GeneralInfoForm, LocationForm, FileUploadForm } from '../components/upload/UploadSubComponents';
 import { chunkedUpload } from '../utils/chunkedUpload';
 import { enqueue, getAll, remove, updateStatus } from '../utils/offlineQueue';
+import { getNetworkProfile, getAdaptiveMaxFileSizeBytes, NETWORK_TIERS } from '../utils/connectivityPolicy';
 
 const CHUNK_THRESHOLD = 5 * 1024 * 1024; // use chunked upload for files > 5 MB
 
@@ -42,6 +43,7 @@ const AR = {
 
 const UploadForm = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { isLoggedIn, authLoading } = useAuth();
   const [isSidebarVisible, setIsSidebarVisible] = useState(false);
   const [rtl] = useState(isArabic); // Arabic RTL detection
@@ -71,11 +73,16 @@ const UploadForm = () => {
   const [geocodeAvailable, setGeocodeAvailable] = useState(true);
   const [aiAnalyzeAvailable, setAiAnalyzeAvailable] = useState(true);
   const [lowBandwidth, setLowBandwidth] = useState(false);
+  const [bandwidthReady, setBandwidthReady] = useState(false);
+  const [bandwidthProfile, setBandwidthProfile] = useState(() => getNetworkProfile());
+  const [autoStripGps, setAutoStripGps] = useState(false);
   const [witnessStatement, setWitnessStatement] = useState('');
   const [sourceType, setSourceType] = useState('eyewitness');
   const [isSensitive, setIsSensitive] = useState(false);
   const draftRestoredRef = useRef(false);
   const geocodeTimerRef = useRef(null);
+  const quickFileImportedRef = useRef(false);
+  const introPrefsAppliedRef = useRef(false);
 
   // ── EXIF safety state ─────────────────────────────────────────────
   const [exifGpsWarning, setExifGpsWarning] = useState(false);   // show warning banner
@@ -100,6 +107,37 @@ const UploadForm = () => {
   }, []);
 
   useEffect(() => { refreshQueueCount(); }, [refreshQueueCount]);
+
+  useEffect(() => {
+    const updateBandwidthMode = () => {
+      const profile = getNetworkProfile();
+      setBandwidthProfile(profile);
+      setLowBandwidth(profile.isLowBandwidth);
+      setBandwidthReady(true);
+    };
+
+    updateBandwidthMode();
+
+    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    const handleOnlineStatusChange = () => updateBandwidthMode();
+
+    window.addEventListener('online', handleOnlineStatusChange);
+    window.addEventListener('offline', handleOnlineStatusChange);
+
+    if (connection?.addEventListener) {
+      connection.addEventListener('change', updateBandwidthMode);
+      return () => {
+        connection.removeEventListener('change', updateBandwidthMode);
+        window.removeEventListener('online', handleOnlineStatusChange);
+        window.removeEventListener('offline', handleOnlineStatusChange);
+      };
+    }
+
+    return () => {
+      window.removeEventListener('online', handleOnlineStatusChange);
+      window.removeEventListener('offline', handleOnlineStatusChange);
+    };
+  }, []);
 
   // Auto-flush queue when back online
   useEffect(() => {
@@ -129,8 +167,7 @@ const UploadForm = () => {
       setMessage('✅ Queued stories uploaded successfully.');
       setMessageType('success');
     })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOnline]);
+  }, [isOnline, refreshQueueCount]);
 
   /**
    * Strip GPS/device EXIF from an image by re-encoding through canvas.
@@ -411,7 +448,9 @@ const UploadForm = () => {
   }, []);
 
   // ── Validate & set file (shared by click + drag-drop) ───────────
-  const processFile = useCallback((file) => {
+  const processFile = useCallback((file, options = {}) => {
+    const autoStripGpsEnabled = options.forceAutoStripGps ?? autoStripGps;
+
     if (!file) {
       setMessage('No file selected. Please choose a file.');
       setMessageType('error');
@@ -427,6 +466,16 @@ const UploadForm = () => {
 
     if (file.size > MAX_FILE_SIZE) {
       setMessage('File is too large. Maximum size allowed is 60MB.');
+      setMessageType('error');
+      setSelectedFile(null);
+      return;
+    }
+
+    const adaptiveLimitBytes = getAdaptiveMaxFileSizeBytes(file, bandwidthProfile);
+    if (file.size > adaptiveLimitBytes) {
+      const limitMb = (adaptiveLimitBytes / 1024 / 1024).toFixed(0);
+      const tierLabel = bandwidthProfile.tier === NETWORK_TIERS.CRITICAL ? 'critical' : 'constrained';
+      setMessage(`Current ${tierLabel} network mode allows this file type up to ${limitMb}MB. Please choose a smaller file.`);
       setMessageType('error');
       setSelectedFile(null);
       return;
@@ -452,17 +501,58 @@ const UploadForm = () => {
     );
     if (canAutoAnalyze) {
       analyzeMedia(file).then((result) => {
-        // After analysis, if GPS found in EXIF, show safety warning
+        // After analysis, if GPS found in EXIF, show safety warning or auto-strip.
         if (result?.exif?.has_gps) {
-          setExifGpsWarning(true);
+          if (autoStripGpsEnabled && file.type.startsWith('image/')) {
+            stripExifFromImage(file).then((cleanFile) => {
+              setStrippedFile(cleanFile);
+              setExifGpsWarning(false);
+              setMessage('✅ GPS metadata removed automatically. AI analysis completed.');
+              setMessageType('success');
+            });
+          } else {
+            setExifGpsWarning(true);
+          }
         }
       });
+    } else if (lowBandwidth) {
+      setMessage(`🐢 ${bandwidthProfile.tier.toUpperCase()} mode is active. Instant AI analysis is disabled for reliable upload.`);
+      setMessageType('info');
     }
-  }, [analyzeMedia, aiAnalyzeAvailable, findMatchingFileTypeId]);
+  }, [aiAnalyzeAvailable, analyzeMedia, autoStripGps, bandwidthProfile, findMatchingFileTypeId, lowBandwidth, stripExifFromImage]);
 
   const handleFileChange = (e) => {
     processFile(e.target.files[0]);
   };
+
+  useEffect(() => {
+    if (introPrefsAppliedRef.current) return;
+
+    const prefs = location.state?.uploadPreferences;
+    if (!prefs) return;
+
+    if (typeof prefs.autoStripGps === 'boolean') {
+      setAutoStripGps(prefs.autoStripGps);
+    }
+
+    introPrefsAppliedRef.current = true;
+  }, [location.state]);
+
+  useEffect(() => {
+    if (quickFileImportedRef.current) return;
+    if (!bandwidthReady) return;
+    const quickFile = location.state?.quickFile;
+    if (!quickFile) return;
+
+    const prefs = location.state?.uploadPreferences || {};
+    const autoStripGpsPref = typeof prefs.autoStripGps === 'boolean' ? prefs.autoStripGps : autoStripGps;
+
+    quickFileImportedRef.current = true;
+    processFile(quickFile, {
+      forceAutoStripGps: autoStripGpsPref,
+    });
+    navigate(location.pathname, { replace: true, state: null });
+  }, [autoStripGps, bandwidthReady, location.pathname, location.state, navigate, processFile]);
 
   // ── Drag-and-drop handler ────────────────────────────────────────
   const handleDrop = useCallback((e) => {
@@ -666,18 +756,29 @@ const UploadForm = () => {
         {/* Step Indicator */}
         <StepIndicator currentStep={currentStep} />
 
-        {/* Low-bandwidth mode toggle */}
-        <div style={{display:'flex', justifyContent:'flex-end', marginBottom:'0.5rem'}}>
-          <label style={{display:'flex', alignItems:'center', gap:'0.4rem', fontSize:'0.82rem', cursor:'pointer', opacity:0.75}}>
-            <input
-              type="checkbox"
-              checked={lowBandwidth}
-              onChange={e => setLowBandwidth(e.target.checked)}
-              style={{accentColor:'#f59e0b'}}
-            />
-            {rtl ? '🐢 وضع الاتصال البطيء (بدون تحليل AI)' : '🐢 Low bandwidth mode (skip AI analysis)'}
-          </label>
+        {/* Auto-detected bandwidth mode */}
+        <div className={`bandwidth-indicator ${bandwidthProfile.tier === NETWORK_TIERS.CRITICAL ? 'critical' : lowBandwidth ? 'low' : 'normal'}`}>
+          <div className="bandwidth-indicator-head">
+            <span className="bandwidth-dot" />
+            <strong>
+              {rtl
+                ? (lowBandwidth ? 'وضع الاتصال المقيد مفعّل تلقائياً' : 'وضع الاتصال العادي مفعّل تلقائياً')
+                : `Mode: ${bandwidthProfile.tier.toUpperCase()} (auto)`}
+            </strong>
+          </div>
+          <small>
+            {rtl
+              ? `حرج: ${bandwidthProfile.thresholds.criticalBandwidthThresholdMbps} Mbps · مقيد: ${bandwidthProfile.thresholds.lowBandwidthThresholdMbps} Mbps · النوع: ${bandwidthProfile.effectiveType} · السبب: ${bandwidthProfile.reason}`
+              : `Critical < ${bandwidthProfile.thresholds.criticalBandwidthThresholdMbps} Mbps · Constrained < ${bandwidthProfile.thresholds.lowBandwidthThresholdMbps} Mbps · Type: ${bandwidthProfile.effectiveType} · Reason: ${bandwidthProfile.reason}`}
+            {bandwidthProfile.downlink !== null ? ` · Downlink: ${bandwidthProfile.downlink.toFixed(1)} Mbps` : ''}
+          </small>
         </div>
+
+        {autoStripGps && (
+          <div className="message info" style={{ marginBottom: '0.6rem' }}>
+            🛡️ GPS safety mode is active: photo GPS metadata will be removed automatically when detected.
+          </div>
+        )}
 
         {!apiReachable && (
           <div className="message error" style={{ marginTop: '0.75rem' }}>

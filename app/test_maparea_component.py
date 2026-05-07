@@ -189,8 +189,10 @@ def test_api_integration():
         content = f.read()
     
     # Check for API endpoint reference
-    if '/api/telegram/news' in content:
-        print("✓ API endpoint '/api/telegram/news' referenced")
+    if '/api/stories/map' in content:
+        print("✓ API endpoint '/api/stories/map' referenced")
+    elif '/api/telegram/news' in content:
+        print("✗ Legacy endpoint '/api/telegram/news' still present — should be '/api/stories/map'")
     else:
         print("✗ API endpoint NOT found")
     

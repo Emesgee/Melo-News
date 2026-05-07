@@ -330,6 +330,7 @@ def _fallback_analysis() -> dict:
         'event_type': 'other',
         'language_detected': '',
         'content_warnings': '',
+        'confidence': 0.0,
         'ai_used': False,
     }
 

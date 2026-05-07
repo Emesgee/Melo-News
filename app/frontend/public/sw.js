@@ -1,10 +1,10 @@
 // Service Worker for Melo-News PWA (P2-13)
-const CACHE_NAME = 'melo-news-v2';
+const CACHE_NAME = 'melo-news-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/static/css/main.css',
-  '/static/js/main.js',
+  '/manifest.json',
+  '/favicon.ico',
 ];
 
 // Install: cache static assets
@@ -40,6 +40,30 @@ self.addEventListener('fetch', (event) => {
   // Only handle http/https requests (skip chrome-extension://, etc.)
   if (!request.url.startsWith('http')) return;
   
+  // Navigation/doc requests: network first so refresh gets newest index.html.
+  if (request.mode === 'navigate' || request.destination === 'document') {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response && response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', clone));
+          }
+          return response;
+        })
+        .catch(async () => {
+          const fallback = await caches.match('/index.html');
+          if (fallback) return fallback;
+          return new Response('Offline', {
+            status: 503,
+            statusText: 'Service Unavailable',
+            headers: { 'Content-Type': 'text/plain' },
+          });
+        })
+    );
+    return;
+  }
+
   // API calls: network first, fallback to cache (GET only)
   if (request.url.includes('/api/')) {
     event.respondWith(
@@ -56,7 +80,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets: cache first, network fallback
+  // Static assets: cache first, network fallback.
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached;

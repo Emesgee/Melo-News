@@ -5,7 +5,8 @@ import './MapArea.css';
 import MarkerClusterGroup from 'react-leaflet-markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
-import { parseMediaLinks, filterVideoFiles, filterImageFiles, formatNewsTime } from '../../utils/mediaUtils';
+import { api } from '../../services/api';
+import { parseMediaLinks, normalizeMediaUrl, filterVideoFiles, filterImageFiles, formatNewsTime } from '../../utils/mediaUtils';
 import { useSearch } from '../../utils/SearchContext';
 import { MAP_STYLES, defaultPosition, createThumbnailIcon } from './mapConstants';
 import { ZoomCircles, FitBounds, MapStylePanel } from './MapControls';
@@ -248,7 +249,7 @@ const MarkerPopupWrapper = ({ time, result, title, city, country, description, f
 
 // ── Main MapArea Component ──────────────────────────────────
 const MapArea = () => {
-  const { searchResults } = useSearch();
+  const { searchResults, setSearchResults } = useSearch();
   const [currentStyle, setCurrentStyle] = useState(MAP_STYLES[0]);
   const [is3D, setIs3D] = useState(false);
   const [showGlobe, setShowGlobe] = useState(false);
@@ -269,20 +270,82 @@ const MapArea = () => {
     return () => document.removeEventListener('mousedown', handleOutside);
   }, [showStylePicker]);
 
+  // Load all stories when map mounts if no search results exist
+  useEffect(() => {
+    if (!searchResults || searchResults.length === 0) {
+      const loadAllStories = async () => {
+        try {
+          setIsLoading(true);
+          const response = await api.post('search', {
+            user_id: 1,
+            term: '*', // Wildcard to get all results
+            filters: {},
+            template_ids: [1],
+          });
+          
+          const results = Array.isArray(response.data.results) 
+            ? response.data.results 
+            : (response.data.results ? [response.data.results] : []);
+          
+          setSearchResults(results);
+        } catch (error) {
+          console.error('Error loading map stories:', error);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      loadAllStories();
+    }
+  }, []); // Run only once on mount
+
   // Normalize and filter results with valid coordinates
   // (deduplication already done in SearchContext)
   const validResults = useMemo(() => {
-    const results = (searchResults || []).map(r => {
+    const positionCount = {};
+
+    return (searchResults || []).map(r => {
       if (!r) return null;
-      
-      // Normalize coordinates - try various field names
-      const lat = r.lat || r.latitude || r.result_lat || r.lat_result;
-      const lon = r.lon || r.longitude || r.result_lon || r.lon_result;
-      
-      return (lat != null && lon != null) ? { ...r, lat: parseFloat(lat), lon: parseFloat(lon) } : null;
+
+      // Support both nested Story shape and legacy flat Telegram shape
+      const loc  = r.location   || {};
+      const med  = r.media      || {};
+      const met  = r.metrics    || {};
+      const ts   = r.timestamps || {};
+      const prov = r.provenance || {};
+
+      const lat = r.lat  ?? loc.lat  ?? r.latitude  ?? r.result_lat ?? r.lat_result;
+      const lon = r.lon  ?? loc.lon  ?? r.longitude ?? r.result_lon ?? r.lon_result;
+      if (lat == null || lon == null) return null;
+
+      // Apply a tiny spiral offset so markers at the exact same position
+      // remain individually visible instead of stacking on top of each other.
+      const posKey = `${parseFloat(lat).toFixed(5)},${parseFloat(lon).toFixed(5)}`;
+      const idx = positionCount[posKey] ?? 0;
+      positionCount[posKey] = idx + 1;
+      const jitterRadius = idx * 0.00015; // ~17 m per step
+      const jitterAngle  = idx * 2.39996; // golden-angle spiral
+      const jLat = idx === 0 ? 0 : jitterRadius * Math.cos(jitterAngle);
+      const jLon = idx === 0 ? 0 : jitterRadius * Math.sin(jitterAngle);
+
+      return {
+        ...r,
+        lat:              parseFloat(lat) + jLat,
+        lon:              parseFloat(lon) + jLon,
+        city:             r.city             || loc.city            || r.matched_city   || r.city_result || 'Unknown',
+        country:          r.country          || loc.country         || '',
+        description:      r.description      || r.body              || r.message        || '',
+        image_links:      r.image_links      || med.images          || [],
+        video_links:      r.video_links      || med.videos          || [],
+        fileUrl:          r.fileUrl          || r.file_path         || med.primary_url  || null,
+        severity:         r.severity         || met.severity        || 'MEDIUM',
+        confidence_score: r.confidence_score ?? met.confidence_score ?? null,
+        time:             r.time             || ts.published_at     || r.published_at   || '',
+        source:           r.source           || prov.source_name    || r.source_type    || '',
+        source_count:     r.source_count     ?? met.source_count    ?? 1,
+        escalation:       r.escalation       || met.escalation      || null,
+      };
     }).filter(Boolean);
-    
-    return results;
   }, [searchResults]);
 
   // Bounds for map zoom
@@ -290,6 +353,46 @@ const MapArea = () => {
 
   return (
     <div className="map-area">
+
+      {/* Loading indicator */}
+      {isLoading && (
+        <div style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          zIndex: 1000,
+          background: 'rgba(0, 0, 0, 0.7)',
+          padding: '2rem',
+          borderRadius: '12px',
+          color: 'white',
+          textAlign: 'center',
+          minWidth: '200px'
+        }}>
+          <div style={{ fontSize: '1.2rem', marginBottom: '1rem' }}>Loading map stories...</div>
+          <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Please wait</div>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!isLoading && validResults.length === 0 && (
+        <div style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          zIndex: 1000,
+          background: 'rgba(0, 0, 0, 0.7)',
+          padding: '2rem',
+          borderRadius: '12px',
+          color: 'white',
+          textAlign: 'center',
+          minWidth: '200px'
+        }}>
+          <div style={{ fontSize: '1.1rem', marginBottom: '0.5rem' }}>No stories found</div>
+          <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>Start by uploading your first story or try searching</div>
+        </div>
+      )}
 
       {/* Globe view (replaces map when active) */}
       {showGlobe && (
@@ -312,6 +415,9 @@ const MapArea = () => {
             let videoLinks = [];
             if (Array.isArray(point.video_links)) videoLinks = point.video_links;
             else if (point.video_links) { try { videoLinks = JSON.parse(point.video_links); } catch { videoLinks = point.video_links.split('|'); } }
+            // Normalize URLs
+            imageLinks = imageLinks.map(link => normalizeMediaUrl(link)).filter(Boolean);
+            videoLinks = videoLinks.map(link => normalizeMediaUrl(link)).filter(Boolean);
             const files = Array.from(new Set([...imageLinks, ...videoLinks])).filter(Boolean);
             let formattedTime = 'Recent';
             const raw = point.time || point.published_at || point.date || '';
@@ -415,8 +521,27 @@ const MapArea = () => {
           }
           
           // Clean and deduplicate
-          imageLinks = imageLinks.filter(Boolean).map(link => String(link).trim());
-          videoLinks = videoLinks.filter(Boolean).map(link => String(link).trim());
+          imageLinks = imageLinks
+            .filter(Boolean)
+            .map(link => String(link).trim())
+            .map(link => normalizeMediaUrl(link)) // Normalize URLs
+            .filter(link => {
+              // Skip obviously invalid URLs (too short or malformed)
+              if (!link || link.length < 5) return false;
+              // Skip if it contains 'undefined', 'null', 'NaN'
+              if (/undefined|null|NaN/i.test(link)) return false;
+              return true;
+            });
+          
+          videoLinks = videoLinks
+            .filter(Boolean)
+            .map(link => String(link).trim())
+            .map(link => normalizeMediaUrl(link)) // Normalize URLs
+            .filter(link => {
+              if (!link || link.length < 5) return false;
+              if (/undefined|null|NaN/i.test(link)) return false;
+              return true;
+            });
           
           const key = result.id || `${result.lat},${result.lon},${title}`;
           

@@ -3,6 +3,7 @@ export { AuthProvider, useAuth } from './AuthContext';
 export { dedupeStories, resolveStoryId } from './storyUtils';
 export {
   parseMediaLinks,
+  normalizeMediaUrl,
   filterVideoFiles,
   filterImageFiles,
   resolveMediaFiles,

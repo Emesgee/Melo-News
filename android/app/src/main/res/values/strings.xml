@@ -1,0 +1,26 @@
+<resources>
+    <string name="app_name">Melo News Reporter</string>
+    <string name="nav_map">Map</string>
+    <string name="nav_submit">Report</string>
+    <string name="login_title">Field Reporter Login</string>
+    <string name="email_hint">Email</string>
+    <string name="password_hint">Password</string>
+    <string name="btn_login">Sign In</string>
+    <string name="submit_title">Submit Field Report</string>
+    <string name="title_hint">Headline (required)</string>
+    <string name="body_hint">What happened? (optional)</string>
+    <string name="city_hint">City (optional)</string>
+    <string name="btn_get_location">Get My Location</string>
+    <string name="btn_attach_media">Attach Photo / Video</string>
+    <string name="btn_submit">Submit Report</string>
+    <string name="severity_label">Severity</string>
+    <string name="error_title_required">Title is required</string>
+    <string name="error_login_failed">Login failed. Check your credentials.</string>
+    <string name="error_network">Network error. Are you connected?</string>
+    <string name="submit_success">Report submitted successfully</string>
+    <string name="submit_queued">Report saved. It will be transmitted securely when connectivity is available.</string>
+    <string name="privacy_assurance">Your report is encrypted and stored locally. When transmitted, timing is randomized to protect your identity.</string>
+    <string name="loading">Loading\u2026</string>
+    <string name="location_acquired">Location acquired</string>
+    <string name="media_attached">Media attached</string>
+</resources>

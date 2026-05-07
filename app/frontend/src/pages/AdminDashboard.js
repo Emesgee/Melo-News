@@ -43,7 +43,15 @@ const AdminDashboard = () => {
         setTension(tRes.data);
         setKeywords(kRes.data.keywords || []);
         setEscalation(eRes.data);
-        setStories(sRes.data || []);
+        // Handle both {items:[]} (Story API) and legacy bare array
+        const raw = sRes.data?.items ?? (Array.isArray(sRes.data) ? sRes.data : []);
+        // Flatten nested Story shape so severity/source filters work below
+        const normalized = raw.map(s => ({
+          ...s,
+          severity: s.metrics?.severity || s.severity || 'LOW',
+          source:   s.provenance?.source_name || s.source_type || s.source || 'telegram',
+        }));
+        setStories(normalized);
       } catch (err) {
         addToast('Failed to load dashboard data.', 'error');
       } finally {

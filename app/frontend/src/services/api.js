@@ -108,9 +108,9 @@ export const votePrediction = async (predictionId, vote) => {
   return api.post(`analytics/predictions/${predictionId}/vote`, { vote });
 };
 
-// News feed with new fields (P1-7)
+// News feed — source-agnostic map markers (replaces telegram/news)
 export const getNewsFeed = async (limit = 100) => {
-  return api.get('telegram/news', { params: { limit } });
+  return api.get('stories/map', { params: { limit } });
 };
 
 // --- Citizen Upload Management ---
