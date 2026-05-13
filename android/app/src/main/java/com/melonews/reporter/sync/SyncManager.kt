@@ -6,10 +6,11 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import com.melonews.reporter.data.api.ApiClient
-import com.melonews.reporter.data.local.AppDatabase
+import com.melonews.reporter.data.local.AppDatabaseFactory
 import com.melonews.reporter.data.local.LocalStory
 import com.melonews.reporter.data.local.SyncStatus
 import com.melonews.reporter.data.model.IngestRequest
+import com.melonews.reporter.security.MediaSanitizer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -39,7 +40,7 @@ import java.util.concurrent.TimeUnit
 class SyncManager(private val context: Context) {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val dao = AppDatabase.getInstance(context).localStoryDao()
+    private val dao = AppDatabaseFactory.getInstance(context).localStoryDao()
     private val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     private val drainMutex = Mutex()
 
@@ -105,6 +106,7 @@ class SyncManager(private val context: Context) {
                     severity = story.severity ?: "LOW",
                     mediaUrl = blobUrl,
                     tags = story.tags?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() },
+                    localId = story.localId,
                 )
 
                 val response = ApiClient.api.ingestStory(request)
@@ -127,31 +129,41 @@ class SyncManager(private val context: Context) {
     }
 
     private suspend fun uploadMedia(localPath: String, @Suppress("UNUSED_PARAMETER") storyId: String): String? {
-        val file = File(localPath)
-        if (!file.exists()) return null
+        val rawFile = File(localPath)
+        if (!rawFile.exists()) return null
 
-        val ext = file.extension.ifBlank { "jpg" }
-        val tokenResp = ApiClient.api.getMediaToken(ext)
-        if (!tokenResp.isSuccessful || tokenResp.code() == 503) return null
+        // Strip GPS/device metadata before the bytes leave the device.
+        // The SAS upload goes phone → Azure directly, so this is the only
+        // place we control. Falls back to the raw file on any failure.
+        val uploadFile = MediaSanitizer.sanitizeForUpload(context, rawFile)
+        val sanitizedTempCreated = uploadFile !== rawFile
 
-        val info = tokenResp.body() ?: return null
-        val mimeType = when (ext.lowercase()) {
-            "mp4", "mpeg", "mov" -> "video/mp4"
-            "avi" -> "video/avi"
-            "webm" -> "video/webm"
-            "png" -> "image/png"
-            "gif" -> "image/gif"
-            "webp" -> "image/webp"
-            else -> "image/jpeg"
+        try {
+            val ext = uploadFile.extension.ifBlank { "jpg" }
+            val tokenResp = ApiClient.api.getMediaToken(ext)
+            if (!tokenResp.isSuccessful || tokenResp.code() == 503) return null
+
+            val info = tokenResp.body() ?: return null
+            val mimeType = when (ext.lowercase()) {
+                "mp4", "mpeg", "mov" -> "video/mp4"
+                "avi" -> "video/avi"
+                "webm" -> "video/webm"
+                "png" -> "image/png"
+                "gif" -> "image/gif"
+                "webp" -> "image/webp"
+                else -> "image/jpeg"
+            }
+            val body = uploadFile.asRequestBody(mimeType.toMediaType())
+            val req = Request.Builder()
+                .url(info.uploadUrl)
+                .put(body)
+                .addHeader("x-ms-blob-type", "BlockBlob")
+                .build()
+            val ok = ApiClient.rawOkHttpClient.newCall(req).execute().use { it.isSuccessful }
+            return if (ok) info.blobUrl else null
+        } finally {
+            if (sanitizedTempCreated && uploadFile.exists()) uploadFile.delete()
         }
-        val body = file.asRequestBody(mimeType.toMediaType())
-        val req = Request.Builder()
-            .url(info.uploadUrl)
-            .put(body)
-            .addHeader("x-ms-blob-type", "BlockBlob")
-            .build()
-        val ok = ApiClient.rawOkHttpClient.newCall(req).execute().use { it.isSuccessful }
-        return if (ok) info.blobUrl else null
     }
 
     private fun isOnline(): Boolean {

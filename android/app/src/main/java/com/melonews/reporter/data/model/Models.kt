@@ -65,7 +65,8 @@ data class IngestRequest(
     val severity: String = "LOW",
     @SerializedName("media_url") val mediaUrl: String? = null,
     val tags: List<String>? = null,
-    @SerializedName("source_name") val sourceName: String = "Field Reporter"
+    @SerializedName("source_name") val sourceName: String = "Field Reporter",
+    @SerializedName("local_id") val localId: String? = null,
 )
 
 data class IngestResponse(

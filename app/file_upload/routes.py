@@ -1,4 +1,5 @@
 import os
+import shutil
 from flask import Blueprint, jsonify, request, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from werkzeug.utils import secure_filename
@@ -6,6 +7,7 @@ from datetime import datetime
 from app.models import db, FileUpload, FileType
 from app.utils.azure_blob import upload_file_to_azure_storage
 from .analysis_service import start_analysis_thread
+from .media_sanitizer import sanitize_for_upload, safe_remove
 
 file_upload_bp = Blueprint('file_upload', __name__, url_prefix='/api/file_upload')
 
@@ -120,6 +122,30 @@ def upload_file():
     file_path = os.path.join(upload_folder, unique_filename)
     file.save(file_path)
 
+    # Keep a raw copy for the background analyzer so it can still extract
+    # EXIF GPS/timestamp/device for confidence scoring and map placement.
+    # The public-served file (file_path) gets sanitized in place below.
+    analysis_source_path = file_path + '.raw-for-analysis'
+    try:
+        shutil.copy2(file_path, analysis_source_path)
+    except OSError as exc:
+        current_app.logger.warning("Could not stage raw analysis copy: %s", exc)
+        analysis_source_path = file_path
+
+    # Strip EXIF (GPS + device tags) from the file we will hand to Azure
+    # or serve via /api/uploads. Failures fall back to the raw file but are
+    # logged loudly — reporter location can leak via embedded GPS otherwise.
+    sanitized_path = sanitize_for_upload(file_path)
+    if sanitized_path != file_path:
+        try:
+            os.replace(sanitized_path, file_path)
+        except OSError as exc:
+            current_app.logger.error(
+                "Sanitized file replace failed for %s: %s — uploading raw file",
+                file_path, exc,
+            )
+            safe_remove(sanitized_path)
+
     # Default to local URL; upgrade to Azure URL only when upload succeeds.
     blob_url = f"/api/uploads/{unique_filename}"
     used_azure = False
@@ -131,6 +157,8 @@ def upload_file():
             upload_file_to_azure_storage(file_path, unique_filename, container_name)
             blob_url = f"https://{storage_account}.blob.core.windows.net/{container_name}/{unique_filename}"
             used_azure = True
+            # The sanitized local copy is no longer needed once it's in Azure.
+            safe_remove(file_path)
         except Exception as e:
             current_app.logger.warning("Azure upload failed; using local file URL fallback: %s", e)
 
@@ -155,7 +183,7 @@ def upload_file():
         db.session.add(new_upload)
         db.session.commit()
 
-        start_analysis_thread(new_upload.id, file_path)
+        start_analysis_thread(new_upload.id, analysis_source_path)
 
         msg_suffix = '' if used_azure else ' (local storage fallback)'
         return jsonify({
@@ -337,8 +365,27 @@ def complete_chunk_upload():
                 out.write(cf.read())
             os.remove(chunk_path)
 
-    import shutil
     shutil.rmtree(reg['dir'], ignore_errors=True)
+
+    # Stage a raw copy for the analyzer so EXIF-derived lat/lon survives.
+    analysis_source_path = final_path + '.raw-for-analysis'
+    try:
+        shutil.copy2(final_path, analysis_source_path)
+    except OSError as exc:
+        current_app.logger.warning("Could not stage raw analysis copy: %s", exc)
+        analysis_source_path = final_path
+
+    # Strip EXIF before the file leaves the server.
+    sanitized_path = sanitize_for_upload(final_path)
+    if sanitized_path != final_path:
+        try:
+            os.replace(sanitized_path, final_path)
+        except OSError as exc:
+            current_app.logger.error(
+                "Sanitized file replace failed for %s: %s — uploading raw file",
+                final_path, exc,
+            )
+            safe_remove(sanitized_path)
 
     blob_url = f"/api/uploads/{unique_filename}"
     if _should_use_azure():
@@ -347,6 +394,7 @@ def complete_chunk_upload():
             storage_account = os.getenv('AZURE_STORAGE_ACCOUNT_NAME')
             upload_file_to_azure_storage(final_path, unique_filename, container_name)
             blob_url = f"https://{storage_account}.blob.core.windows.net/{container_name}/{unique_filename}"
+            safe_remove(final_path)
         except Exception as e:
             current_app.logger.warning("Azure upload failed for chunk assembly: %s", e)
 
@@ -373,7 +421,7 @@ def complete_chunk_upload():
         )
         db.session.add(new_upload)
         db.session.commit()
-        start_analysis_thread(new_upload.id, final_path)
+        start_analysis_thread(new_upload.id, analysis_source_path)
         return jsonify({
             'message': 'Upload complete.',
             'file_id': new_upload.id,

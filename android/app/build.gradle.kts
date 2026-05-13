@@ -73,6 +73,9 @@ dependencies {
     // Image loading
     implementation("io.coil-kt:coil:2.5.0")
 
+    // EXIF metadata (read orientation before stripping, drives ExifSanitizer)
+    implementation("androidx.exifinterface:exifinterface:1.3.7")
+
     // GPS location
     implementation("com.google.android.gms:play-services-location:21.1.0")
 
@@ -84,4 +87,10 @@ dependencies {
     implementation("androidx.room:room-runtime:$roomVersion")
     implementation("androidx.room:room-ktx:$roomVersion")
     ksp("androidx.room:room-compiler:$roomVersion")
+
+    // Nearby Connections (mesh relay between devices)
+    implementation("com.google.android.gms:play-services-nearby:19.1.0")
+
+    // Note: DB at-rest encryption is provided by Android File-Based Encryption (FBE),
+    // which is mandatory on all devices since Android 7 (minSdk=26 here).
 }
