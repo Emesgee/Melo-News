@@ -246,6 +246,10 @@ def ensure_schema_compatibility():
             'verification_note': 'TEXT',
             'verified_at': 'TIMESTAMP' if dialect == 'postgresql' else 'DATETIME',
             'verified_by': 'INTEGER',
+            # Idempotency key from Android local queue. UNIQUE inline so a
+            # duplicate relay can be caught at insert time even before a
+            # supporting index exists.
+            'local_id': 'VARCHAR(64) UNIQUE',
         }
         required_user_columns = {
             'is_moderator': 'BOOLEAN DEFAULT FALSE NOT NULL'
