@@ -8,18 +8,57 @@ Source-agnostic story read endpoints:
   GET /api/stories/<source_type>/<id>      — single story detail
 """
 
-from datetime import timezone
+from datetime import datetime, timezone
 import logging
+import os
+import shutil
+import uuid
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from dateutil import parser as dateutil_parser
+from werkzeug.utils import secure_filename
 
+from app.utils.rate_limit import per_user_or_ip_key
+from app.models import db, FileUpload, FileType
+from app.utils.azure_blob import upload_file_to_azure_storage
+from app.file_upload.media_sanitizer import sanitize_for_upload, safe_remove
+from app.file_upload.analysis_service import start_analysis_thread
 from .service import list_stories, list_story_markers, get_story, get_facets, ingest_story
 
 logger = logging.getLogger(__name__)
 
 story_bp = Blueprint('story', __name__, url_prefix='/api/stories')
+
+# Per-user/IP throttle on submission and SAS-token endpoints. Read paths
+# (list, markers, facets, detail) are not rate-limited at the app layer —
+# fronting infrastructure handles that.
+limiter = Limiter(key_func=per_user_or_ip_key, storage_uri='memory://')
+
+# Anonymous submission needs a stricter, IP-only limiter — there is no
+# JWT identity to scope by, and a single hostile IP could otherwise
+# flood the moderation queue.
+anon_limiter = Limiter(key_func=get_remote_address, storage_uri='memory://')
+
+# Max accepted size for an anonymous media attachment. Keeps individual
+# abuse cheap; multi-file flooding is bounded by the per-IP rate limit.
+_ANON_MAX_MEDIA_BYTES = 50 * 1024 * 1024
+
+
+def _should_use_azure() -> bool:
+    """Mirror of file_upload.routes _should_use_azure — keeps anon ingest
+    consistent with the authed pipeline without coupling the modules."""
+    env = os.getenv('ENVIRONMENT', 'development').lower()
+    if env != 'production':
+        return False
+    conn = os.getenv('AZURE_STORAGE_CONNECTION_STRING') or ''
+    account = os.getenv('AZURE_STORAGE_ACCOUNT_NAME') or ''
+    if not conn or not account or conn.startswith('your_') or '...' in conn:
+        return False
+    conn_l = conn.lower()
+    return 'accountname=' in conn_l and 'defaultendpointsprotocol=' in conn_l
 
 _VALID_SOURCES = {'all', 'upload', 'telegram'}
 _VALID_SORTS = {'published_at', 'confidence', 'severity'}
@@ -120,6 +159,7 @@ _ALLOWED_MEDIA_EXTS = {
 
 
 @story_bp.route('/ingest/media-token', methods=['GET'])
+@limiter.limit('100 per hour; 500 per day')
 @jwt_required()
 def stories_ingest_media_token():
     """
@@ -166,6 +206,7 @@ def stories_ingest_media_token():
 
 
 @story_bp.route('/ingest', methods=['POST'])
+@limiter.limit('30 per hour; 100 per day')
 @jwt_required()
 def stories_ingest():
     """
@@ -191,6 +232,163 @@ def stories_ingest():
         return jsonify({'error': 'Ingest failed', 'detail': str(exc)}), 500
 
     return jsonify(story), 201
+
+
+@story_bp.route('/anonymous-ingest', methods=['POST'])
+@anon_limiter.limit('5 per hour; 20 per day')
+def stories_anonymous_ingest():
+    """Accept a citizen submission without requiring an account.
+
+    For reporters in regions where account creation is itself a risk.
+    Anonymous submissions:
+      • Are accepted without JWT (rate-limited by IP — 5/h, 20/day).
+      • Always land as PENDING and must pass moderation before publication.
+      • Cannot be edited or deleted later — anonymity is irrevocable.
+      • Accept a single optional media file (≤ 50 MB) which is sanitized
+        through the same EXIF/GPS-strip pipeline as authed uploads.
+
+    Accepts multipart/form-data:
+      title        required, string ≤ 100
+      body         optional, free text
+      city/country optional, ≤ 100
+      lat/lon      optional, floats
+      severity     optional, LOW|MEDIUM|HIGH (default LOW)
+      tags         optional, comma-separated
+      subject      optional, ≤ 255
+      media        optional, file
+    Returns 201 with an opaque ack — no IDs that could later be used to
+    correlate or enumerate.
+    """
+    title = (request.form.get('title') or '').strip()
+    if not title:
+        return jsonify({'error': 'title is required'}), 400
+    title = title[:100]
+
+    body = (request.form.get('body') or '').strip() or None
+    city = (request.form.get('city') or '').strip()[:100] or None
+    country = (request.form.get('country') or '').strip()[:100] or None
+    subject = (request.form.get('subject') or '').strip()[:255] or None
+    tags = (request.form.get('tags') or '').strip()[:255] or None
+
+    severity = (request.form.get('severity') or 'LOW').upper()
+    if severity not in ('LOW', 'MEDIUM', 'HIGH'):
+        severity = 'LOW'
+
+    try:
+        lat = float(request.form['lat']) if request.form.get('lat') else None
+        lon = float(request.form['lon']) if request.form.get('lon') else None
+    except (TypeError, ValueError):
+        lat = lon = None
+
+    media_file = request.files.get('media')
+    blob_url = None
+    analysis_source_path = None
+    file_type = None
+
+    if media_file and media_file.filename:
+        original_name = media_file.filename
+        ext = original_name.rsplit('.', 1)[-1].lower() if '.' in original_name else ''
+        if not ext or len(ext) > 6:
+            return jsonify({'error': 'media file must have a recognizable extension'}), 400
+
+        # Size cap — enforce up front, the Flask MAX_CONTENT_LENGTH is a
+        # backstop but this surfaces a clear 413 to the client.
+        media_file.stream.seek(0, os.SEEK_END)
+        size = media_file.stream.tell()
+        media_file.stream.seek(0)
+        if size > _ANON_MAX_MEDIA_BYTES:
+            return jsonify({'error': 'media file exceeds 50 MB limit'}), 413
+
+        # Lookup or fall back to 'Other' file type so the row is valid.
+        ft = (
+            FileType.query
+            .filter(FileType.allowed_extensions.ilike(f'%{ext}%'))
+            .first()
+        )
+        if not ft:
+            ft = FileType.query.filter_by(type_name='Other').first()
+            if not ft:
+                ft = FileType(type_name='Other', allowed_extensions='*')
+                db.session.add(ft)
+                db.session.flush()
+        file_type = ft
+
+        # Anonymous blob naming: no user_id in the path, just a uuid.
+        # Path prefix segregates anonymous content for audit.
+        unique_filename = f"anonymous/{uuid.uuid4().hex}.{ext}"
+        upload_folder = current_app.config.get('UPLOAD_FOLDER', '/tmp')
+        anon_dir = os.path.join(upload_folder, 'anonymous')
+        os.makedirs(anon_dir, exist_ok=True)
+        local_path = os.path.join(anon_dir, os.path.basename(unique_filename))
+        media_file.save(local_path)
+
+        # Same sanitize → upload pipeline as the authed endpoints.
+        analysis_source_path = local_path + '.raw-for-analysis'
+        try:
+            shutil.copy2(local_path, analysis_source_path)
+        except OSError as exc:
+            current_app.logger.warning("anon raw analysis copy: %s", exc)
+            analysis_source_path = local_path
+
+        sanitized_path = sanitize_for_upload(local_path)
+        if sanitized_path != local_path:
+            try:
+                os.replace(sanitized_path, local_path)
+            except OSError as exc:
+                current_app.logger.error("anon sanitized replace failed: %s", exc)
+                safe_remove(sanitized_path)
+
+        blob_url = f"/api/uploads/{unique_filename}"
+        if _should_use_azure():
+            try:
+                container_name = current_app.config.get('AZURE_BLOB_CONTAINER', 'uploads')
+                storage_account = os.getenv('AZURE_STORAGE_ACCOUNT_NAME')
+                upload_file_to_azure_storage(local_path, unique_filename, container_name)
+                blob_url = f"https://{storage_account}.blob.core.windows.net/{container_name}/{unique_filename}"
+                safe_remove(local_path)
+            except Exception as exc:
+                current_app.logger.warning("anon Azure upload failed; using local fallback: %s", exc)
+    else:
+        # Text-only anonymous submission — still needs a FileType FK.
+        file_type = FileType.query.filter_by(type_name='Other').first()
+        if not file_type:
+            file_type = FileType(type_name='Other', allowed_extensions='*')
+            db.session.add(file_type)
+            db.session.flush()
+
+    record = FileUpload(
+        filename=(media_file.filename[:255] if media_file and media_file.filename else f'anon-{uuid.uuid4().hex[:12]}'),
+        file_path=blob_url or 'anonymous:no-media',
+        title=title,
+        tags=tags,
+        subject=subject,
+        city=city,
+        country=country,
+        lat=lat,
+        lon=lon,
+        upload_date=datetime.now(timezone.utc),
+        user_id=None,
+        file_type_id=file_type.filetypeid,
+        witness_statement=body,
+        source_type='anonymous',
+        severity=severity,
+        verification_status='PENDING',
+        analysis_status='PENDING' if analysis_source_path else 'SKIPPED',
+    )
+    try:
+        db.session.add(record)
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        current_app.logger.exception("anonymous ingest commit failed")
+        return jsonify({'error': 'Submission failed'}), 500
+
+    if analysis_source_path:
+        start_analysis_thread(record.id, analysis_source_path)
+
+    # Opaque acknowledgement — no IDs returned. Anonymous means the
+    # submitter has no handle to come back with.
+    return jsonify({'status': 'received', 'pending_review': True}), 201
 
 
 @story_bp.route('/facets', methods=['GET'])

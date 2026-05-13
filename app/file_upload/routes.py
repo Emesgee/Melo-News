@@ -2,14 +2,22 @@ import os
 import shutil
 from flask import Blueprint, jsonify, request, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_limiter import Limiter
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from app.models import db, FileUpload, FileType
 from app.utils.azure_blob import upload_file_to_azure_storage, delete_file_from_azure_storage
+from app.utils.rate_limit import per_user_or_ip_key
 from .analysis_service import start_analysis_thread
 from .media_sanitizer import sanitize_for_upload, safe_remove
 
 file_upload_bp = Blueprint('file_upload', __name__, url_prefix='/api/file_upload')
+
+# Per-user (or IP for unauth) rate limit on submission endpoints.
+# Limits target abuse from a compromised account or a spam bot while
+# leaving plenty of headroom for a reporter actively documenting an
+# unfolding event.
+limiter = Limiter(key_func=per_user_or_ip_key, storage_uri='memory://')
 
 
 def _serialize_upload(f):
@@ -67,6 +75,7 @@ def _should_use_azure() -> bool:
     return 'accountname=' in conn_l and 'defaultendpointsprotocol=' in conn_l
 
 @file_upload_bp.route('/upload', methods=['POST'])
+@limiter.limit('30 per hour; 100 per day')
 @jwt_required()
 def upload_file():
     user_id = get_jwt_identity()
@@ -316,6 +325,7 @@ _CHUNK_REGISTRY = {}
 
 
 @file_upload_bp.route('/chunk', methods=['POST'])
+@limiter.limit('1000 per hour')
 @jwt_required()
 def receive_chunk():
     """Accept a single chunk of a multi-part upload."""
@@ -348,6 +358,7 @@ def receive_chunk():
 
 
 @file_upload_bp.route('/chunk-complete', methods=['POST'])
+@limiter.limit('30 per hour; 100 per day')
 @jwt_required()
 def complete_chunk_upload():
     """Assemble chunks and create the FileUpload record."""

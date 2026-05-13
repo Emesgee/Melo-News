@@ -73,8 +73,11 @@ class FileUpload(db.Model):
     verified_at = db.Column(db.DateTime)
     verified_by = db.Column(db.Integer, db.ForeignKey('users.userid'), nullable=True)
 
-    # Foreign keys
-    user_id = db.Column(db.Integer, db.ForeignKey('users.userid'), nullable=False)
+    # Foreign keys — user_id is nullable so reporters in hostile regions
+    # can submit without creating an account. Anonymous submissions land
+    # as PENDING and are always reviewed by a moderator before going
+    # public; the public endpoint is rate-limited per IP.
+    user_id = db.Column(db.Integer, db.ForeignKey('users.userid'), nullable=True)
     file_type_id = db.Column(db.Integer, db.ForeignKey('file_types.filetypeid'), nullable=False)
 
     # Idempotency key from Android local queue — prevents relay duplicates

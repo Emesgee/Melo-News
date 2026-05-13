@@ -131,6 +131,19 @@ def create_app(config_name=None):
         app.register_blueprint(story_bp)
         app.register_blueprint(moderation_bp)
 
+        # Flask-Limiter decorators only enforce limits across requests
+        # when the limiter is bound to the app. Each route module exposes
+        # its limiter at module scope; bind them all here so rate limits
+        # actually take effect at request time.
+        from .auth.routes import limiter as auth_limiter
+        from .file_upload.routes import limiter as file_upload_limiter
+        from .story.routes import limiter as story_limiter, anon_limiter
+        for _lim in (auth_limiter, file_upload_limiter, story_limiter, anon_limiter):
+            try:
+                _lim.init_app(app)
+            except Exception as _le:
+                logger.warning("limiter init_app failed: %s", _le)
+
         logger.info("All blueprints registered successfully")
     except ImportError as e:
         logger.warning("Could not import blueprints: %s", e)
@@ -252,6 +265,31 @@ def ensure_schema_compatibility():
                 db.session.execute(text(f"ALTER TABLE users ADD COLUMN {col_name} {col_ddl}"))
                 altered = True
                 logger.info("Added missing column users.%s", col_name)
+
+        # Drop NOT NULL on file_uploads.user_id so anonymous submissions
+        # are allowed. PostgreSQL supports this in place; SQLite needs a
+        # table rebuild (only matters in dev — dev DBs are usually wiped).
+        if dialect == 'postgresql':
+            nullable_row = db.session.execute(text(
+                "SELECT is_nullable FROM information_schema.columns "
+                "WHERE table_name = 'file_uploads' AND column_name = 'user_id'"
+            )).fetchone()
+            if nullable_row and nullable_row[0] == 'NO':
+                db.session.execute(text(
+                    "ALTER TABLE file_uploads ALTER COLUMN user_id DROP NOT NULL"
+                ))
+                altered = True
+                logger.info("Dropped NOT NULL on file_uploads.user_id (anonymous submissions)")
+        elif dialect == 'sqlite':
+            # PRAGMA table_info row format: (cid, name, type, notnull, dflt_value, pk)
+            rows = db.session.execute(text("PRAGMA table_info(file_uploads)")).fetchall()
+            user_id_row = next((r for r in rows if r[1] == 'user_id'), None)
+            if user_id_row and user_id_row[3] == 1:
+                logger.warning(
+                    "file_uploads.user_id is NOT NULL on this SQLite database. "
+                    "Anonymous submissions require a manual table rebuild — "
+                    "recreate the dev DB or run a custom migration."
+                )
 
         if altered:
             db.session.commit()

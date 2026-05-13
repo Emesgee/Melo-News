@@ -29,4 +29,12 @@ interface LocalStoryDao {
     /** Remove stories synced more than 7 days ago to keep the DB small. */
     @Query("DELETE FROM local_stories WHERE syncStatus = 'SYNCED' AND lastAttemptAt < :before")
     suspend fun purgeOldSynced(before: Long)
+
+    /** Look up a story by its local UUID — used to avoid duplicate relay inserts. */
+    @Query("SELECT * FROM local_stories WHERE localId = :id LIMIT 1")
+    suspend fun getByLocalId(id: String): LocalStory?
+
+    /** Panic wipe — deletes every story row immediately. */
+    @Query("DELETE FROM local_stories")
+    suspend fun wipeAll()
 }
