@@ -4,7 +4,7 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import com.melonews.reporter.data.api.ApiClient
-import com.melonews.reporter.data.local.AppDatabase
+import com.melonews.reporter.data.local.AppDatabaseFactory
 import com.melonews.reporter.data.local.LocalStory
 import com.melonews.reporter.data.model.ApiResult
 import com.melonews.reporter.data.model.IngestRequest
@@ -22,7 +22,7 @@ import java.io.File
 
 class StoryRepository(private val context: Context) {
 
-    private val dao = AppDatabase.getInstance(context).localStoryDao()
+    private val dao = AppDatabaseFactory.getInstance(context).localStoryDao()
     private val syncManager = SyncManager(context)
 
     private fun isOnline(): Boolean {

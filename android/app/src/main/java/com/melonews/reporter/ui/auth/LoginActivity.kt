@@ -3,11 +3,14 @@ package com.melonews.reporter.ui.auth
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
+import android.widget.EditText
 import androidx.activity.viewModels
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.snackbar.Snackbar
 import com.melonews.reporter.databinding.ActivityLoginBinding
+import com.melonews.reporter.security.PanicManager
 import com.melonews.reporter.ui.main.MainActivity
 import com.melonews.reporter.utils.BiometricHelper
 import com.melonews.reporter.utils.TokenManager
@@ -40,10 +43,26 @@ class LoginActivity : AppCompatActivity() {
         }
 
         binding.btnLogin.setOnClickListener {
+            // Check if entered password matches decoy PIN first
+            val enteredPin = binding.etPassword.text.toString()
+            val decoyPin = PanicManager.getDecoyPin(this)
+            if (decoyPin != null && enteredPin == decoyPin) {
+                lifecycleScope.launch {
+                    PanicManager.enterDecoyMode(applicationContext)
+                    goToMain()
+                }
+                return@setOnClickListener
+            }
             viewModel.login(
                 binding.etEmail.text.toString().trim(),
                 binding.etPassword.text.toString()
             )
+        }
+
+        // Long-press login title to set up security PINs
+        binding.root.setOnLongClickListener {
+            showPinSetupDialog()
+            true
         }
 
         viewModel.loginState.observe(this) { state ->
@@ -65,5 +84,28 @@ class LoginActivity : AppCompatActivity() {
     private fun goToMain() {
         startActivity(Intent(this, MainActivity::class.java))
         finish()
+    }
+
+    private fun showPinSetupDialog() {
+        val layout = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(60, 20, 60, 20)
+        }
+        val etDecoy = EditText(this).apply { hint = "Set decoy PIN (shown to attacker)" }
+        layout.addView(etDecoy)
+
+        AlertDialog.Builder(this)
+            .setTitle("Security PINs")
+            .setMessage("The decoy PIN makes the app appear empty when entered instead of your password. Useful if forced to unlock your phone.")
+            .setView(layout)
+            .setPositiveButton("Save") { _, _ ->
+                val decoy = etDecoy.text.toString().trim()
+                if (decoy.isNotEmpty()) {
+                    PanicManager.saveDecoyPin(this, decoy)
+                    Snackbar.make(binding.root, "Decoy PIN saved", Snackbar.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 }

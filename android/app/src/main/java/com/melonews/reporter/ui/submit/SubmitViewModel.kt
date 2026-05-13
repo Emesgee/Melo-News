@@ -9,6 +9,8 @@ import androidx.lifecycle.viewModelScope
 import com.melonews.reporter.data.model.ApiResult
 import com.melonews.reporter.data.model.IngestRequest
 import com.melonews.reporter.data.repository.StoryRepository
+import com.melonews.reporter.security.PanicManager
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -45,6 +47,12 @@ class SubmitViewModel(app: Application) : AndroidViewModel(app) {
 
         _submitState.value = SubmitState.Loading
         viewModelScope.launch {
+            // Decoy mode: pretend submission succeeded but do nothing
+            val isDecoy = PanicManager.decoyModeFlow(getApplication()).first()
+            if (isDecoy) {
+                _submitState.value = SubmitState.Success
+                return@launch
+            }
             _submitState.value = when (val result =
                 repository.submitReport(request, attachedMediaFile)
             ) {

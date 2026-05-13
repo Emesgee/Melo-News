@@ -8,6 +8,8 @@ import androidx.lifecycle.viewModelScope
 import com.melonews.reporter.data.model.ApiResult
 import com.melonews.reporter.data.model.MapStory
 import com.melonews.reporter.data.repository.StoryRepository
+import com.melonews.reporter.security.PanicManager
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class MapViewModel(app: Application) : AndroidViewModel(app) {
@@ -26,6 +28,13 @@ class MapViewModel(app: Application) : AndroidViewModel(app) {
     fun loadStories() {
         _loading.value = true
         viewModelScope.launch {
+            // In decoy mode show an empty map — no stories visible
+            val isDecoy = PanicManager.decoyModeFlow(getApplication()).first()
+            if (isDecoy) {
+                _stories.value = emptyList()
+                _loading.value = false
+                return@launch
+            }
             when (val result = repository.getMapStories()) {
                 is ApiResult.Success -> {
                     _stories.value = result.data.filter { it.lat != null && it.lon != null }
