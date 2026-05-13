@@ -13,15 +13,24 @@ def _utcnow():
 # User model
 class User(db.Model):
     __tablename__ = 'users'
-    
+
     userid = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), nullable=False)
     email = db.Column(db.String(100), unique=True, nullable=False)
     password = db.Column(db.String(255), nullable=False)
     created_date = db.Column(db.DateTime, default=_utcnow)
-    
+
+    # Editorial role — moderators see and decide on the verification queue
+    # for citizen-submitted stories before they go to the public feed.
+    is_moderator = db.Column(db.Boolean, default=False, nullable=False)
+
     # Relationships
-    uploads = db.relationship('FileUpload', backref='user', lazy=True)
+    uploads = db.relationship(
+        'FileUpload',
+        foreign_keys='FileUpload.user_id',
+        backref='user',
+        lazy=True,
+    )
     searches = db.relationship('Search', backref='user', lazy=True)
 
 
@@ -52,10 +61,24 @@ class FileUpload(db.Model):
     witness_statement = db.Column(db.Text)
     source_type = db.Column(db.String(30), default='eyewitness')  # eyewitness|secondhand|official|unknown
     is_sensitive = db.Column(db.Boolean, default=False)  # flagged for editorial review
-    
+
+    # Editorial moderation — citizen submissions stay PENDING until a
+    # moderator reviews them, so unverified content never reaches the
+    # public feed. Existing rows are grandfathered to VERIFIED by
+    # ensure_schema_compatibility so live deployments don't go dark.
+    verification_status = db.Column(
+        db.String(20), default='PENDING', nullable=False, index=True,
+    )
+    verification_note = db.Column(db.Text)
+    verified_at = db.Column(db.DateTime)
+    verified_by = db.Column(db.Integer, db.ForeignKey('users.userid'), nullable=True)
+
     # Foreign keys
     user_id = db.Column(db.Integer, db.ForeignKey('users.userid'), nullable=False)
     file_type_id = db.Column(db.Integer, db.ForeignKey('file_types.filetypeid'), nullable=False)
+
+    # Idempotency key from Android local queue — prevents relay duplicates
+    local_id = db.Column(db.String(64), nullable=True, unique=True, index=True)
 
 
 # FileType model

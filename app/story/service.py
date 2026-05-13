@@ -40,6 +40,7 @@ def list_stories(
     order='desc',
     limit=50,
     offset=0,
+    include_unverified=False,
 ):
     """
     Return a paged list of normalized Story dicts from one or more sources.
@@ -55,11 +56,17 @@ def list_stories(
     sort : 'published_at' | 'confidence' | 'severity'
     order : 'desc' | 'asc'
     limit, offset : pagination
+    include_unverified : when False (default), citizen uploads that are
+        still PENDING or REJECTED are excluded — only moderator-approved
+        stories reach the public feed. Set True for moderator views.
     """
     stories = []
 
     if source in ('all', 'upload'):
-        stories.extend(_query_uploads(q, city, country, severity, has_location, from_date, to_date))
+        stories.extend(_query_uploads(
+            q, city, country, severity, has_location, from_date, to_date,
+            include_unverified=include_unverified,
+        ))
 
     if config.TELEGRAM_ENABLED and source in ('all', 'telegram'):
         stories.extend(_query_telegram(q, city, country, severity, has_location, from_date, to_date))
@@ -209,6 +216,13 @@ def ingest_story(user_id, payload):
     if not title:
         raise ValueError('title is required')
 
+    # Idempotency: if the Android local_id was already ingested, return the existing record
+    local_id = (payload.get('local_id') or '').strip() or None
+    if local_id:
+        existing = FileUpload.query.filter_by(local_id=local_id).first()
+        if existing:
+            return serialize_upload(existing)
+
     tags_raw = payload.get('tags', '')
     if isinstance(tags_raw, list):
         tags_str = ', '.join(str(t).strip() for t in tags_raw if t)
@@ -248,6 +262,7 @@ def ingest_story(user_id, payload):
         analysis_status='PENDING',
         user_id=user_id,
         file_type_id=file_type.filetypeid,
+        local_id=local_id,
     )
     if upload_date:
         record.upload_date = upload_date
@@ -285,14 +300,24 @@ def _float_or_none(value):
         return None
 
 
-def get_story(source_type, source_record_id):
+def get_story(source_type, source_record_id, include_unverified=False):
     """
     Return a single normalized Story by source type and record id,
     or None if not found.
+
+    When ``include_unverified`` is False (default), citizen uploads in
+    PENDING or REJECTED state are hidden — a public link to a pending
+    story 404s until the moderator approves it. Reporters viewing their
+    own work use /api/file_upload/my-uploads instead, which always shows
+    every state.
     """
     if source_type == 'upload':
         record = db.session.get(FileUpload, source_record_id)
-        return serialize_upload(record) if record else None
+        if not record:
+            return None
+        if not include_unverified and record.verification_status != 'VERIFIED':
+            return None
+        return serialize_upload(record)
 
     if source_type == 'telegram':
         if not config.TELEGRAM_ENABLED:
@@ -333,8 +358,11 @@ def _sort_stories(stories, sort, order):
         stories.sort(key=_published_at_key, reverse=reverse)
 
 
-def _query_uploads(q, city, country, severity, has_location, from_date, to_date):
+def _query_uploads(q, city, country, severity, has_location, from_date, to_date, include_unverified=False):
     fq = FileUpload.query
+
+    if not include_unverified:
+        fq = fq.filter(FileUpload.verification_status == 'VERIFIED')
 
     if q:
         fq = fq.filter(or_(

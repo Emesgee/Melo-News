@@ -43,7 +43,12 @@ def create_app(config_name=None):
     if config_name == 'testing':
         app.config['TESTING'] = True
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
-        app.config['JWT_SECRET_KEY'] = 'test-secret-key'
+        app.config['JWT_SECRET_KEY'] = 'test-secret-key-at-least-32-bytes-long!'
+        # In tests we hit endpoints with Bearer tokens; the CSRF check that
+        # guards cookie-based auth blocks those POSTs even when a header
+        # token is present, because login also sets the cookie. Off in
+        # testing only — production keeps full CSRF protection.
+        app.config['JWT_COOKIE_CSRF_PROTECT'] = False
 
     # CORS Configuration restricted to known frontends (wildcard is invalid with credentials)
     CORS(
@@ -106,6 +111,7 @@ def create_app(config_name=None):
         from .ai_analyzer.routes import ai_analyzer_bp
         from .analytics.routes import analytics_bp
         from .story.routes import story_bp
+        from .moderation.routes import moderation_bp
 
         app.register_blueprint(auth_bp, url_prefix='/api/auth')
         app.register_blueprint(profile_bp, url_prefix='/api/profile')
@@ -123,7 +129,8 @@ def create_app(config_name=None):
         app.register_blueprint(ai_analyzer_bp, url_prefix='/api/ai')
         app.register_blueprint(analytics_bp, url_prefix='/api/analytics')
         app.register_blueprint(story_bp)
-        
+        app.register_blueprint(moderation_bp)
+
         logger.info("All blueprints registered successfully")
     except ImportError as e:
         logger.warning("Could not import blueprints: %s", e)
@@ -190,46 +197,61 @@ def populate_initial_data():
 def ensure_schema_compatibility():
     """Backfill columns that exist in models but may be missing in legacy databases."""
     try:
-        if db.engine.dialect.name == 'postgresql':
-            query = text(
-                """
-                SELECT column_name
-                FROM information_schema.columns
-                WHERE table_name = 'file_uploads'
-                """
+        dialect = db.engine.dialect.name
+        if dialect == 'postgresql':
+            file_uploads_q = text(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = 'file_uploads'"
             )
-        elif db.engine.dialect.name == 'sqlite':
-            query = text(
-                """
-                PRAGMA table_info(file_uploads)
-                """
+            users_q = text(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = 'users'"
             )
-            # For sqlite, column name is in second position
+        elif dialect == 'sqlite':
+            file_uploads_q = text("PRAGMA table_info(file_uploads)")
+            users_q = text("PRAGMA table_info(users)")
         else:
-            logger.warning("Unsupported database dialect: %s", db.engine.dialect.name)
+            logger.warning("Unsupported database dialect: %s", dialect)
             return
 
-        result = db.session.execute(query).fetchall()
-        if db.engine.dialect.name == 'postgresql':
-            existing_cols = {row[0] for row in result}
-        else:  # sqlite
-            existing_cols = {row[1] for row in result}  # column name is row[1]
+        def _cols(rows):
+            return {row[0] if dialect == 'postgresql' else row[1] for row in rows}
+
+        file_upload_cols = _cols(db.session.execute(file_uploads_q).fetchall())
+        user_cols = _cols(db.session.execute(users_q).fetchall())
 
         # Keep this list minimal and explicit for safe startup compatibility.
-        required_columns = {
+        # `verification_status` uses DEFAULT 'VERIFIED' for the ALTER so
+        # existing rows are grandfathered — the public feed shouldn't go
+        # dark on deploy. New rows go through the ORM and get the model's
+        # 'PENDING' default instead.
+        required_file_upload_columns = {
             'transcription': 'TEXT',
-            'confidence_score': 'DOUBLE PRECISION DEFAULT 0.0' if db.engine.dialect.name == 'postgresql' else 'REAL DEFAULT 0.0',
+            'confidence_score': 'DOUBLE PRECISION DEFAULT 0.0' if dialect == 'postgresql' else 'REAL DEFAULT 0.0',
             'severity': "VARCHAR(20) DEFAULT 'LOW'",
-            'exif_data': 'JSONB' if db.engine.dialect.name == 'postgresql' else 'TEXT',
+            'exif_data': 'JSONB' if dialect == 'postgresql' else 'TEXT',
             'analysis_status': "VARCHAR(20) DEFAULT 'PENDING'",
+            'verification_status': "VARCHAR(20) DEFAULT 'VERIFIED' NOT NULL",
+            'verification_note': 'TEXT',
+            'verified_at': 'TIMESTAMP' if dialect == 'postgresql' else 'DATETIME',
+            'verified_by': 'INTEGER',
+        }
+        required_user_columns = {
+            'is_moderator': 'BOOLEAN DEFAULT FALSE NOT NULL'
+                if dialect == 'postgresql'
+                else 'BOOLEAN DEFAULT 0 NOT NULL',
         }
 
         altered = False
-        for col_name, col_ddl in required_columns.items():
-            if col_name not in existing_cols:
+        for col_name, col_ddl in required_file_upload_columns.items():
+            if col_name not in file_upload_cols:
                 db.session.execute(text(f"ALTER TABLE file_uploads ADD COLUMN {col_name} {col_ddl}"))
                 altered = True
                 logger.info("Added missing column file_uploads.%s", col_name)
+
+        for col_name, col_ddl in required_user_columns.items():
+            if col_name not in user_cols:
+                db.session.execute(text(f"ALTER TABLE users ADD COLUMN {col_name} {col_ddl}"))
+                altered = True
+                logger.info("Added missing column users.%s", col_name)
 
         if altered:
             db.session.commit()

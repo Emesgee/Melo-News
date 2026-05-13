@@ -5,7 +5,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from app.models import db, FileUpload, FileType
-from app.utils.azure_blob import upload_file_to_azure_storage
+from app.utils.azure_blob import upload_file_to_azure_storage, delete_file_from_azure_storage
 from .analysis_service import start_analysis_thread
 from .media_sanitizer import sanitize_for_upload, safe_remove
 
@@ -33,6 +33,9 @@ def _serialize_upload(f):
         'witness_statement': f.witness_statement,
         'source_type': f.source_type,
         'is_sensitive': f.is_sensitive,
+        'verification_status': f.verification_status,
+        'verification_note': f.verification_note,
+        'verified_at': f.verified_at.isoformat() if f.verified_at else None,
     }
 
 
@@ -259,12 +262,39 @@ def edit_upload(upload_id):
 @file_upload_bp.route('/<int:upload_id>', methods=['DELETE'])
 @jwt_required()
 def delete_upload(upload_id):
-    """Delete an upload owned by the authenticated user."""
+    """Delete an upload owned by the authenticated user.
+
+    Also removes the underlying blob from Azure (or the local file in
+    dev-mode fallback) so reporter media is actually gone, not just
+    delisted. Storage cleanup failures are logged but don't block the DB
+    deletion — a stranded blob is preferable to leaving a record the
+    reporter can never remove.
+    """
     user_id = get_jwt_identity()
     upload = FileUpload.query.get_or_404(upload_id)
 
     if str(upload.user_id) != str(user_id):
         return jsonify({'message': 'Forbidden'}), 403
+
+    file_path_value = upload.file_path or ''
+    blob_name = upload.filename
+    is_remote = file_path_value.startswith('http://') or file_path_value.startswith('https://')
+
+    if is_remote and blob_name:
+        container_name = current_app.config.get('AZURE_BLOB_CONTAINER', 'uploads')
+        ok = delete_file_from_azure_storage(blob_name, container_name)
+        if not ok:
+            current_app.logger.warning(
+                "Proceeding with DB delete for upload %s despite Azure cleanup failure", upload_id
+            )
+    elif file_path_value.startswith('/api/uploads/') and blob_name:
+        upload_folder = current_app.config.get('UPLOAD_FOLDER', '/tmp')
+        local_path = os.path.join(upload_folder, blob_name)
+        try:
+            if os.path.exists(local_path):
+                os.remove(local_path)
+        except OSError as exc:
+            current_app.logger.warning("Local file cleanup failed for upload %s: %s", upload_id, exc)
 
     try:
         db.session.delete(upload)

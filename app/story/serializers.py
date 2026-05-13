@@ -83,7 +83,9 @@ def serialize_upload(upload):
         },
         'workflow': {
             'analysis_status': upload.analysis_status,
-            'verification_status': 'unverified',
+            'verification_status': upload.verification_status or 'PENDING',
+            'verification_note': upload.verification_note,
+            'verified_at': upload.verified_at.isoformat() if upload.verified_at else None,
             'is_sensitive': upload.is_sensitive,
         },
         'provenance': {
