@@ -176,8 +176,10 @@ object MediaSanitizer {
                 val sampleSize = extractor.readSampleData(buffer, 0)
                 if (sampleSize < 0) break
                 val srcTrack = extractor.sampleTrackIndex
-                val dstTrack = trackIndexMap[srcTrack] ?: run {
-                    extractor.advance(); continue
+                val dstTrack = trackIndexMap[srcTrack]
+                if (dstTrack == null) {
+                    extractor.advance()
+                    continue
                 }
                 bufferInfo.set(0, sampleSize, extractor.sampleTime, extractor.sampleFlags)
                 muxer.writeSampleData(dstTrack, buffer, bufferInfo)

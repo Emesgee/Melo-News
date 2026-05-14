@@ -74,6 +74,15 @@ data class IngestResponse(
     val title: String?
 )
 
+// ── Anonymous ingest ─────────────────────────────────────────────────────
+// Server returns no id by design — anonymity is irrevocable, the submitter
+// has no handle to come back with.
+
+data class AnonIngestResponse(
+    val status: String,
+    @SerializedName("pending_review") val pendingReview: Boolean
+)
+
 // ── Shared ───────────────────────────────────────────────────────────────
 
 sealed class ApiResult<out T> {

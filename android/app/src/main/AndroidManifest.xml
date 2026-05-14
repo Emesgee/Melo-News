@@ -32,16 +32,28 @@
         android:theme="@style/Theme.MeloNewsReporter"
         android:networkSecurityConfig="@xml/network_security_config">
 
-        <!-- Login screen — no auth required -->
+        <!-- Landing chooser: anonymous vs sign-in. Entry point so we
+             don't auto-attach an identity on launch. -->
         <activity
-            android:name=".ui.auth.LoginActivity"
-            android:exported="true"
-            android:windowSoftInputMode="adjustResize">
+            android:name=".ui.landing.LandingActivity"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Anonymous one-shot submit (no account, no local queue) -->
+        <activity
+            android:name=".ui.anon.AnonymousSubmitActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
+        <!-- Login screen (account mode entry, launched from LandingActivity) -->
+        <activity
+            android:name=".ui.auth.LoginActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
 
         <!-- Main app (map + submit tabs) -->
         <activity
