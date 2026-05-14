@@ -21,8 +21,11 @@ import androidx.lifecycle.lifecycleScope
 import com.google.android.gms.location.LocationServices
 import com.google.android.material.snackbar.Snackbar
 import com.melonews.reporter.data.api.ApiClient
+import com.melonews.reporter.data.local.AnonymousDraft
+import com.melonews.reporter.data.local.AppDatabaseFactory
 import com.melonews.reporter.databinding.ActivityAnonymousSubmitBinding
 import com.melonews.reporter.security.MediaSanitizer
+import com.melonews.reporter.sync.AnonymousDraftSyncManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -35,6 +38,7 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.UUID
 
 /**
  * One-shot anonymous submission flow.
@@ -128,16 +132,23 @@ class AnonymousSubmitActivity : AppCompatActivity() {
             snack("Title is required.")
             return
         }
-        if (!isOnline()) {
-            snack("Anonymous submission needs an active connection. Try again when online.")
-            return
-        }
 
         val body = binding.etBody.text.toString().trim().ifBlank { null }
         val city = binding.etCity.text.toString().trim().ifBlank { null }
         val severity = binding.spinnerSeverity.selectedItem.toString()
 
+        // Stable id generated once per submission. Used as the server
+        // submission_id when posting directly so a double-tap retry is
+        // idempotent, and as the AnonymousDraft primary key when queued
+        // offline so the eventual sync uses the same key.
+        val submissionId = UUID.randomUUID().toString()
+
         setLoading(true)
+
+        if (!isOnline()) {
+            queueDraftOffline(submissionId, title, body, city, severity)
+            return
+        }
 
         lifecycleScope.launch {
             try {
@@ -150,11 +161,12 @@ class AnonymousSubmitActivity : AppCompatActivity() {
                     severity = severity.toPlain(),
                     lat = currentLat?.toString()?.toPlain(),
                     lon = currentLon?.toString()?.toPlain(),
+                    submissionId = submissionId.toPlain(),
                     media = mediaPart,
                 )
 
                 if (response.isSuccessful) {
-                    onSubmitted()
+                    onSubmitted(queued = false)
                 } else {
                     val code = response.code()
                     val msg = when (code) {
@@ -166,9 +178,65 @@ class AnonymousSubmitActivity : AppCompatActivity() {
                     setLoading(false)
                 }
             } catch (e: Exception) {
-                snack("Could not submit: ${e.message ?: e.javaClass.simpleName}")
-                setLoading(false)
+                // Network blew up mid-request — queue the draft so we don't
+                // lose the user's work. The sync manager will retry on next
+                // connectivity event.
+                queueDraftOffline(submissionId, title, body, city, severity, reason = e.message)
             }
+        }
+    }
+
+    /**
+     * Move the picked media file into the app's private files dir so it
+     * outlives this Activity and survives an OS cacheDir cleanup. Returns
+     * the new path, or null if there was no media or the copy failed.
+     */
+    private fun stageMediaForDraft(draftId: String): String? {
+        val raw = attachedMediaFile?.takeIf { it.exists() } ?: return null
+        return try {
+            val dir = File(filesDir, "anonymous-drafts").apply { mkdirs() }
+            val ext = raw.extension.ifBlank { "bin" }
+            val dest = File(dir, "$draftId.$ext")
+            raw.inputStream().use { input ->
+                dest.outputStream().use { output -> input.copyTo(output) }
+            }
+            dest.absolutePath
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun queueDraftOffline(
+        submissionId: String,
+        title: String,
+        body: String?,
+        city: String?,
+        severity: String,
+        reason: String? = null,
+    ) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val stagedPath = stageMediaForDraft(submissionId)
+            val draft = AnonymousDraft(
+                id = submissionId,
+                title = title,
+                body = body,
+                city = city,
+                country = null,
+                lat = currentLat,
+                lon = currentLon,
+                severity = severity,
+                mediaLocalPath = stagedPath,
+            )
+            AppDatabaseFactory.getInstance(this@AnonymousSubmitActivity)
+                .anonymousDraftDao()
+                .insert(draft)
+
+            // Kick the sync manager — usually a no-op if we're truly
+            // offline, but fires immediately if we just lost connection
+            // briefly and it's already back by the time we land here.
+            runCatching { AnonymousDraftSyncManager(this@AnonymousSubmitActivity).drainQueue() }
+
+            withContext(Dispatchers.Main) { onSubmitted(queued = true, reason = reason) }
         }
     }
 
@@ -192,13 +260,26 @@ class AnonymousSubmitActivity : AppCompatActivity() {
         return MultipartBody.Part.createFormData("media", cleaned.name, reqBody)
     }
 
-    private fun onSubmitted() {
+    private fun onSubmitted(queued: Boolean, reason: String? = null) {
         setLoading(false)
+        val (title, msg) = if (queued) {
+            val tail = if (reason != null) "\n\nReason for the queue: $reason" else ""
+            "Saved as draft" to (
+                "You are offline. Your story is saved on this device and will be sent " +
+                    "to the moderation queue when connectivity returns. " +
+                    "You still will not be able to track its status afterwards — " +
+                    "that is the trade-off for anonymity.$tail"
+                )
+        } else {
+            "Submission received" to (
+                "Your story is queued for editorial review. You will not be able to " +
+                    "track its status — that is the trade-off for anonymity."
+                )
+        }
+
         AlertDialog.Builder(this)
-            .setTitle("Submission received")
-            .setMessage(
-                "Your story is queued for editorial review. You will not be able to track its status — that is the trade-off for anonymity."
-            )
+            .setTitle(title)
+            .setMessage(msg)
             .setCancelable(false)
             .setPositiveButton("Submit another") { _, _ -> clearForm() }
             .setNegativeButton("Done") { _, _ -> finish() }

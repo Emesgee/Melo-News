@@ -264,6 +264,16 @@ def stories_anonymous_ingest():
         return jsonify({'error': 'title is required'}), 400
     title = title[:100]
 
+    # Idempotency: if the client sends the same submission_id again
+    # (network retry, offline-then-online drain) we return the same
+    # opaque ack without creating a second row. Keeps the moderation
+    # queue free of duplicates without ever exposing an id to the caller.
+    submission_id = (request.form.get('submission_id') or '').strip()[:64] or None
+    if submission_id:
+        existing = FileUpload.query.filter_by(anon_submission_id=submission_id).first()
+        if existing:
+            return jsonify({'status': 'received', 'pending_review': True}), 200
+
     body = (request.form.get('body') or '').strip() or None
     city = (request.form.get('city') or '').strip()[:100] or None
     country = (request.form.get('country') or '').strip()[:100] or None
@@ -359,6 +369,7 @@ def stories_anonymous_ingest():
     record = FileUpload(
         filename=(media_file.filename[:255] if media_file and media_file.filename else f'anon-{uuid.uuid4().hex[:12]}'),
         file_path=blob_url or 'anonymous:no-media',
+        anon_submission_id=submission_id,
         title=title,
         tags=tags,
         subject=subject,

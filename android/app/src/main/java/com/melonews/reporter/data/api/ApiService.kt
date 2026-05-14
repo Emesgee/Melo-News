@@ -51,6 +51,7 @@ interface ApiService {
         @Part("severity") severity: RequestBody?,
         @Part("lat") lat: RequestBody?,
         @Part("lon") lon: RequestBody?,
+        @Part("submission_id") submissionId: RequestBody?,
         @Part media: MultipartBody.Part?
     ): Response<AnonIngestResponse>
 }

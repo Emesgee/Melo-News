@@ -79,15 +79,24 @@ object PanicManager {
     suspend fun panicWipe(context: Context) {
         val appContext = context.applicationContext
 
-        // 1. Wipe Room rows
+        // 1. Wipe Room rows — both authed local-stories and anonymous
+        //    drafts. Anonymous drafts hold offline-captured stories that
+        //    might be more sensitive than authed ones, so they must die
+        //    in a panic event too.
         try {
             AppDatabaseFactory.getInstance(appContext).localStoryDao().wipeAll()
         } catch (_: Exception) { }
-
-        // 2. Delete all media files
         try {
-            val uploadsDir = File(appContext.filesDir, "uploads")
-            uploadsDir.deleteRecursively()
+            AppDatabaseFactory.getInstance(appContext).anonymousDraftDao().wipeAll()
+        } catch (_: Exception) { }
+
+        // 2. Delete all media files — both authed uploads and the staged
+        //    media for unsynced anonymous drafts.
+        try {
+            File(appContext.filesDir, "uploads").deleteRecursively()
+        } catch (_: Exception) { }
+        try {
+            File(appContext.filesDir, "anonymous-drafts").deleteRecursively()
         } catch (_: Exception) { }
 
         // 3. Clear JWT — forces logout

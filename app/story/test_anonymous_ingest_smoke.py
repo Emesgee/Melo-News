@@ -120,15 +120,31 @@ def main():
         assert with_media.file_path  # blob path set
         assert with_media.file_path != 'anonymous:no-media'
 
-        # 8. Rate limit kicks in after a handful of requests from one IP
-        # (limit is 5/hour). We've made 3 successful + 1 rejected so far.
-        # The next two should succeed, the one after should 429.
-        for i in range(2):
-            client.post(
-                '/api/stories/anonymous-ingest',
-                data={'title': f'Filler {i}'},
-                content_type='multipart/form-data',
-            )
+        # 8. Idempotency: the same submission_id replays without creating
+        # a duplicate row. This is what Android's offline-draft sync
+        # depends on — a network blip retrying mid-stream must not create
+        # five copies in the moderation queue.
+        sub_id = 'test-sub-abcdef0123456789'
+        resp = client.post(
+            '/api/stories/anonymous-ingest',
+            data={'title': 'Offline draft sync', 'submission_id': sub_id},
+            content_type='multipart/form-data',
+        )
+        assert resp.status_code == 201, f'first submission_id post failed: {resp.status_code}'
+
+        resp = client.post(
+            '/api/stories/anonymous-ingest',
+            data={'title': 'Different title same id', 'submission_id': sub_id},
+            content_type='multipart/form-data',
+        )
+        assert resp.status_code == 200, f'idempotent replay should return 200, got {resp.status_code}'
+
+        same_id_rows = FileUpload.query.filter_by(anon_submission_id=sub_id).all()
+        assert len(same_id_rows) == 1, f'idempotency failed — found {len(same_id_rows)} rows for {sub_id}'
+
+        # 9. Rate limit still kicks in. Anon limiter is 5/hour; we've now
+        # consumed 5 slots (witness, 400, media, idempotent-1, idempotent-2),
+        # so the next call should be blocked.
         resp = client.post(
             '/api/stories/anonymous-ingest',
             data={'title': 'Over the cap'},

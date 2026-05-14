@@ -15,7 +15,14 @@ object AppDatabaseFactory {
                 context.applicationContext,
                 AppDatabase::class.java,
                 DB_NAME
-            ).build().also { INSTANCE = it }
+            )
+                // Schema additions on this app today are dev-stage drafts —
+                // an installed beta DB is OK to wipe on upgrade. Replace
+                // with explicit Migration objects before any release that
+                // expects to preserve queued user data.
+                .fallbackToDestructiveMigration()
+                .build()
+                .also { INSTANCE = it }
         }
 
     fun dropInstance() {

@@ -250,6 +250,10 @@ def ensure_schema_compatibility():
             # duplicate relay can be caught at insert time even before a
             # supporting index exists.
             'local_id': 'VARCHAR(64) UNIQUE',
+            # Idempotency key for anonymous offline drafts — separate from
+            # local_id so the authed-flow uniqueness is not muddied. Lets
+            # the same offline draft be safely re-submitted across retries.
+            'anon_submission_id': 'VARCHAR(64) UNIQUE',
         }
         required_user_columns = {
             'is_moderator': 'BOOLEAN DEFAULT FALSE NOT NULL'

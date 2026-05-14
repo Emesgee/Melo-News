@@ -83,6 +83,13 @@ class FileUpload(db.Model):
     # Idempotency key from Android local queue — prevents relay duplicates
     local_id = db.Column(db.String(64), nullable=True, unique=True, index=True)
 
+    # Idempotency key for anonymous offline drafts. Separate column from
+    # local_id so the authenticated-flow uniqueness is not muddied by
+    # values generated outside an account context. A re-sync of the same
+    # anonymous draft after a network blip returns the existing row
+    # instead of creating a duplicate in the moderation queue.
+    anon_submission_id = db.Column(db.String(64), nullable=True, unique=True, index=True)
+
 
 # FileType model
 class FileType(db.Model):
