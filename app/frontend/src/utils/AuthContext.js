@@ -7,24 +7,38 @@ export const AuthProvider = ({ children, initialLoggedIn }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(
     typeof initialLoggedIn === 'boolean' ? initialLoggedIn : false
   );
+  const [isModerator, setIsModerator] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
 
-  useEffect(() => {
-    checkAuth()
-      .then(() => setIsLoggedIn(true))
-      .catch(() => setIsLoggedIn(false))
-      .finally(() => setAuthLoading(false));
+  const refreshAuth = useCallback(async () => {
+    try {
+      const resp = await checkAuth();
+      setIsLoggedIn(true);
+      setIsModerator(Boolean(resp?.data?.is_moderator));
+    } catch (_) {
+      setIsLoggedIn(false);
+      setIsModerator(false);
+    }
   }, []);
 
-  const login = useCallback(() => setIsLoggedIn(true), []);
+  useEffect(() => {
+    refreshAuth().finally(() => setAuthLoading(false));
+  }, [refreshAuth]);
+
+  const login = useCallback(() => {
+    setIsLoggedIn(true);
+    // Re-fetch /me so we pick up is_moderator without waiting for a reload
+    refreshAuth();
+  }, [refreshAuth]);
 
   const logout = useCallback(async () => {
     try { await logoutUser(); } catch (_) { /* ignore */ }
     setIsLoggedIn(false);
+    setIsModerator(false);
   }, []);
 
   return (
-    <AuthContext.Provider value={{ isLoggedIn, authLoading, login, logout }}>
+    <AuthContext.Provider value={{ isLoggedIn, isModerator, authLoading, login, logout, refreshAuth }}>
       {children}
     </AuthContext.Provider>
   );

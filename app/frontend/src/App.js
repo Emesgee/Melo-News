@@ -24,6 +24,7 @@ const Intro = React.lazy(() => import('./pages/Intro'));
 const ProfileTest = React.lazy(() => import('./pages/Profile'));
 const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
 const MyUploads = React.lazy(() => import('./pages/MyUploads'));
+const Moderation = React.lazy(() => import('./pages/Moderation'));
 
 function App({ isLoggedIn: isLoggedInProp }) {
   return (
@@ -51,7 +52,7 @@ const AppContent = () => {
   const [showMeloSummary, setShowMeloSummary] = React.useState(false);
   const [searchOpen, setSearchOpen] = React.useState(false);
   const { isDark, toggle: toggleDark } = useDarkMode();
-  const { isLoggedIn, authLoading, logout } = useAuth();
+  const { isLoggedIn, isModerator, authLoading, logout } = useAuth();
   const { searchResults } = useSearch();
   const navigate = useNavigate();
   const location = useLocation();
@@ -163,6 +164,20 @@ const AppContent = () => {
             </button>
           )}
 
+          {isLoggedIn && isModerator && !isIntroRoute && (
+            <button
+              className="topbar-action-btn"
+              onClick={() => navigate('/moderation')}
+              title="Moderation queue"
+              aria-label="Moderation queue"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M9 11l3 3L22 4" />
+                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+              </svg>
+            </button>
+          )}
+
           {/* Dark mode toggle */}
           <button
             className="topbar-action-btn dark-btn"
@@ -251,6 +266,7 @@ const AppContent = () => {
             <Route path="/profile" element={<Suspense fallback={null}><ProfileTest /></Suspense>} />
             <Route path="/upload" element={<Suspense fallback={null}><FileUpload /></Suspense>} />
             <Route path="/my-uploads" element={<Suspense fallback={null}><MyUploads /></Suspense>} />
+            <Route path="/moderation" element={<Suspense fallback={null}><Moderation /></Suspense>} />
             <Route path="/admin" element={<Suspense fallback={null}><AdminDashboard /></Suspense>} />
           </Route>
         </Routes>

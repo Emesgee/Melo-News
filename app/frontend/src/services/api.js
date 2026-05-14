@@ -127,6 +127,20 @@ export const deleteUpload = async (id) => {
   return api.delete(`file_upload/${id}`);
 };
 
+// --- Editorial Moderation (moderator role required) ---
+
+export const getModerationQueue = async (status = 'PENDING', limit = 50, offset = 0) => {
+  return api.get('moderation/queue', { params: { status, limit, offset } });
+};
+
+export const verifyUpload = async (id, note = '') => {
+  return api.post(`moderation/${id}/verify`, { note });
+};
+
+export const rejectUpload = async (id, note) => {
+  return api.post(`moderation/${id}/reject`, { note });
+};
+
 // Financial data (P2-12) - uses free Yahoo Finance API proxy
 export const getMarketData = async () => {
   try {

@@ -156,5 +156,6 @@ def get_current_user():
     return jsonify({
         "userid": user.userid,
         "username": user.username,
-        "email": user.email
+        "email": user.email,
+        "is_moderator": bool(getattr(user, 'is_moderator', False)),
     }), 200
