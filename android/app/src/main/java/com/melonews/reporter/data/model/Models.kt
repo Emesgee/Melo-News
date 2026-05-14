@@ -14,6 +14,12 @@ data class LoginResponse(
     @SerializedName("user_id") val userId: Int?
 )
 
+data class RegisterRequest(
+    val username: String,
+    val email: String,
+    val password: String
+)
+
 // ── Map stories ──────────────────────────────────────────────────────────
 
 data class MapStoriesResponse(

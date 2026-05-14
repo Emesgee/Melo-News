@@ -60,4 +60,14 @@
         android:layout_height="wrap_content"
         android:text="@string/btn_login" />
 
+    <TextView
+        android:id="@+id/tvRegisterLink"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="No account? Register"
+        android:textAlignment="center"
+        android:textColor="@color/colorPrimary"
+        android:layout_marginTop="16dp"
+        android:padding="8dp" />
+
 </LinearLayout>

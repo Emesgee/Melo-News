@@ -59,6 +59,13 @@ class LoginActivity : AppCompatActivity() {
             )
         }
 
+        // "No account? Register" — opens the in-app registration flow.
+        // After successful register, RegisterActivity auto-logs the user
+        // in and jumps straight to MainActivity.
+        binding.tvRegisterLink.setOnClickListener {
+            startActivity(Intent(this, RegisterActivity::class.java))
+        }
+
         // Long-press login title to set up security PINs
         binding.root.setOnLongClickListener {
             showPinSetupDialog()

@@ -55,6 +55,12 @@
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
 
+        <!-- Registration screen (launched from LoginActivity) -->
+        <activity
+            android:name=".ui.auth.RegisterActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
         <!-- Main app (map + submit tabs) -->
         <activity
             android:name=".ui.main.MainActivity"
