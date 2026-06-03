@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Tooltip } from 'react-leaflet';
 import { useNavigate } from 'react-router-dom';
 import L from 'leaflet';
@@ -9,8 +9,9 @@ import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import { getEvents } from '../../services/api';
 import { useSearch } from '../../utils/SearchContext';
+import { useDarkMode } from '../../utils/DarkModeContext';
 import { MAP_STYLES, defaultPosition } from './mapConstants';
-import { ZoomCircles, FitBounds, MapStylePanel } from './MapControls';
+import { ZoomCircles, FitBounds } from './MapControls';
 
 // The map is a feed of Events: one status-colored pin per incident. Clicking a
 // pin opens the shareable /events/:id page (the same place a List card goes).
@@ -36,22 +37,12 @@ const eventIcon = (status) => {
 const MapArea = () => {
   const navigate = useNavigate();
   const { filter } = useSearch();
-  const [currentStyle, setCurrentStyle] = useState(MAP_STYLES[0]);
-  const [showStylePicker, setShowStylePicker] = useState(false);
+  const { isDark } = useDarkMode();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const stylePanelRef = useRef(null);
 
-  // Close the style picker on outside click
-  useEffect(() => {
-    const handleOutside = (e) => {
-      if (stylePanelRef.current && !stylePanelRef.current.contains(e.target)) {
-        setShowStylePicker(false);
-      }
-    };
-    if (showStylePicker) document.addEventListener('mousedown', handleOutside);
-    return () => document.removeEventListener('mousedown', handleOutside);
-  }, [showStylePicker]);
+  // Basemap follows the app theme — light in light mode, dark in dark. No picker.
+  const tile = MAP_STYLES[isDark ? 1 : 0];
 
   useEffect(() => {
     let alive = true;
@@ -96,7 +87,7 @@ const MapArea = () => {
           zoomControl={false}
           attributionControl={false}
         >
-          <TileLayer url={currentStyle.url} attribution={currentStyle.attribution} />
+          <TileLayer url={tile.url} attribution={tile.attribution} />
           <ZoomCircles />
           {bounds.length > 0 && <FitBounds bounds={bounds} />}
 
@@ -120,28 +111,6 @@ const MapArea = () => {
         </MapContainer>
       </div>
 
-      {/* Map overlay controls */}
-      <div className="map-overlay-controls" ref={stylePanelRef}>
-        <button
-          className={`map-style-toggle${showStylePicker ? ' active' : ''}`}
-          onClick={() => setShowStylePicker((v) => !v)}
-          title="Change map style"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
-            <line x1="8" y1="2" x2="8" y2="18" />
-            <line x1="16" y1="6" x2="16" y2="22" />
-          </svg>
-        </button>
-        <span className="map-current-style-badge">{currentStyle.name}</span>
-        {showStylePicker && (
-          <MapStylePanel
-            currentStyle={currentStyle}
-            onStyleChange={setCurrentStyle}
-            onClose={() => setShowStylePicker(false)}
-          />
-        )}
-      </div>
     </div>
   );
 };

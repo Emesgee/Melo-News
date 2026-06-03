@@ -161,4 +161,10 @@ def get_current_user():
         "role": role,
         # Derived for the frontend; stewards are moderator-capable too.
         "is_moderator": role in ('moderator', 'steward'),
+        # Reporter standing (Stage B) — shown on the "Your reports" page.
+        "display_handle": user.display_handle,
+        "identity_type": getattr(user, 'identity_type', 'registered'),
+        "trust_rung": getattr(user, 'trust_rung', 1),
+        "reports_count": getattr(user, 'reports_count', 0),
+        "corroborated_count": getattr(user, 'corroborated_count', 0),
     }), 200

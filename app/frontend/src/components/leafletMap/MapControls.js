@@ -1,6 +1,5 @@
 import React, { useRef, useEffect } from 'react';
 import { useMap } from 'react-leaflet';
-import { MAP_STYLES, STYLE_CATEGORIES } from './mapConstants';
 
 export const ZoomCircles = () => {
   const map = useMap();
@@ -35,35 +34,3 @@ export const FitBounds = ({ bounds }) => {
 
   return null;
 };
-
-export const MapStylePanel = ({ currentStyle, onStyleChange, onClose }) => (
-  <div className="map-style-panel">
-    <div className="map-style-panel-header">
-      <span>Map Style</span>
-      <button className="map-style-close" onClick={onClose} title="Close">✕</button>
-    </div>
-    {STYLE_CATEGORIES.map(cat => {
-      const styles = MAP_STYLES.filter(s => s.category === cat);
-      if (!styles.length) return null;
-      return (
-        <div key={cat} className="map-style-category-group">
-          <div className="map-style-category-label">{cat}</div>
-          <div className="map-style-grid">
-            {styles.map(style => (
-              <button
-                key={style.id}
-                className={`map-style-option${currentStyle.id === style.id ? ' active' : ''}`}
-                onClick={() => { onStyleChange(style); onClose(); }}
-                title={style.name}
-              >
-                <div className="map-style-swatch" style={{ background: style.swatch }} />
-                <span className="map-style-name">{style.name}</span>
-                {currentStyle.id === style.id && <span className="map-style-check">✓</span>}
-              </button>
-            ))}
-          </div>
-        </div>
-      );
-    })}
-  </div>
-);

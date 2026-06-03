@@ -18,7 +18,6 @@ import './App.css';
 const Register = React.lazy(() => import('./pages/Register'));
 const Login = React.lazy(() => import('./pages/Login'));
 const FileUpload = React.lazy(() => import('./pages/UploadForm'));
-const ProfileTest = React.lazy(() => import('./pages/Profile'));
 const MyUploads = React.lazy(() => import('./pages/MyUploads'));
 const Moderation = React.lazy(() => import('./pages/Moderation'));
 const EventsFeed = React.lazy(() => import('./pages/EventsFeed'));
@@ -224,7 +223,6 @@ const AppContent = () => {
           <Route path="/events/:id" element={<Suspense fallback={null}><EventDetail /></Suspense>} />
 
           <Route element={<PrivateRoute />}>
-            <Route path="/profile" element={<Suspense fallback={null}><ProfileTest /></Suspense>} />
             <Route path="/upload" element={<Suspense fallback={null}><FileUpload /></Suspense>} />
             <Route path="/my-uploads" element={<Suspense fallback={null}><MyUploads /></Suspense>} />
             <Route path="/moderation" element={<Suspense fallback={null}><Moderation /></Suspense>} />

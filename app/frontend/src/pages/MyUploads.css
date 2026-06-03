@@ -538,3 +538,10 @@
   background: #e2e8f0;
   border-radius: 2px;
 }
+
+/* Reporter standing header (Step 6) */
+.reporter-standing {
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+.reporter-standing strong { color: inherit; }

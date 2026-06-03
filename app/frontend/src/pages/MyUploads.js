@@ -4,6 +4,7 @@ import { StepIndicator, GeneralInfoForm, LocationForm, FileUploadForm } from '..
 import { getMyUploads, editUpload, deleteUpload, fetchFileTypes, api } from '../services/api';
 import { SEVERITY_CONFIG } from '../constants/severity';
 import { useToast } from '../utils/ToastContext';
+import { useAuth } from '../utils/AuthContext';
 import { chunkedUpload } from '../utils/chunkedUpload';
 import { enqueue } from '../utils/offlineQueue';
 import { MAX_FILE_SIZE, ALLOWED_FILE_TYPES } from '../components/upload/uploadConstants';
@@ -675,6 +676,7 @@ const MyUploads = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { addToast } = useToast();
+  const { user } = useAuth();
   const [uploads, setUploads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editTarget, setEditTarget] = useState(null);
@@ -728,10 +730,17 @@ const MyUploads = () => {
     <div className="my-uploads-page">
       <section className="upload-header">
         <div className="upload-header-content">
-          <h1>📰 My Stories</h1>
-          <p>Manage and edit your citizen journalism submissions.</p>
+          <h1>📰 Your reports</h1>
+          {user && (
+            <p className="reporter-standing">
+              <strong>{user.display_handle || user.username || 'you'}</strong>
+              {' · '}{user.identity_type === 'pseudonymous' ? 'pseudonymous' : 'registered'}
+              {' · rung '}{user.trust_rung ?? 1}
+              {' · '}{user.corroborated_count ?? 0}/{user.reports_count ?? 0} reports corroborated
+            </p>
+          )}
         </div>
-        <button className="btn-primary" onClick={() => setCreateOpen(true)}>+ New Story</button>
+        <button className="btn-primary" onClick={() => setCreateOpen(true)}>+ New report</button>
       </section>
 
       <div className="my-uploads-content">

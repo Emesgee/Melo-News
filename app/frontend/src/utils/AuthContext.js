@@ -8,6 +8,7 @@ export const AuthProvider = ({ children, initialLoggedIn }) => {
     typeof initialLoggedIn === 'boolean' ? initialLoggedIn : false
   );
   const [isModerator, setIsModerator] = useState(false);
+  const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
 
   const refreshAuth = useCallback(async () => {
@@ -15,9 +16,11 @@ export const AuthProvider = ({ children, initialLoggedIn }) => {
       const resp = await checkAuth();
       setIsLoggedIn(true);
       setIsModerator(Boolean(resp?.data?.is_moderator));
+      setUser(resp?.data || null);
     } catch (_) {
       setIsLoggedIn(false);
       setIsModerator(false);
+      setUser(null);
     }
   }, []);
 
@@ -35,10 +38,11 @@ export const AuthProvider = ({ children, initialLoggedIn }) => {
     try { await logoutUser(); } catch (_) { /* ignore */ }
     setIsLoggedIn(false);
     setIsModerator(false);
+    setUser(null);
   }, []);
 
   return (
-    <AuthContext.Provider value={{ isLoggedIn, isModerator, authLoading, login, logout, refreshAuth }}>
+    <AuthContext.Provider value={{ isLoggedIn, isModerator, user, authLoading, login, logout, refreshAuth }}>
       {children}
     </AuthContext.Provider>
   );
