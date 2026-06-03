@@ -1,4 +1,4 @@
-import { api, registerUser, loginUser, logoutUser, checkAuth, getProfileData, fetchFileTypes, getEscalation, getTrending, getTensionIndex, getPredictions, getNewsFeed, getMarketData } from './api';
+import { api, registerUser, loginUser, logoutUser, checkAuth, getProfileData, fetchFileTypes, getNewsFeed, getMarketData } from './api';
 
 // We test via the exported `api` instance by spying on its methods
 beforeEach(() => {
@@ -62,28 +62,6 @@ describe('data functions', () => {
   it('getNewsFeed uses default limit of 100', async () => {
     await getNewsFeed();
     expect(api.get).toHaveBeenCalledWith('stories/map', { params: { limit: 100 } });
-  });
-});
-
-describe('analytics functions', () => {
-  it('getEscalation passes hours parameter', async () => {
-    await getEscalation(12);
-    expect(api.get).toHaveBeenCalledWith('analytics/escalation', { params: { hours: 12 } });
-  });
-
-  it('getTrending passes hours and limit', async () => {
-    await getTrending(48, 20);
-    expect(api.get).toHaveBeenCalledWith('analytics/trending', { params: { hours: 48, limit: 20 } });
-  });
-
-  it('getTensionIndex uses default 24 hours', async () => {
-    await getTensionIndex();
-    expect(api.get).toHaveBeenCalledWith('analytics/tension', { params: { hours: 24 } });
-  });
-
-  it('getPredictions calls analytics/predictions', async () => {
-    await getPredictions();
-    expect(api.get).toHaveBeenCalledWith('analytics/predictions');
   });
 });
 

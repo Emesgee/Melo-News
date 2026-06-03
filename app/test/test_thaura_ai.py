@@ -14,8 +14,6 @@ from app.ai_analyzer.routes import (
     analyze_media,
     _fallback_analysis,
 )
-from app.analytics.engine import extract_keywords
-
 # Convenience aliases matching original test expectations
 def analyze_image(path):
     steps = []
@@ -31,36 +29,9 @@ def analyze_video(path):
     except Exception:
         return _fallback_analysis()
 
-def extract_keywords_from_text(text, max_kw=5):
-    """Thin wrapper that matches the old test interface."""
-    if not text or not text.strip():
-        return []
-    return [kw for kw, _ in extract_keywords(text, max_keywords=max_kw)]
-
-
 
 class TestThauraAIAnalyzer:
-    
-    def test_extract_keywords_from_text(self):
-        """Test keyword extraction from text"""
-        text = "Breaking news from New York about major earthquake damage"
-        keywords = extract_keywords_from_text(text)
-        
-        assert isinstance(keywords, list)
-        assert len(keywords) <= 5
-        assert any(keyword in keywords for keyword in ['breaking', 'news', 'earthquake', 'damage'])
-    
-    def test_extract_keywords_empty_text(self):
-        """Test keyword extraction with empty text"""
-        keywords = extract_keywords_from_text("")
-        assert keywords == []
-    
-    def test_extract_keywords_only_stopwords(self):
-        """Test keyword extraction with only stopwords"""
-        text = "the a an in on at to for of and or but"
-        keywords = extract_keywords_from_text(text)
-        assert keywords == []
-    
+
     def test_analyze_image_fallback(self):
         """Test image analysis fallback when Azure not configured"""
         # When Azure credentials are not set, should return fallback

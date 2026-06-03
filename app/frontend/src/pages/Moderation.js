@@ -39,7 +39,7 @@ const ReviewCard = ({ story, onVerify, onReject, busy }) => {
   const sev = story.metrics?.severity || 'LOW';
   const verifStatus = story.workflow?.verification_status || 'PENDING';
   const verifNote = story.workflow?.verification_note;
-  const author = story.provenance?.author_user_id;
+  const isAnonymous = story.provenance?.is_anonymous;
   const sourceLabel = story.provenance?.source_label || story.provenance?.source_name || 'upload';
   const media = story.media?.primary_url;
   const isImage = media && /\.(jpg|jpeg|png|webp|gif)$/i.test(media);
@@ -53,7 +53,7 @@ const ReviewCard = ({ story, onVerify, onReject, busy }) => {
             <strong style={{ fontSize: 16 }}>{story.title || <em>Untitled</em>}</strong>
             <span style={{ ...pill, background: SEVERITY_TINT[sev], color: '#fff' }}>{sev}</span>
             <span style={{ ...pill, background: '#374151', color: '#fff' }}>{sourceLabel}</span>
-            {author === null && (
+            {isAnonymous && (
               <span style={{ ...pill, background: '#0ea5e9', color: '#fff' }} title="No account attached">anonymous</span>
             )}
             <span style={{ ...pill, background: '#e5e7eb', color: '#111' }}>{verifStatus}</span>

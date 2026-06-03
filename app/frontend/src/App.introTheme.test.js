@@ -26,7 +26,6 @@ jest.mock('./components/ErrorBoundary', () => ({ children }) => <>{children}</>)
 jest.mock('./components/Toast', () => () => null);
 jest.mock('./components/searchBar/Search', () => () => null);
 jest.mock('./components/leafletMap/MapArea', () => () => <div>Map</div>);
-jest.mock('./components/leafletMap/MeloSummary', () => () => <div>Summary</div>);
 jest.mock('./components/LoadingScreen', () => () => <div>Loading</div>);
 jest.mock('./pages/Home', () => () => <div>Home</div>);
 
@@ -42,7 +41,6 @@ jest.mock('./pages/Register', () => () => <div>Register</div>);
 jest.mock('./pages/Login', () => () => <div>Login</div>);
 jest.mock('./pages/UploadForm', () => () => <div>Upload</div>);
 jest.mock('./pages/Profile', () => () => <div>Profile</div>);
-jest.mock('./pages/AdminDashboard', () => () => <div>Admin</div>);
 jest.mock('./pages/MyUploads', () => () => <div>MyUploads</div>);
 
 describe('App intro theme toggle', () => {

@@ -7,12 +7,6 @@ export {
   ProfileData,
   fetchFileTypes,
   testApiUrl,
-  getEscalation,
-  getTrending,
-  getTensionIndex,
-  getPredictions,
-  createPrediction,
-  votePrediction,
   getNewsFeed,
   getMarketData,
 } from './api';

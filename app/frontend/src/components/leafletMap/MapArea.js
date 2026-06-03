@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import './MapArea.css';
@@ -10,44 +10,12 @@ import { parseMediaLinks, normalizeMediaUrl, filterVideoFiles, filterImageFiles,
 import { useSearch } from '../../utils/SearchContext';
 import { MAP_STYLES, defaultPosition, createThumbnailIcon } from './mapConstants';
 import { ZoomCircles, FitBounds, MapStylePanel } from './MapControls';
-import CityHistory from './CityHistory';
-import NewsChat from './NewsChat';
-import MeloSummary from './MeloSummary';
 import GlobeView from './GlobeView';
 
 // Marker wrapper component
 // Marker wrapper component with map centering
 const MarkerPopupWrapper = ({ time, result, title, city, country, description, files, markerIcon, markerId, onMarkerClick, customData }) => {
-  const infoTabRef = useRef(null);
-  const chatTabRef = useRef(null);
-  const infoButtonRef = useRef(null);
-  const chatButtonRef = useRef(null);
-  const activeTabRef = useRef('info');
   const map = useMap();
-
-  const showTab = useCallback((tab) => {
-    if (!infoTabRef.current || !chatTabRef.current || !infoButtonRef.current || !chatButtonRef.current) {
-      return;
-    }
-
-    activeTabRef.current = tab;
-
-    if (tab === 'info') {
-      infoTabRef.current.style.display = 'flex';
-      chatTabRef.current.style.display = 'none';
-      infoButtonRef.current.classList.add('active');
-      chatButtonRef.current.classList.remove('active');
-    } else {
-      infoTabRef.current.style.display = 'none';
-      chatTabRef.current.style.display = 'flex';
-      chatButtonRef.current.classList.add('active');
-      infoButtonRef.current.classList.remove('active');
-    }
-  }, []);
-
-  useEffect(() => {
-    showTab(activeTabRef.current);
-  }, [showTab]);
 
   const videoFiles = files.filter(url => {
     if (!url) return false;
@@ -142,42 +110,7 @@ const MarkerPopupWrapper = ({ time, result, title, city, country, description, f
           </div>
         )}
 
-        {/* Tab Navigation */}
-        <div className="popup-tabs">
-          <button 
-            ref={infoButtonRef}
-            className="tab-btn active"
-            onClick={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              showTab('info');
-            }}
-            onMouseDown={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-            }}
-          >
-            📰 Info
-          </button>
-          <button 
-            ref={chatButtonRef}
-            className="tab-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              showTab('chat');
-            }}
-            onMouseDown={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-            }}
-          >
-            💬 Chat
-          </button>
-        </div>
-
-        {/* Info Tab */}
-        <div ref={infoTabRef} className="popup-info-tab">
+        <div className="popup-info-tab">
           <p className="popup-description">{description}</p>
 
           {/* Show additional images if any */}
@@ -223,22 +156,6 @@ const MarkerPopupWrapper = ({ time, result, title, city, country, description, f
               ))}
             </div>
           )}
-
-          {/* City History Section */}
-          <CityHistory lat={result.lat} lon={result.lon} city={city} />
-        </div>
-
-        <div ref={chatTabRef} className="popup-chat-tab" style={{ display: 'none' }}>
-          <NewsChat 
-            newsId={markerId}
-            newsData={{
-              title,
-              description,
-              city,
-              lat: result.lat,
-              lon: result.lon
-            }}
-          />
         </div>
       </Popup>
     </Marker>
@@ -602,7 +519,6 @@ const MapArea = () => {
         })}
           </MarkerClusterGroup>
           </MapContainer>
-          <MeloSummary />
         </div>
       </div>{/* end map-viewport-wrapper */}
 

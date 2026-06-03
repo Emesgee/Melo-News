@@ -78,37 +78,7 @@ export const testApiUrl = async () => {
   return api.get('test');
 };
 
-// --- Analytics APIs (Conflictly benchmark features) ---
-
-// Escalation indicators (P0-4)
-export const getEscalation = async (hours = 24) => {
-  return api.get('analytics/escalation', { params: { hours } });
-};
-
-// Trending keywords (P1-5)
-export const getTrending = async (hours = 24, limit = 10) => {
-  return api.get('analytics/trending', { params: { hours, limit } });
-};
-
-// Global tension index (P1-6)
-export const getTensionIndex = async (hours = 24) => {
-  return api.get('analytics/tension', { params: { hours } });
-};
-
-// Predictions (P2-9)
-export const getPredictions = async () => {
-  return api.get('analytics/predictions');
-};
-
-export const createPrediction = async (data) => {
-  return api.post('analytics/predictions', data);
-};
-
-export const votePrediction = async (predictionId, vote) => {
-  return api.post(`analytics/predictions/${predictionId}/vote`, { vote });
-};
-
-// News feed — source-agnostic map markers (replaces telegram/news)
+// News feed — source-agnostic map markers (kept generic fetcher over stories/map)
 export const getNewsFeed = async (limit = 100) => {
   return api.get('stories/map', { params: { limit } });
 };

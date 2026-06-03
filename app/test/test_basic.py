@@ -1,4 +1,3 @@
-import pytest
 import sys
 from pathlib import Path
 
@@ -6,12 +5,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 def test_imports():
-    """Test basic imports"""
-    try:
-        import confluent_kafka
-        assert confluent_kafka is not None
-    except ImportError:
-        pytest.skip("confluent_kafka not installed")
+    """Core application package imports cleanly."""
+    from app import create_app
+    from app.models import db, FileUpload
+    assert create_app is not None
+    assert db is not None and FileUpload is not None
 
 def test_config_exists():
     """Test config loading"""

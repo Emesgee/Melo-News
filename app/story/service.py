@@ -1,11 +1,8 @@
 """
 app/story/service.py
 
-Source-agnostic story retrieval.  Queries FileUpload and/or Telegram,
-normalizes each record via serializers, merges, sorts, and pages the result.
-
-Sources are controlled by the `source` parameter ('all' | 'upload' | 'telegram').
-Adding a new source later requires only a new _query_* helper and a branch here.
+Citizen story retrieval. Queries FileUpload, normalizes each record via
+serializers, sorts, and pages the result.
 """
 
 import logging
@@ -13,9 +10,8 @@ from datetime import datetime, timezone
 
 from sqlalchemy import or_, distinct
 
-import config
-from app.models import db, FileUpload, Telegram
-from .serializers import serialize_upload, serialize_telegram
+from app.models import db, FileUpload
+from .serializers import serialize_upload
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +43,7 @@ def list_stories(
 
     Parameters
     ----------
-    source : 'all' | 'upload' | 'telegram'
+    source : 'all' | 'upload'
     q : free-text search string
     city, country, severity : exact/ilike filters
     has_location : True = only geolocated stories; False = only non-geolocated
@@ -67,9 +63,6 @@ def list_stories(
             q, city, country, severity, has_location, from_date, to_date,
             include_unverified=include_unverified,
         ))
-
-    if config.TELEGRAM_ENABLED and source in ('all', 'telegram'):
-        stories.extend(_query_telegram(q, city, country, severity, has_location, from_date, to_date))
 
     if has_media is True:
         stories = [s for s in stories if s['media']['primary_url']]
@@ -104,7 +97,6 @@ def list_story_markers(
 ):
     """
     Return a slim list of map-marker Story dicts (geolocated only).
-    Replaces GET /api/telegram/news for the map feed.
     """
     result = list_stories(
         source=source,
@@ -174,29 +166,11 @@ def get_facets():
     except Exception as exc:
         logger.error("facets: upload query failed: %s", exc)
 
-    # Telegram facets (when enabled)
-    if config.TELEGRAM_ENABLED:
-        try:
-            for (v,) in db.session.query(distinct(Telegram.matched_city)).filter(
-                Telegram.matched_city.isnot(None), Telegram.matched_city != ''
-            ).all():
-                cities.add(v)
-            for (v,) in db.session.query(distinct(Telegram.severity)).filter(
-                Telegram.severity.isnot(None)
-            ).all():
-                severities.add(v)
-        except Exception as exc:
-            logger.error("facets: telegram query failed: %s", exc)
-
-    sources = ['upload']
-    if config.TELEGRAM_ENABLED:
-        sources.append('telegram')
-
     return {
         'cities': sorted(cities),
         'countries': sorted(countries),
         'severities': sorted(severities),
-        'sources': sources,
+        'sources': ['upload'],
     }
 
 
@@ -319,12 +293,6 @@ def get_story(source_type, source_record_id, include_unverified=False):
             return None
         return serialize_upload(record)
 
-    if source_type == 'telegram':
-        if not config.TELEGRAM_ENABLED:
-            return None
-        record = db.session.get(Telegram, source_record_id)
-        return serialize_telegram(record) if record else None
-
     return None
 
 
@@ -389,33 +357,4 @@ def _query_uploads(q, city, country, severity, has_location, from_date, to_date,
         return [serialize_upload(r) for r in fq.all()]
     except Exception as exc:
         logger.error("story service: upload query failed: %s", exc)
-        return []
-
-
-def _query_telegram(q, city, country, severity, has_location, from_date, to_date):
-    tq = Telegram.query
-
-    if q:
-        tq = tq.filter(or_(
-            Telegram.message.ilike(f'%{q}%'),
-            Telegram.tags.ilike(f'%{q}%'),
-            Telegram.subject.ilike(f'%{q}%'),
-        ))
-    if city:
-        tq = tq.filter(Telegram.matched_city.ilike(f'%{city}%'))
-    if country:
-        tq = tq.filter(Telegram.city_result.ilike(f'%{country}%'))
-    if severity:
-        tq = tq.filter(Telegram.severity == severity.upper())
-    if has_location is True:
-        tq = tq.filter(Telegram.lat.isnot(None), Telegram.lon.isnot(None))
-    if from_date:
-        tq = tq.filter(Telegram.time >= from_date)
-    if to_date:
-        tq = tq.filter(Telegram.time <= to_date)
-
-    try:
-        return [serialize_telegram(r) for r in tq.all()]
-    except Exception as exc:
-        logger.error("story service: telegram query failed: %s", exc)
         return []

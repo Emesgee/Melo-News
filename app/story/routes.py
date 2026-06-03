@@ -60,7 +60,7 @@ def _should_use_azure() -> bool:
     conn_l = conn.lower()
     return 'accountname=' in conn_l and 'defaultendpointsprotocol=' in conn_l
 
-_VALID_SOURCES = {'all', 'upload', 'telegram'}
+_VALID_SOURCES = {'all', 'upload'}
 _VALID_SORTS = {'published_at', 'confidence', 'severity'}
 _VALID_ORDERS = {'desc', 'asc'}
 
@@ -97,7 +97,7 @@ def stories_list():
     Paged list of stories from one or more sources.
 
     Query params:
-      source=all|upload|telegram
+      source=all|upload
       q=<text>
       city=<city>
       country=<country>
@@ -422,7 +422,6 @@ def stories_facets():
 def stories_map():
     """
     Slim geolocated story markers for map rendering.
-    Replaces GET /api/telegram/news.
 
     Query params: source, q, city, country, severity, from, to, limit
     """
@@ -449,11 +448,10 @@ def story_detail(source_type, source_record_id):
     Single story detail by source type and record ID.
 
     Examples:
-      GET /api/stories/telegram/123
       GET /api/stories/upload/42
     """
-    if source_type not in ('telegram', 'upload'):
-        return jsonify({'error': 'source_type must be "telegram" or "upload"'}), 400
+    if source_type != 'upload':
+        return jsonify({'error': 'source_type must be "upload"'}), 400
 
     story = get_story(source_type, source_record_id)
     if not story:

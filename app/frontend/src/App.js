@@ -7,7 +7,6 @@ import PrivateRoute from './components/PrivateRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import Toast from './components/Toast';
 import MapArea from './components/leafletMap/MapArea';
-import MeloSummary from './components/leafletMap/MeloSummary';
 import LoadingScreen from './components/LoadingScreen';
 import { DarkModeProvider, useDarkMode } from './utils/DarkModeContext';
 import { AuthProvider, useAuth } from './utils/AuthContext';
@@ -22,7 +21,6 @@ const Login = React.lazy(() => import('./pages/Login'));
 const FileUpload = React.lazy(() => import('./pages/UploadForm'));
 const Intro = React.lazy(() => import('./pages/Intro'));
 const ProfileTest = React.lazy(() => import('./pages/Profile'));
-const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard'));
 const MyUploads = React.lazy(() => import('./pages/MyUploads'));
 const Moderation = React.lazy(() => import('./pages/Moderation'));
 
@@ -49,7 +47,6 @@ const AppContent = () => {
   const { addToast } = useToast();
   const interceptorsSetup = useRef(false);
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
-  const [showMeloSummary, setShowMeloSummary] = React.useState(false);
   const [searchOpen, setSearchOpen] = React.useState(false);
   const { isDark, toggle: toggleDark } = useDarkMode();
   const { isLoggedIn, isModerator, authLoading, logout } = useAuth();
@@ -193,23 +190,7 @@ const AppContent = () => {
             </svg>
           </button>
 
-          {!isIntroRoute && (
-            <button 
-              className="topbar-action-btn summary-btn"
-              onClick={() => setShowMeloSummary(true)}
-              title="Generate Melo Summary"
-              aria-label="Generate Melo Summary"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M4 3h16a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
-                <line x1="16" y1="2" x2="16" y2="6" />
-                <line x1="8" y1="2" x2="8" y2="6" />
-                <line x1="3" y1="10" x2="21" y2="10" />
-              </svg>
-            </button>
-          )}
-
-          <button 
+          <button
             className={`topbar-action-btn auth-btn ${isLoggedIn ? 'logout' : 'login'}`}
             onClick={isLoggedIn ? handleLogout : () => navigate('/login')}
             title={isLoggedIn ? 'Logout' : 'Login'}
@@ -244,16 +225,6 @@ const AppContent = () => {
 
       {/* Main content */}
       <main id="main-content" className="main" ref={mainRef} tabIndex={-1}>
-        {/* Melo Summary Modal */}
-        {showMeloSummary && (
-          <div className="melo-summary-overlay">
-            <MeloSummary 
-              onClose={() => setShowMeloSummary(false)}
-              initialOpen={true}
-            />
-          </div>
-        )}
-
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/register" element={<Suspense fallback={null}><Register /></Suspense>} />
@@ -267,7 +238,6 @@ const AppContent = () => {
             <Route path="/upload" element={<Suspense fallback={null}><FileUpload /></Suspense>} />
             <Route path="/my-uploads" element={<Suspense fallback={null}><MyUploads /></Suspense>} />
             <Route path="/moderation" element={<Suspense fallback={null}><Moderation /></Suspense>} />
-            <Route path="/admin" element={<Suspense fallback={null}><AdminDashboard /></Suspense>} />
           </Route>
         </Routes>
       </main>

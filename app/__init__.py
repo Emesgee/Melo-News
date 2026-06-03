@@ -11,7 +11,7 @@ from flask_cors import CORS
 from flask_socketio import SocketIO
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import text
-from .models import db, InputTemplate, OutputTemplate, FileType, Telegram, Prediction, PredictionVote, KeywordTrend, TensionIndex
+from .models import db, InputTemplate, OutputTemplate, FileType
 
 logger = logging.getLogger(__name__)
 
@@ -95,9 +95,6 @@ def create_app(config_name=None):
 
     # Register Blueprints
     try:
-        import config as _cfg
-        _telegram_enabled = _cfg.TELEGRAM_ENABLED
-
         from .auth.routes import auth_bp
         from .profile.routes import profile_bp
         from .file_upload.routes import file_upload_bp
@@ -105,11 +102,7 @@ def create_app(config_name=None):
         from .templates.routes import templates_bp
         from .search.routes import search_bp
         from .output.routes import output_bp
-        from .city_history.routes import city_history_bp
-        from .city_history.chat_routes import news_chat_bp
-        from .summary.summary import summary_bp
         from .ai_analyzer.routes import ai_analyzer_bp
-        from .analytics.routes import analytics_bp
         from .story.routes import story_bp
         from .moderation.routes import moderation_bp
 
@@ -120,14 +113,7 @@ def create_app(config_name=None):
         app.register_blueprint(templates_bp, url_prefix='/api')
         app.register_blueprint(search_bp, url_prefix='/api')
         app.register_blueprint(output_bp)
-        if _telegram_enabled:
-            from .telegram.routes import telegram_bp
-            app.register_blueprint(telegram_bp, url_prefix='/api/telegram')
-        app.register_blueprint(city_history_bp)
-        app.register_blueprint(news_chat_bp)
-        app.register_blueprint(summary_bp)
         app.register_blueprint(ai_analyzer_bp, url_prefix='/api/ai')
-        app.register_blueprint(analytics_bp, url_prefix='/api/analytics')
         app.register_blueprint(story_bp)
         app.register_blueprint(moderation_bp)
 

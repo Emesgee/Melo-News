@@ -1,5 +1,4 @@
 import os
-import time
 import logging
 from pathlib import Path
 
@@ -16,16 +15,10 @@ ENVIRONMENT = os.getenv('ENVIRONMENT', 'development').lower()
 if ENVIRONMENT == 'production':
     _DB_HOST_DEFAULT = 'db-prod'
     _DB_NAME_DEFAULT = 'melonews_prod'
-    _KAFKA_BOOTSTRAP_DEFAULT = 'kafka-prod:9092'
-    _KAFKA_GROUP_ID = 'eyesonpalestine-consumer-prod'
-    SCHEDULER_ENABLED = True
     LOG_LEVEL = 'INFO'
 else:
     _DB_HOST_DEFAULT = 'localhost'
     _DB_NAME_DEFAULT = 'melo_news'
-    _KAFKA_BOOTSTRAP_DEFAULT = 'localhost:9092'
-    _KAFKA_GROUP_ID = f'melo_consumer_dev_{int(time.time())}'
-    SCHEDULER_ENABLED = False
     LOG_LEVEL = 'DEBUG'
 
 # ── Database configuration (single source of truth) ────────────────────
@@ -39,15 +32,6 @@ DATABASE_URL = os.getenv(
     'DATABASE_URL',
     f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 )
-
-# PostgreSQL configuration for raw psycopg2 connections (Kafka pipeline)
-PG_CONF = {
-    'dbname': DB_NAME,
-    'user': DB_USER,
-    'password': DB_PASSWORD,
-    'host': DB_HOST,
-    'port': DB_PORT
-}
 
 # ── Flask application config ──────────────────────────────────────────
 class Config:
@@ -97,28 +81,7 @@ AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
 AZURE_OPENAI_KEY = os.getenv("AZURE_OPENAI_KEY")
 AZURE_OPENAI_DEPLOYMENT = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o")
 
-# ── Kafka ─────────────────────────────────────────────────────────────
-KAFKA_CONF = {
-    'bootstrap.servers': os.getenv('KAFKA_BOOTSTRAP_SERVERS', _KAFKA_BOOTSTRAP_DEFAULT),
-    'group.id': _KAFKA_GROUP_ID,
-    'auto.offset.reset': 'earliest'
-}
-
-# ── Source toggles ───────────────────────────────────────────────────
-# Set TELEGRAM_ENABLED=false to run without any Telegram dependency.
-# When disabled the story service skips the Telegram table entirely and
-# the /api/telegram blueprint is not registered.
-TELEGRAM_ENABLED = os.getenv('TELEGRAM_ENABLED', 'true').lower() not in ('false', '0', 'no')
-
-# ── Geocoding ─────────────────────────────────────────────────────────
-ISRAEL_PALESTINE_BOUNDS = [29.5, 33.5, 34.0, 35.9]
-CACHE_FILE = "geocode_cache.json"
-GEOJSON_PATH = os.path.join(os.path.dirname(__file__), "data", "palestinians_towns.geojson")
-
 # ── Startup log ───────────────────────────────────────────────────────
 logger.info(f"Environment: {ENVIRONMENT}")
-logger.info(f"Kafka servers: {KAFKA_CONF['bootstrap.servers']}")
-logger.info(f"Scheduler enabled: {SCHEDULER_ENABLED}")
 logger.info(f"Log level: {LOG_LEVEL}")
 logger.info(f"Database: {DB_USER}@{DB_HOST}:{DB_PORT}/{DB_NAME}")
-logger.info(f"Telegram source enabled: {TELEGRAM_ENABLED}")
