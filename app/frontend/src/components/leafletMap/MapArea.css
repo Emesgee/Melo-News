@@ -1399,3 +1399,42 @@ video::-webkit-media-controls-panel {
   font-size: 0.85em;
 }
 
+/* ── Event pins (status-colored) ─────────────────────── */
+.event-pin {
+  background: transparent;
+  border: none;
+}
+.event-pin-dot {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+}
+
+/* ── Map empty state ─────────────────────────────────── */
+.map-empty-state {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.72);
+  color: #fff;
+  padding: 1.5rem 1.75rem;
+  border-radius: 12px;
+  text-align: center;
+  max-width: 360px;
+}
+.map-empty-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+}
+.map-empty-sub {
+  font-size: 0.85rem;
+  opacity: 0.85;
+  line-height: 1.4;
+}
+
