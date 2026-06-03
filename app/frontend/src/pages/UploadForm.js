@@ -4,7 +4,7 @@ import './UploadForm.css';
 import { api } from '../services/api';
 import { useAuth } from '../utils/AuthContext';
 import { DRAFT_KEY, MAX_FILE_SIZE, ALLOWED_FILE_TYPES } from '../components/upload/uploadConstants';
-import { StepIndicator, GeneralInfoForm, LocationForm, FileUploadForm } from '../components/upload/UploadSubComponents';
+import { GeneralInfoForm, LocationForm, FileUploadForm } from '../components/upload/UploadSubComponents';
 import { chunkedUpload } from '../utils/chunkedUpload';
 import { enqueue, getAll, remove, updateStatus } from '../utils/offlineQueue';
 import { getNetworkProfile, getAdaptiveMaxFileSizeBytes, NETWORK_TIERS } from '../utils/connectivityPolicy';
@@ -59,8 +59,6 @@ const UploadForm = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [messageType, setMessageType] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState(null);
-  const [analysisSteps, setAnalysisSteps] = useState([]);
   const [transcription, setTranscription] = useState('');
   const [transcriptLanguage, setTranscriptLanguage] = useState('');
   const [exifData, setExifData] = useState(null);
@@ -196,7 +194,6 @@ const UploadForm = () => {
   }, []);
 
   // Compute current step
-  const currentStep = isAnalyzing ? 2 : selectedFile ? 3 : 1;
 
   // ── Draft auto-save: restore on mount ────────────────────────────
   useEffect(() => {
@@ -384,10 +381,9 @@ const UploadForm = () => {
   // ── Analyze uploaded media via AI ──────────────────────────────────
   const analyzeMedia = useCallback(async (file) => {
     setIsAnalyzing(true);
-    setAnalysisSteps([]);
     setTranscription('');
     setExifData(null);
-    setMessage('🔍 Analyzing media with AI... This may take a moment.');
+    setMessage('Reading your photo…');
     setMessageType('info');
 
     const formData = new FormData();
@@ -397,9 +393,6 @@ const UploadForm = () => {
       const response = await api.post('/ai/analyze', formData);
 
       const data = response.data;
-      setAnalysisResult(data);
-
-      if (data.analysis_steps) setAnalysisSteps(data.analysis_steps);
 
       if (data.title) setTitle(data.title);
       if (data.tags) setTags(data.tags);
@@ -421,11 +414,10 @@ const UploadForm = () => {
       }
 
       if (data.ai_used === false) {
-        setMessage('⚠️ AI service is not configured — please fill in the fields manually.');
+        setMessage('Could not read the photo automatically — please fill in the fields manually.');
         setMessageType('error');
       } else {
-        const confidencePct = data.confidence ? (data.confidence * 100).toFixed(0) : '?';
-        setMessage(`✅ AI Analysis complete! Confidence: ${confidencePct}% — Review and edit the fields before submitting.`);
+        setMessage('Fields pre-filled from your photo — review and edit before submitting.');
         setMessageType('success');
       }
       return data;
@@ -562,8 +554,6 @@ const UploadForm = () => {
   // ── Remove file handler ──────────────────────────────────────────
   const handleRemoveFile = useCallback(() => {
     setSelectedFile(null);
-    setAnalysisResult(null);
-    setAnalysisSteps([]);
     setExifData(null);
     setTranscription('');
     setTranscriptLanguage('');
@@ -637,7 +627,7 @@ const UploadForm = () => {
         setMessageType('info');
         setSelectedFile(null); setTitle(''); setTags(''); setSubject('');
         setCity(''); setCountry(''); setLat(null); setLon(null); setFileTypeId('');
-        setAnalysisResult(null); setAnalysisSteps([]); setExifData(null); setTranscription('');
+        setExifData(null); setTranscription('');
         setExifGpsWarning(false); setStrippedFile(null); rawFileRef.current = null;
         clearDraft();
         const fileInput = document.getElementById('fileInput');
@@ -694,8 +684,6 @@ const UploadForm = () => {
       setLat(null);
       setLon(null);
       setFileTypeId('');
-      setAnalysisResult(null);
-      setAnalysisSteps([]);
       setExifData(null);
       setTranscription('');
       setUploadProgress(0);
@@ -726,7 +714,7 @@ const UploadForm = () => {
   };
 
   // Whether to show the details form (progressive disclosure)
-  const showDetails = !!selectedFile;
+  const showDetails = true;
 
   return (
     <div className="upload-page" dir={rtl ? 'rtl' : 'ltr'} lang={rtl ? 'ar' : undefined}>
@@ -740,26 +728,6 @@ const UploadForm = () => {
 
       {/* Main Content */}
       <div className="upload-content">
-        {/* Step Indicator */}
-        <StepIndicator currentStep={currentStep} />
-
-        {/* Auto-detected bandwidth mode */}
-        <div className={`bandwidth-indicator ${bandwidthProfile.tier === NETWORK_TIERS.CRITICAL ? 'critical' : lowBandwidth ? 'low' : 'normal'}`}>
-          <div className="bandwidth-indicator-head">
-            <span className="bandwidth-dot" />
-            <strong>
-              {rtl
-                ? (lowBandwidth ? 'وضع الاتصال المقيد مفعّل تلقائياً' : 'وضع الاتصال العادي مفعّل تلقائياً')
-                : `Mode: ${bandwidthProfile.tier.toUpperCase()} (auto)`}
-            </strong>
-          </div>
-          <small>
-            {rtl
-              ? `حرج: ${bandwidthProfile.thresholds.criticalBandwidthThresholdMbps} Mbps · مقيد: ${bandwidthProfile.thresholds.lowBandwidthThresholdMbps} Mbps · النوع: ${bandwidthProfile.effectiveType} · السبب: ${bandwidthProfile.reason}`
-              : `Critical < ${bandwidthProfile.thresholds.criticalBandwidthThresholdMbps} Mbps · Constrained < ${bandwidthProfile.thresholds.lowBandwidthThresholdMbps} Mbps · Type: ${bandwidthProfile.effectiveType} · Reason: ${bandwidthProfile.reason}`}
-            {bandwidthProfile.downlink !== null ? ` · Downlink: ${bandwidthProfile.downlink.toFixed(1)} Mbps` : ''}
-          </small>
-        </div>
 
         {autoStripGps && (
           <div className="message info" style={{ marginBottom: '0.6rem' }}>
@@ -788,48 +756,11 @@ const UploadForm = () => {
           </div>
         )}
 
-        {/* AI Analysis Progress */}
+        {/* Quietly reading the photo to pre-fill fields (no AI fanfare) */}
         {isAnalyzing && (
           <div className="ai-analysis-banner">
             <div className="spinner"></div>
-            <div className="text">
-              <div>🤖 AI is analyzing your media...</div>
-              {analysisSteps.length > 0 && (
-                <div style={{fontSize: '0.85em', marginTop: 4, opacity: 0.9}}>
-                  {analysisSteps.map((step, i) => (
-                    <div key={i}>{i < analysisSteps.length - 1 ? '✓' : '⏳'} {step}</div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {analysisResult && !isAnalyzing && analysisResult.ai_used !== false && (
-          <div className="ai-analysis-banner" style={{background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)'}}>
-            <div className="icon">✨</div>
-            <div className="text">
-              <div>AI Analysis Complete! Confidence: {analysisResult.confidence ? (analysisResult.confidence * 100).toFixed(0) : '?'}%</div>
-              {analysisResult.event_type && (
-                <div style={{fontSize: '0.85em', marginTop: 2, opacity: 0.9}}>
-                  Event type: {analysisResult.event_type}
-                  {analysisResult.content_warnings && ` · ⚠️ ${analysisResult.content_warnings}`}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {analysisResult && !isAnalyzing && analysisResult.ai_used === false && (
-          <div className="ai-analysis-banner" style={{background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'}}>
-            <div className="icon">⚠️</div>
-            <div className="text">
-              <div>AI service not configured</div>
-              <div style={{fontSize: '0.85em', marginTop: 2, opacity: 0.9}}>
-                Set <code>OPENAI_API_KEY</code> in your environment to enable AI-powered analysis.
-                Fill in the fields manually for now.
-              </div>
-            </div>
+            <div className="text">Reading your photo…</div>
           </div>
         )}
 
@@ -983,29 +914,6 @@ const UploadForm = () => {
                     </div>
                   )}
 
-                  {/* Confidence score preview */}
-                  {analysisResult && analysisResult.confidence != null && !isAnalyzing && (
-                    <div className="form-section" style={{padding:'10px 14px', marginTop:8}}>
-                      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6}}>
-                        <span style={{fontSize:'0.82rem', fontWeight:600}}>🎯 {rtl ? 'درجة المصداقية' : 'Credibility score'}</span>
-                        <span style={{fontWeight:700, fontSize:'1rem', color: analysisResult.confidence > 0.6 ? '#10b981' : analysisResult.confidence > 0.35 ? '#f59e0b' : '#ef4444'}}>
-                          {Math.round(analysisResult.confidence * 100)}%
-                        </span>
-                      </div>
-                      <div style={{height:6, background:'rgba(255,255,255,0.1)', borderRadius:3, overflow:'hidden'}}>
-                        <div style={{
-                          height:'100%', borderRadius:3, transition:'width 0.4s',
-                          width:`${Math.round(analysisResult.confidence * 100)}%`,
-                          background: analysisResult.confidence > 0.6 ? '#10b981' : analysisResult.confidence > 0.35 ? '#f59e0b' : '#ef4444'
-                        }}/>
-                      </div>
-                      <div style={{fontSize:'0.75rem', opacity:0.55, marginTop:4}}>
-                        {rtl
-                          ? 'تُحسَّن الدرجة بإضافة موقع وتفاصيل أكثر'
-                          : 'Score improves with location, media, and more detail'}
-                      </div>
-                    </div>
-                  )}
 
                   {/* Upload Progress Bar */}
                   {isLoading && (

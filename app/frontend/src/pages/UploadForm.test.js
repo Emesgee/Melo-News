@@ -254,10 +254,10 @@ describe('UploadForm - AI Analysis', () => {
     expect(screen.getByText(/📷 Photo Metadata/i)).toBeInTheDocument();
     expect(screen.getByText(/Samsung Galaxy S24/i)).toBeInTheDocument();
 
-    // Confidence banner
-    const confidenceMatches = screen.getAllByText(/Confidence: 82%/);
-    expect(confidenceMatches.length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(/military_action/i)).toBeInTheDocument();
+    // Silent auto-fill: fields are populated, but no AI confidence / event-type
+    // fanfare is shown (Step 5 removed the AI display).
+    expect(screen.queryByText(/Confidence: 82%/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/military_action/i)).not.toBeInTheDocument();
   });
 
   it('shows transcription field for video analysis', async () => {
