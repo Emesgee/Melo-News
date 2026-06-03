@@ -1,20 +1,20 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import { dedupeStories } from './storyUtils';
+import React, { createContext, useCallback, useContext, useState } from 'react';
 
 const SearchContext = createContext();
 
+// Shared reader filter. Narrows the Events shown on BOTH the Map and the List —
+// one filter, two views. Backed by /api/events?q=&status=.
 export const SearchProvider = ({ children }) => {
-  const [searchResults, setSearchResultsRaw] = useState([]);
+  const [filter, setFilterState] = useState({ q: '', status: '' });
 
-  /** Deduplicate before storing — single source of truth. */
-  const setSearchResults = useCallback((results = []) => {
-    setSearchResultsRaw(dedupeStories(Array.isArray(results) ? results : []));
+  const setFilter = useCallback((patch) => {
+    setFilterState((f) => ({ ...f, ...patch }));
   }, []);
 
-  const clearResults = useCallback(() => setSearchResultsRaw([]), []);
+  const clearFilter = useCallback(() => setFilterState({ q: '', status: '' }), []);
 
   return (
-    <SearchContext.Provider value={{ searchResults, setSearchResults, clearResults }}>
+    <SearchContext.Provider value={{ filter, setFilter, clearFilter }}>
       {children}
     </SearchContext.Provider>
   );

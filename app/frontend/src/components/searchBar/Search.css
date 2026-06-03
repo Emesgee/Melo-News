@@ -1207,3 +1207,21 @@
   color: #e5e7eb;
 }
 
+/* Status filter (Step 4) */
+.search-topbar-form { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+.search-status {
+  height: 34px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+  padding: 0 8px;
+  background: #fff;
+  color: #111;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.app-shell.dark-mode .search-status {
+  background: #1f2937;
+  border-color: #374151;
+  color: #f3f4f6;
+}
+

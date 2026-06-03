@@ -85,8 +85,8 @@ export const getNewsFeed = async (limit = 100) => {
 
 // Events feed — the reader-facing corroboration unit (Stage E). Leads with
 // CORROBORATED, keeps DISPUTED prominent; only events with verified members.
-export const getEvents = async ({ status, limit = 100 } = {}) => {
-  return api.get('events', { params: { status, limit } });
+export const getEvents = async ({ status, q, limit = 100 } = {}) => {
+  return api.get('events', { params: { status, q, limit } });
 };
 
 export const getEventDetail = async (eventId) => {

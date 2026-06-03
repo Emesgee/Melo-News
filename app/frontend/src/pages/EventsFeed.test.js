@@ -3,8 +3,11 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import '@testing-library/jest-dom';
 import EventsFeed from './EventsFeed';
+import { SearchProvider } from '../utils/SearchContext';
 
-const renderFeed = () => render(<MemoryRouter><EventsFeed /></MemoryRouter>);
+const renderFeed = () => render(
+  <SearchProvider><MemoryRouter><EventsFeed /></MemoryRouter></SearchProvider>
+);
 
 jest.mock('../services/api', () => ({
   getEvents: jest.fn(),

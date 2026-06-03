@@ -10,7 +10,7 @@ import LoadingScreen from './components/LoadingScreen';
 import { DarkModeProvider, useDarkMode } from './utils/DarkModeContext';
 import { AuthProvider, useAuth } from './utils/AuthContext';
 import { ToastProvider, useToast } from './utils/ToastContext';
-import { SearchProvider, useSearch } from './utils/SearchContext';
+import { SearchProvider } from './utils/SearchContext';
 import { setupInterceptors } from './services/apiInterceptors';
 import './App.css';
 
@@ -51,7 +51,6 @@ const AppContent = () => {
   const accountRef = useRef(null);
   const { isDark, toggle: toggleDark } = useDarkMode();
   const { isLoggedIn, isModerator, authLoading, logout } = useAuth();
-  const { searchResults } = useSearch();
   const navigate = useNavigate();
   const location = useLocation();
   const mainRef = useRef(null);
@@ -136,7 +135,7 @@ const AppContent = () => {
           </svg>
         </button>
         <div className="search-topbar-container" style={{ display: searchOpen ? 'flex' : 'none' }}>
-          <Search showAsTopbar={true} />
+          <Search />
         </div>
 
         {/* Right-side actions */}
@@ -221,7 +220,6 @@ const AppContent = () => {
           <Route path="/" element={<Home />} />
           <Route path="/register" element={<Suspense fallback={null}><Register /></Suspense>} />
           <Route path="/login" element={<Suspense fallback={null}><Login /></Suspense>} />
-          <Route path="/search" element={<Search />} />
           <Route path="/events" element={<Suspense fallback={null}><EventsFeed /></Suspense>} />
           <Route path="/events/:id" element={<Suspense fallback={null}><EventDetail /></Suspense>} />
 

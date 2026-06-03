@@ -8,6 +8,7 @@ import MarkerClusterGroup from 'react-leaflet-markercluster';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import { getEvents } from '../../services/api';
+import { useSearch } from '../../utils/SearchContext';
 import { MAP_STYLES, defaultPosition } from './mapConstants';
 import { ZoomCircles, FitBounds, MapStylePanel } from './MapControls';
 
@@ -34,6 +35,7 @@ const eventIcon = (status) => {
 
 const MapArea = () => {
   const navigate = useNavigate();
+  const { filter } = useSearch();
   const [currentStyle, setCurrentStyle] = useState(MAP_STYLES[0]);
   const [showStylePicker, setShowStylePicker] = useState(false);
   const [events, setEvents] = useState([]);
@@ -53,9 +55,10 @@ const MapArea = () => {
 
   useEffect(() => {
     let alive = true;
+    setLoading(true);
     (async () => {
       try {
-        const res = await getEvents({ limit: 200 });
+        const res = await getEvents({ q: filter.q, status: filter.status, limit: 200 });
         if (alive) setEvents(res.data?.events || []);
       } catch (e) {
         if (alive) setEvents([]);
@@ -64,7 +67,7 @@ const MapArea = () => {
       }
     })();
     return () => { alive = false; };
-  }, []);
+  }, [filter.q, filter.status]);
 
   const pins = useMemo(
     () => (events || []).filter((ev) => ev.location && ev.location.lat != null && ev.location.lon != null),

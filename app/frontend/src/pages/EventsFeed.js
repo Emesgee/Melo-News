@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getEvents } from '../services/api';
+import { useSearch } from '../utils/SearchContext';
 import { EventStatusBadge, ConfidenceBadge, CorroborationCount } from '../components/trust/TrustUI';
 
 // Public reader surface (List view): reports grouped into Events, the feed
@@ -19,16 +20,18 @@ const openLink = { color: '#2563eb', fontSize: 13, fontWeight: 600 };
 
 const EventsFeed = () => {
   const navigate = useNavigate();
+  const { filter } = useSearch();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     let alive = true;
+    setLoading(true);
     (async () => {
       try {
-        const res = await getEvents({ limit: 100 });
-        if (alive) setEvents(res.data?.events || []);
+        const res = await getEvents({ q: filter.q, status: filter.status, limit: 100 });
+        if (alive) { setEvents(res.data?.events || []); setError(null); }
       } catch (e) {
         if (alive) setError('Could not load events.');
       } finally {
@@ -36,7 +39,7 @@ const EventsFeed = () => {
       }
     })();
     return () => { alive = false; };
-  }, []);
+  }, [filter.q, filter.status]);
 
   const open = (id) => navigate(`/events/${id}`);
 

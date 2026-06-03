@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../utils/AuthContext';
 import { useToast } from '../utils/ToastContext';
-import { useSearch } from '../utils/SearchContext';
 import {
   getModerationQueue,
   verifyUpload,
@@ -148,7 +147,6 @@ const Moderation = () => {
   const navigate = useNavigate();
   const { isLoggedIn, isModerator, authLoading } = useAuth();
   const { addToast } = useToast();
-  const { clearResults } = useSearch() || {};
 
   const [status, setStatus] = useState('PENDING');
   const [items, setItems] = useState([]);
@@ -191,7 +189,6 @@ const Moderation = () => {
       await verifyUpload(story.source_record_id);
       addToast('Story approved and now visible on the public feed.', 'success');
       setItems((prev) => prev.filter((s) => s.source_record_id !== story.source_record_id));
-      clearResults?.();
     } catch (err) {
       addToast(err.response?.data?.error || 'Approve failed.', 'error');
     } finally {

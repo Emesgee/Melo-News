@@ -8,7 +8,6 @@ import { chunkedUpload } from '../utils/chunkedUpload';
 import { enqueue } from '../utils/offlineQueue';
 import { MAX_FILE_SIZE, ALLOWED_FILE_TYPES } from '../components/upload/uploadConstants';
 import { getNetworkProfile, getAdaptiveMaxFileSizeBytes, NETWORK_TIERS } from '../utils/connectivityPolicy';
-import { useSearch } from '../utils/SearchContext';
 import './MyUploads.css';
 
 const CHUNK_THRESHOLD = 5 * 1024 * 1024;
@@ -707,12 +706,9 @@ const MyUploads = () => {
     navigate(location.pathname, { replace: true, state: null });
   }, [location.pathname, location.state, navigate]);
 
-  const { clearResults } = useSearch();
-
   const handleSave = async (id, data) => {
     const res = await editUpload(id, data);
     setUploads((prev) => prev.map((u) => (u.id === id ? res.data : u)));
-    clearResults(); // invalidate map cache so it reloads updated positions
     addToast('Story updated.', 'success');
   };
 
