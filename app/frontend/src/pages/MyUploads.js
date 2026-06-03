@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import Sidebar from '../components/navigationBars/Sidebar';
 import { StepIndicator, GeneralInfoForm, LocationForm, FileUploadForm } from '../components/upload/UploadSubComponents';
 import { getMyUploads, editUpload, deleteUpload, fetchFileTypes, api } from '../services/api';
 import { SEVERITY_CONFIG } from '../constants/severity';
@@ -683,7 +682,6 @@ const MyUploads = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [createSeed, setCreateSeed] = useState(null);
-  const [isSidebarVisible, setIsSidebarVisible] = useState(false);
 
   const fetchUploads = useCallback(async () => {
     try {
@@ -732,15 +730,6 @@ const MyUploads = () => {
 
   return (
     <div className="my-uploads-page">
-      <button
-        className={`burger-menu ${isSidebarVisible ? 'active' : ''}`}
-        onClick={() => setIsSidebarVisible((p) => !p)}
-        aria-label="Toggle sidebar"
-      >
-        <div className="burger-line" /><div className="burger-line" /><div className="burger-line" />
-      </button>
-      <Sidebar isSidebarVisible={isSidebarVisible} toggleSidebar={() => setIsSidebarVisible((p) => !p)} />
-
       <section className="upload-header">
         <div className="upload-header-content">
           <h1>📰 My Stories</h1>

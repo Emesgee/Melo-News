@@ -207,6 +207,110 @@
   stroke: currentColor;
 }
 
+/* ── Brand ───────────────────────────────────────────── */
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: inherit;
+  flex-shrink: 0;
+}
+.brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: #c81515;
+  color: #fff;
+  font-weight: 800;
+}
+.brand-name {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #111;
+  white-space: nowrap;
+}
+
+/* ── Primary view links (Map / Events) ───────────────── */
+.topbar-views {
+  display: flex;
+  gap: 0.25rem;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 3px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+.view-link {
+  text-decoration: none;
+  color: #374151;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 5px 14px;
+  border-radius: 999px;
+  transition: all 0.15s;
+}
+.view-link:hover { color: #c81515; }
+.view-link.active {
+  background: #fff;
+  color: #111;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.topbar-spacer { flex: 1; }
+.search-topbar-container { flex: 1; min-width: 0; }
+
+/* ── Submit CTA (icon + label) ───────────────────────── */
+.topbar-action-btn.submit-btn {
+  width: auto;
+  padding: 0 14px;
+  gap: 6px;
+  background: linear-gradient(135deg, #c81515 0%, #a01111 100%);
+  color: #fff;
+}
+.submit-label { font-weight: 600; font-size: 0.85rem; }
+
+/* ── Account menu ────────────────────────────────────── */
+.account-menu { position: relative; }
+.account-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 170px;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  z-index: 1001;
+}
+.account-dropdown button {
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 9px 12px;
+  border-radius: 7px;
+  font-size: 0.9rem;
+  color: #111;
+}
+.account-dropdown button:hover { background: rgba(0, 0, 0, 0.06); }
+.account-dropdown .account-logout { color: #c81515; }
+.topbar-action-btn.auth-btn.login { width: auto; padding: 0 14px; font-weight: 600; font-size: 0.85rem; }
+
+/* Dark mode for the new chrome */
+.app-shell.dark-mode .brand-name { color: #f3f4f6; }
+.app-shell.dark-mode .topbar-views { background: rgba(255, 255, 255, 0.08); }
+.app-shell.dark-mode .view-link { color: #d1d5db; }
+.app-shell.dark-mode .view-link.active { background: #374151; color: #fff; }
+.app-shell.dark-mode .account-dropdown { background: #1f2937; border-color: #374151; }
+.app-shell.dark-mode .account-dropdown button { color: #f3f4f6; }
+.app-shell.dark-mode .account-dropdown button:hover { background: rgba(255, 255, 255, 0.08); }
+
 /* Upload button */
 .topbar-action-btn.upload-btn {
   background: linear-gradient(135deg, #c81515 0%, #a01111 100%);

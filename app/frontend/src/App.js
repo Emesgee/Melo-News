@@ -46,15 +46,15 @@ function App({ isLoggedIn: isLoggedInProp }) {
 const AppContent = () => {
   const { addToast } = useToast();
   const interceptorsSetup = useRef(false);
-  const [sidebarOpen, setSidebarOpen] = React.useState(false);
   const [searchOpen, setSearchOpen] = React.useState(false);
+  const [accountOpen, setAccountOpen] = React.useState(false);
+  const accountRef = useRef(null);
   const { isDark, toggle: toggleDark } = useDarkMode();
   const { isLoggedIn, isModerator, authLoading, logout } = useAuth();
   const { searchResults } = useSearch();
   const navigate = useNavigate();
   const location = useLocation();
   const mainRef = useRef(null);
-  const isIntroRoute = location.pathname === '/intro';
 
   // Setup API interceptors once (toast + retry + auth expiry)
   useEffect(() => {
@@ -70,6 +70,18 @@ const AppContent = () => {
   useEffect(() => {
     mainRef.current?.focus({ preventScroll: true });
   }, [location.pathname]);
+
+  // Close the account menu on outside click or route change
+  useEffect(() => {
+    if (!accountOpen) return undefined;
+    const onClick = (e) => {
+      if (accountRef.current && !accountRef.current.contains(e.target)) setAccountOpen(false);
+    };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [accountOpen]);
+
+  useEffect(() => { setAccountOpen(false); }, [location.pathname]);
 
   const handleLogout = async () => {
     await logout();
@@ -95,133 +107,112 @@ const AppContent = () => {
         Skip to main content
       </a>
 
-      {/* Fixed Top Bar with Search and Menu */}
+      {/* Fixed top bar */}
       <header className="topbar-fixed">
-        <button 
-          className="menu-button" 
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          aria-label="Toggle menu"
-          title="Menu"
+        {/* Brand → the one reader screen */}
+        <Link to="/" className="topbar-brand" aria-label="Melo News — home">
+          <span className="brand-mark">M</span>
+          <span className="brand-name">Melo News</span>
+        </Link>
+
+        {/* Primary views (becomes a single Map/List toggle once the views merge) */}
+        <nav className="topbar-views" aria-label="Primary views">
+          <Link to="/" className={`view-link${location.pathname === '/' ? ' active' : ''}`}>Map</Link>
+          <Link to="/events" className={`view-link${location.pathname === '/events' ? ' active' : ''}`}>Events</Link>
+        </nav>
+
+        <span className="topbar-spacer" />
+
+        {/* Search */}
+        <button
+          className="search-icon-btn"
+          onClick={() => setSearchOpen((o) => !o)}
+          aria-label="Toggle search"
+          title="Search"
         >
-          <span></span>
-          <span></span>
-          <span></span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.35-4.35" />
+          </svg>
         </button>
-
-        {!isIntroRoute && (
-          <button 
-            className="search-icon-btn"
-            onClick={() => setSearchOpen(!searchOpen)}
-            aria-label="Toggle search"
-            title="Search"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="8" />
-              <path d="m21 21-4.35-4.35" />
-            </svg>
-          </button>
-        )}
-
-        {/* Search bar - positioned between menu and action buttons */}
-        <div className="search-topbar-container" style={{ display: searchOpen && !isIntroRoute ? 'flex' : 'none', flex: 1, minWidth: 0 }}>
+        <div className="search-topbar-container" style={{ display: searchOpen ? 'flex' : 'none' }}>
           <Search showAsTopbar={true} />
         </div>
-        
-        {/* Right side action buttons */}
+
+        {/* Right-side actions */}
         <div className="topbar-actions">
-          {!isIntroRoute && (
-            <button
-              className="topbar-action-btn upload-btn"
-              onClick={handleUploadClick}
-              title="Upload news"
-              aria-label="Upload"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="17 8 12 3 7 8" />
-                <line x1="12" y1="3" x2="12" y2="15" />
-              </svg>
-            </button>
-          )}
+          {/* Submit a report (secondary CTA) */}
+          <button
+            className="topbar-action-btn submit-btn"
+            onClick={handleUploadClick}
+            title="Submit a report"
+            aria-label="Submit a report"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+            <span className="submit-label">Submit</span>
+          </button>
 
-          {isLoggedIn && !isIntroRoute && (
-            <button
-              className="topbar-action-btn"
-              onClick={() => navigate('/my-uploads')}
-              title="My Stories"
-              aria-label="My Stories"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="16" y1="13" x2="8" y2="13" />
-                <line x1="16" y1="17" x2="8" y2="17" />
-                <polyline points="10 9 9 9 8 9" />
-              </svg>
-            </button>
-          )}
-
-          {isLoggedIn && isModerator && !isIntroRoute && (
-            <button
-              className="topbar-action-btn"
-              onClick={() => navigate('/moderation')}
-              title="Moderation queue"
-              aria-label="Moderation queue"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M9 11l3 3L22 4" />
-                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-              </svg>
-            </button>
-          )}
-
-          {/* Dark mode toggle */}
+          {/* Dark mode toggle (kept persistent) */}
           <button
             className="topbar-action-btn dark-btn"
             onClick={toggleDark}
-            title={isDark ? 'Light Mode' : 'Dark Mode'}
-            aria-label="Toggle Dark Mode"
+            title={isDark ? 'Light mode' : 'Dark mode'}
+            aria-label="Toggle dark mode"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               {isDark
                 ? <circle cx="12" cy="12" r="5" />
-                : <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-              }
+                : <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />}
             </svg>
           </button>
 
-          <button
-            className={`topbar-action-btn auth-btn ${isLoggedIn ? 'logout' : 'login'}`}
-            onClick={isLoggedIn ? handleLogout : () => navigate('/login')}
-            title={isLoggedIn ? 'Logout' : 'Login'}
-            aria-label={isLoggedIn ? 'Logout' : 'Login'}
-          >
-            {isLoggedIn ? (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                <polyline points="16 17 21 12 16 7" />
-                <line x1="21" y1="12" x2="9" y2="12" />
-              </svg>
-            ) : (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M15 3H9a2 2 0 0 0-2 2v4" />
-                <path d="M9 21h6a2 2 0 0 0 2-2v-4" />
-                <polyline points="8 12 3 12 3 7" />
-                <polyline points="16 12 21 12 21 17" />
-              </svg>
-            )}
-          </button>
+          {/* Account */}
+          {isLoggedIn ? (
+            <div className="account-menu" ref={accountRef}>
+              <button
+                className="topbar-action-btn account-btn"
+                onClick={() => setAccountOpen((o) => !o)}
+                aria-haspopup="true"
+                aria-expanded={accountOpen}
+                title="Account"
+                aria-label="Account menu"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              </button>
+              {accountOpen && (
+                <div className="account-dropdown" role="menu">
+                  <button role="menuitem" onClick={() => { setAccountOpen(false); navigate('/my-uploads'); }}>
+                    Your reports
+                  </button>
+                  {isModerator && (
+                    <button role="menuitem" onClick={() => { setAccountOpen(false); navigate('/moderation'); }}>
+                      Moderation
+                    </button>
+                  )}
+                  <button role="menuitem" className="account-logout" onClick={() => { setAccountOpen(false); handleLogout(); }}>
+                    Log out
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <button
+              className="topbar-action-btn auth-btn login"
+              onClick={() => navigate('/login')}
+              title="Log in"
+              aria-label="Log in"
+            >
+              Log in
+            </button>
+          )}
         </div>
-
-        <nav className={`topbar-nav ${sidebarOpen ? 'open' : ''}`}>
-          <Link to="/" className="nav-link">Home</Link>
-          <Link to="/events" className="nav-link">Events</Link>
-          <Link to="/my-uploads" className="nav-link">Upload</Link>
-          <Link to="/my-uploads" className="nav-link">My Stories</Link>
-          <Link to={isLoggedIn ? '#' : '/login'} className="nav-link" onClick={isLoggedIn ? handleLogout : undefined}>
-            {isLoggedIn ? 'Logout' : 'Login'}
-          </Link>
-        </nav>
       </header>
 
       {/* Main content */}

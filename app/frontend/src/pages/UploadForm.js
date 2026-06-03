@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import Sidebar from '../components/navigationBars/Sidebar';
 import './UploadForm.css';
 import { api } from '../services/api';
 import { useAuth } from '../utils/AuthContext';
@@ -45,7 +44,6 @@ const UploadForm = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isLoggedIn, authLoading } = useAuth();
-  const [isSidebarVisible, setIsSidebarVisible] = useState(false);
   const [rtl] = useState(isArabic); // Arabic RTL detection
   const [selectedFile, setSelectedFile] = useState(null);
   const [title, setTitle] = useState('');
@@ -325,7 +323,6 @@ const UploadForm = () => {
   };
 
 
-  const toggleSidebar = () => setIsSidebarVisible((prev) => !prev);
 
   useEffect(() => {
     checkApiReachability({ silent: true });
@@ -733,16 +730,6 @@ const UploadForm = () => {
 
   return (
     <div className="upload-page" dir={rtl ? 'rtl' : 'ltr'} lang={rtl ? 'ar' : undefined}>
-      {/* Burger Menu */}
-      <button className={`burger-menu ${isSidebarVisible ? 'active' : ''}`} onClick={toggleSidebar} aria-label="Toggle sidebar">
-        <div className="burger-line"></div>
-        <div className="burger-line"></div>
-        <div className="burger-line"></div>
-      </button>
-
-      {/* Navigation */}
-      <Sidebar isSidebarVisible={isSidebarVisible} toggleSidebar={toggleSidebar} />
-
       {/* Quick Upload Header */}
       <section className="upload-header">
         <div className="upload-header-content">
