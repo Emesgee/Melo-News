@@ -4,6 +4,7 @@ Welcome to Melo-News documentation! This index will help you find what you need.
 
 ## 🚀 Getting Started
 
+- **[User Guide](USER_GUIDE.md)** - How to use the Melo-News app (for everyday users, no setup required)
 - **[Installation Guide](../INSTALLATION.md)** - Complete setup instructions for Docker and development
 - **[README](../README.md)** - Project overview and quick start
 - **[Contributing Guide](../CONTRIBUTING.md)** - How to contribute to the project
