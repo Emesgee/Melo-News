@@ -242,6 +242,10 @@ def ingest_story(user_id, payload):
         record.upload_date = upload_date
 
     db.session.add(record)
+    db.session.flush()
+    # Cluster into an Event (geo+time) or start a singleton — proposes only.
+    from app.events.service import assign_event
+    assign_event(record)
     db.session.commit()
     db.session.refresh(record)
     return serialize_upload(record)

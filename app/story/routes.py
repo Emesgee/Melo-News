@@ -388,6 +388,11 @@ def stories_anonymous_ingest():
     )
     try:
         db.session.add(record)
+        db.session.flush()
+        # Anonymous reports still cluster into Events (they corroborate as
+        # supporting context, but count 0 toward the distinct-identity total).
+        from app.events.service import assign_event
+        assign_event(record)
         db.session.commit()
     except Exception as exc:
         db.session.rollback()

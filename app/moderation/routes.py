@@ -23,7 +23,7 @@ from functools import wraps
 from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
-from app.models import db, FileUpload, User
+from app.models import db, FileUpload, User, Event
 from app.story.serializers import serialize_upload
 
 moderation_bp = Blueprint('moderation', __name__, url_prefix='/api/moderation')
@@ -102,6 +102,9 @@ def verify(upload_id):
     note = (data.get('note') or '').strip()
     upload.verification_note = note or None
 
+    # A verification changes the Event's corroboration — recompute its status.
+    _recompute_owning_event(upload)
+
     try:
         db.session.commit()
     except Exception as exc:
@@ -129,6 +132,9 @@ def reject(upload_id):
     upload.verified_by = moderator_id
     upload.verification_note = note
 
+    # A rejected member no longer counts toward corroboration — recompute.
+    _recompute_owning_event(upload)
+
     try:
         db.session.commit()
     except Exception as exc:
@@ -137,3 +143,15 @@ def reject(upload_id):
         return jsonify({'error': 'Database error'}), 500
 
     return jsonify(serialize_upload(upload)), 200
+
+
+def _recompute_owning_event(upload):
+    """Recompute the Event a report belongs to after its verification changes.
+    No-op for reports that aren't clustered (shouldn't happen post-Stage-D, but
+    older rows may predate event assignment)."""
+    if not upload.event_id:
+        return
+    from app.events.service import recompute_event
+    event = db.session.get(Event, upload.event_id)
+    if event:
+        recompute_event(event)

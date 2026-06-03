@@ -81,6 +81,17 @@ AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
 AZURE_OPENAI_KEY = os.getenv("AZURE_OPENAI_KEY")
 AZURE_OPENAI_DEPLOYMENT = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o")
 
+# ── Event clustering / corroboration (Stage D) ────────────────────────
+# Geo+time clustering of citizen reports into Events. Deliberately tunable
+# (env-overridable) so the thresholds can be calibrated against real
+# corroboration density during the pilot. Semantic clustering is deferred.
+EVENT_CLUSTER_RADIUS_KM = float(os.getenv('EVENT_CLUSTER_RADIUS_KM', '1.0'))
+EVENT_CLUSTER_WINDOW_HOURS = float(os.getenv('EVENT_CLUSTER_WINDOW_HOURS', '24'))
+# Distinct non-anonymous identities among VERIFIED members required before an
+# Event can reach CORROBORATED. Still gated: auto-promotion also needs a
+# rung-2+ member present, so a flood of fresh rung-1 keys cannot self-promote.
+EVENT_CORROBORATION_THRESHOLD = int(os.getenv('EVENT_CORROBORATION_THRESHOLD', '2'))
+
 # ── Startup log ───────────────────────────────────────────────────────
 logger.info(f"Environment: {ENVIRONMENT}")
 logger.info(f"Log level: {LOG_LEVEL}")

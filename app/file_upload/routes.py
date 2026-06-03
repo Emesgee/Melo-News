@@ -193,6 +193,9 @@ def upload_file():
             is_sensitive=is_sensitive,
         )
         db.session.add(new_upload)
+        db.session.flush()
+        from app.events.service import assign_event
+        assign_event(new_upload)
         db.session.commit()
 
         start_analysis_thread(new_upload.id, analysis_source_path)
@@ -461,6 +464,9 @@ def complete_chunk_upload():
             lon=lon,
         )
         db.session.add(new_upload)
+        db.session.flush()
+        from app.events.service import assign_event
+        assign_event(new_upload)
         db.session.commit()
         start_analysis_thread(new_upload.id, analysis_source_path)
         return jsonify({
