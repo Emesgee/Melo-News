@@ -47,7 +47,7 @@ def main():
         # are visible in the queue.
         _register(client, 'modr', 'modr@test.local', 'Passw0rd!')
         moderator = User.query.filter_by(email='modr@test.local').first()
-        moderator.is_moderator = True
+        moderator.role = 'moderator'
         db.session.commit()
 
         # 1. Text-only anonymous submission

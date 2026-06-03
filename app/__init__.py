@@ -240,11 +240,25 @@ def ensure_schema_compatibility():
             # local_id so the authed-flow uniqueness is not muddied. Lets
             # the same offline draft be safely re-submitted across retries.
             'anon_submission_id': 'VARCHAR(64) UNIQUE',
+            # Stage B: Event membership + on-device signature. event_id is a
+            # plain INTEGER here (the ORM defines the FK to events.id); the
+            # physical FK constraint is omitted on the backfill ALTER, matching
+            # verified_by. report_signature is the unsigned/web lane when null.
+            'event_id': 'INTEGER',
+            'report_signature': 'VARCHAR(256)',
         }
+        # Stage B: extend User into the identity + reputation table. `role`
+        # replaces the legacy is_moderator boolean (migrated below).
         required_user_columns = {
-            'is_moderator': 'BOOLEAN DEFAULT FALSE NOT NULL'
-                if dialect == 'postgresql'
-                else 'BOOLEAN DEFAULT 0 NOT NULL',
+            'role': "VARCHAR(20) DEFAULT 'reporter' NOT NULL",
+            'public_key': 'VARCHAR(128) UNIQUE',
+            'display_handle': 'VARCHAR(50)',
+            'identity_type': "VARCHAR(20) DEFAULT 'registered' NOT NULL",
+            'trust_rung': 'INTEGER DEFAULT 1 NOT NULL',
+            'reports_count': 'INTEGER DEFAULT 0 NOT NULL',
+            'corroborated_count': 'INTEGER DEFAULT 0 NOT NULL',
+            'first_seen_at': 'TIMESTAMP' if dialect == 'postgresql' else 'DATETIME',
+            'last_active_at': 'TIMESTAMP' if dialect == 'postgresql' else 'DATETIME',
         }
 
         altered = False
@@ -259,6 +273,39 @@ def ensure_schema_compatibility():
                 db.session.execute(text(f"ALTER TABLE users ADD COLUMN {col_name} {col_ddl}"))
                 altered = True
                 logger.info("Added missing column users.%s", col_name)
+
+        # Migrate legacy is_moderator → role, only on the run that first adds
+        # `role` (so a later manual steward/moderator assignment isn't clobbered
+        # on every startup). 'role' not in user_cols == it was just added above.
+        if 'role' not in user_cols and 'is_moderator' in user_cols:
+            db.session.execute(text(
+                "UPDATE users SET role = 'moderator' WHERE is_moderator = "
+                + ("TRUE" if dialect == 'postgresql' else "1")
+            ))
+            altered = True
+            logger.info("Backfilled users.role from legacy is_moderator")
+
+        # Drop NOT NULL on email/password/username so a pseudonymous reporter
+        # can self-register with only a device keypair + handle (Stage C).
+        # PostgreSQL alters in place; SQLite needs a table rebuild (dev only).
+        if dialect == 'postgresql':
+            for _col in ('email', 'password', 'username'):
+                row = db.session.execute(text(
+                    "SELECT is_nullable FROM information_schema.columns "
+                    "WHERE table_name = 'users' AND column_name = :c"
+                ), {'c': _col}).fetchone()
+                if row and row[0] == 'NO':
+                    db.session.execute(text(f"ALTER TABLE users ALTER COLUMN {_col} DROP NOT NULL"))
+                    altered = True
+                    logger.info("Dropped NOT NULL on users.%s", _col)
+        elif dialect == 'sqlite':
+            urows = db.session.execute(text("PRAGMA table_info(users)")).fetchall()
+            if any(r[1] in ('email', 'password', 'username') and r[3] == 1 for r in urows):
+                logger.warning(
+                    "users.email/password/username are NOT NULL on this SQLite "
+                    "database. Pseudonymous registration requires a manual table "
+                    "rebuild — recreate the dev DB or run a custom migration."
+                )
 
         # Drop NOT NULL on file_uploads.user_id so anonymous submissions
         # are allowed. PostgreSQL supports this in place; SQLite needs a

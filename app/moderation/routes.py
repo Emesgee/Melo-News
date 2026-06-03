@@ -12,9 +12,9 @@ GET  /api/moderation/queue                    list pending submissions
 POST /api/moderation/<id>/verify              approve (becomes public)
 POST /api/moderation/<id>/reject              reject (with reason)
 
-All endpoints require a logged-in user whose ``is_moderator`` flag is
-True. Moderators are bootstrapped manually (set the flag directly in
-the database for the first reviewer) until a promotion UI exists.
+All endpoints require a logged-in user whose ``role`` is ``moderator`` or
+``steward``. The first moderator is bootstrapped manually (set the role
+directly in the database) until a promotion UI exists.
 """
 
 from datetime import datetime, timezone
@@ -31,14 +31,19 @@ moderation_bp = Blueprint('moderation', __name__, url_prefix='/api/moderation')
 _VALID_STATUSES = {'PENDING', 'VERIFIED', 'REJECTED'}
 
 
+# Roles allowed through the moderation gate. Stewards are governance-level
+# and therefore also moderator-capable.
+_MODERATOR_ROLES = {'moderator', 'steward'}
+
+
 def moderator_required(fn):
-    """Require an authenticated user whose is_moderator flag is True."""
+    """Require an authenticated user whose role can moderate."""
     @wraps(fn)
     @jwt_required()
     def wrapper(*args, **kwargs):
         user_id = get_jwt_identity()
         user = db.session.get(User, user_id)
-        if not user or not getattr(user, 'is_moderator', False):
+        if not user or getattr(user, 'role', 'reporter') not in _MODERATOR_ROLES:
             return jsonify({'error': 'Moderator role required'}), 403
         return fn(*args, **kwargs)
     return wrapper

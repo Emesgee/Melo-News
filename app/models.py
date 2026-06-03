@@ -15,14 +15,36 @@ class User(db.Model):
     __tablename__ = 'users'
 
     userid = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(50), nullable=False)
-    email = db.Column(db.String(100), unique=True, nullable=False)
-    password = db.Column(db.String(255), nullable=False)
+    # email/password/username are nullable: a pseudonymous reporter
+    # self-registers via an on-device keypair (Stage C) with only a
+    # display_handle and public_key — no email or password exists.
+    username = db.Column(db.String(50), nullable=True)
+    email = db.Column(db.String(100), unique=True, nullable=True)
+    password = db.Column(db.String(255), nullable=True)
     created_date = db.Column(db.DateTime, default=_utcnow)
 
-    # Editorial role — moderators see and decide on the verification queue
-    # for citizen-submitted stories before they go to the public feed.
-    is_moderator = db.Column(db.Boolean, default=False, nullable=False)
+    # Editorial role — replaces the old is_moderator boolean.
+    # reporter   = ordinary identity (default)
+    # moderator  = reviews the verification queue / event status
+    # steward    = governance role (M-of-N actions); also moderator-capable
+    role = db.Column(db.String(20), default='reporter', nullable=False)
+
+    # Pseudonymous identity anchor. The Ed25519 public key IS the pseudonym;
+    # it self-registers on the first signed report (Stage C). Null for
+    # web email/password accounts.
+    public_key = db.Column(db.String(128), unique=True, nullable=True)
+    display_handle = db.Column(db.String(50), nullable=True)
+    # 'registered' (web email/password) | 'pseudonymous' (device keypair)
+    identity_type = db.Column(db.String(20), default='registered', nullable=False)
+
+    # Reputation / trust ladder. trust_rung 1..3 (0 = anonymous, which has
+    # no User row). A fresh key earns nothing → starts at rung 1. Only
+    # corroborated history + time (or a steward vouch) climbs the ladder.
+    trust_rung = db.Column(db.Integer, default=1, nullable=False)
+    reports_count = db.Column(db.Integer, default=0, nullable=False)
+    corroborated_count = db.Column(db.Integer, default=0, nullable=False)
+    first_seen_at = db.Column(db.DateTime, default=_utcnow)
+    last_active_at = db.Column(db.DateTime, default=_utcnow)
 
     # Relationships
     uploads = db.relationship(
@@ -89,6 +111,61 @@ class FileUpload(db.Model):
     # anonymous draft after a network blip returns the existing row
     # instead of creating a duplicate in the moderation queue.
     anon_submission_id = db.Column(db.String(64), nullable=True, unique=True, index=True)
+
+    # Event membership — every report belongs to exactly one Event; a new
+    # report auto-creates a singleton Event of one (Stage D). Nullable here
+    # so existing rows can be backfilled lazily.
+    event_id = db.Column(db.Integer, db.ForeignKey('events.id'), nullable=True, index=True)
+
+    # Ed25519 signature over the report payload, produced on-device (Stage C).
+    # Null for web submissions and anonymous reports (the unsigned lane).
+    report_signature = db.Column(db.String(256), nullable=True)
+
+
+# Event (Incident) model — the primary reader-facing unit. Reports cluster
+# into Events (geo+time, Stage D); corroboration = an Event accumulating
+# members from DISTINCT identities. Status is a derived function of its
+# members + verifications + sticky moderator overrides (Stage D/E).
+class Event(db.Model):
+    __tablename__ = 'events'
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    # Reader-facing display + map placement (centroid of members,
+    # populated by aggregation in Stage D/E).
+    title = db.Column(db.String(200))
+    summary = db.Column(db.Text)
+    city = db.Column(db.String(100))
+    country = db.Column(db.String(100))
+    lat = db.Column(db.Float)
+    lon = db.Column(db.Float)
+
+    # Derived status: DEVELOPING | CORROBORATED | DISPUTED | CLOSED.
+    status = db.Column(db.String(20), default='DEVELOPING', nullable=False, index=True)
+    # Sticky moderator override that pins status against the derived value.
+    status_override = db.Column(db.String(20), nullable=True)
+
+    # corroboration_count = COUNT(DISTINCT user_id) over VERIFIED members
+    # with user_id NOT NULL (anonymous members count 0 toward the threshold).
+    corroboration_count = db.Column(db.Integer, default=0, nullable=False)
+    dispute_count = db.Column(db.Integer, default=0, nullable=False)
+
+    # Aggregated metrics (confidence is shown to readers as a band, not raw).
+    severity = db.Column(db.String(20), nullable=True)
+    confidence_score = db.Column(db.Float, nullable=True)
+
+    # Moderation / audit
+    confirmed_by = db.Column(db.Integer, db.ForeignKey('users.userid'), nullable=True)
+    created_at = db.Column(db.DateTime, default=_utcnow, index=True)
+    updated_at = db.Column(db.DateTime, default=_utcnow, onupdate=_utcnow)
+    closed_at = db.Column(db.DateTime, nullable=True)
+
+    members = db.relationship(
+        'FileUpload',
+        backref='event',
+        lazy=True,
+        foreign_keys='FileUpload.event_id',
+    )
 
 
 # FileType model

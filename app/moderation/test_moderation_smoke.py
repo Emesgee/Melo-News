@@ -61,7 +61,7 @@ def main():
         moderator = User.query.filter_by(email='modr@test.local').first()
         reporter = User.query.filter_by(email='reporter@test.local').first()
         assert moderator and reporter
-        moderator.is_moderator = True
+        moderator.role = 'moderator'
         db.session.commit()
 
         ft = FileType.query.filter_by(type_name='Image').first()

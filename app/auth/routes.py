@@ -153,9 +153,12 @@ def get_current_user():
     user = User.query.get(user_id)
     if not user:
         return jsonify({"error": "User not found"}), 404
+    role = getattr(user, 'role', 'reporter')
     return jsonify({
         "userid": user.userid,
         "username": user.username,
         "email": user.email,
-        "is_moderator": bool(getattr(user, 'is_moderator', False)),
+        "role": role,
+        # Derived for the frontend; stewards are moderator-capable too.
+        "is_moderator": role in ('moderator', 'steward'),
     }), 200
