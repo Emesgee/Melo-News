@@ -5,15 +5,12 @@ import UploadForm from './UploadForm';
 
 // ── Mocks ──────────────────────────────────────────────────────────────
 
-// Mock react-router (Sidebar uses it)
+const mockNavigate = jest.fn();
 jest.mock('react-router-dom', () => ({
   ...jest.requireActual('react-router-dom'),
-  useNavigate: () => jest.fn(),
-  useLocation: () => ({ pathname: '/upload' }),
-  Link: ({ children, to }) => <a href={to}>{children}</a>,
+  useNavigate: () => mockNavigate,
 }));
 
-// Mock the api module
 const mockGet = jest.fn();
 const mockPost = jest.fn();
 jest.mock('../services/api', () => ({
@@ -23,103 +20,71 @@ jest.mock('../services/api', () => ({
   },
 }));
 
-// Mock AuthContext so useAuth() doesn't return undefined
 jest.mock('../utils/AuthContext', () => ({
   useAuth: () => ({ isLoggedIn: true, authLoading: false }),
 }));
 
-// Mock CSS import
+const mockAddToast = jest.fn();
+jest.mock('../utils/ToastContext', () => ({
+  useToast: () => ({ addToast: (...args) => mockAddToast(...args) }),
+}));
+
 jest.mock('./UploadForm.css', () => ({}));
 
-// Mock URL.createObjectURL / revokeObjectURL (not available in jsdom)
 global.URL.createObjectURL = jest.fn(() => 'blob:mock-url');
 global.URL.revokeObjectURL = jest.fn();
 
-// Clear any draft data between tests
 beforeEach(() => {
   localStorage.clear();
   jest.clearAllMocks();
 
-  // Default: file types endpoint returns valid types
   mockGet.mockImplementation((url) => {
-    if (url === '/file-types/' || url === '/file-types') {
-      return Promise.resolve({
-        data: [
-          { id: 1, type_name: 'Image', allowed_extensions: 'jpg, png, jpeg' },
-          { id: 2, type_name: 'Video', allowed_extensions: 'mp4, avi' },
-          { id: 3, type_name: 'Audio', allowed_extensions: 'mp3, wav, m4a' },
-        ],
-      });
-    }
-    // Geocode proxy
     if (url === '/ai/geocode') {
       return Promise.resolve({ data: { lat: 31.5, lon: 34.47, city: 'Gaza', country: 'Palestine' } });
     }
+    // /health and anything else
     return Promise.resolve({ data: {} });
   });
+  mockPost.mockResolvedValue({ data: {} });
 });
 
 // ── Render Tests ────────────────────────────────────────────────────────
 
 describe('UploadForm', () => {
-  it('renders the upload form with all sections', async () => {
-    await act(async () => {
-      render(<UploadForm />);
-    });
+  it('renders the report form with its sections', async () => {
+    await act(async () => { render(<UploadForm />); });
 
-    expect(screen.getByText(/Share News/i)).toBeInTheDocument();
+    expect(screen.getByText(/Submit a report/i)).toBeInTheDocument();
     expect(screen.getByText(/General Information/i)).toBeInTheDocument();
     expect(screen.getByText(/Location Information/i)).toBeInTheDocument();
-    expect(screen.getByText(/File Upload/i)).toBeInTheDocument();
+    expect(screen.getByText(/Severity/i)).toBeInTheDocument();
+    expect(screen.getByText(/Source & Witness/i)).toBeInTheDocument();
+    // Media is optional now — framed as such, no required picker.
+    expect(screen.getByText(/Add photo, video or audio \(optional\)/i)).toBeInTheDocument();
   });
 
-  it('loads file types from API on mount', async () => {
-    await act(async () => {
-      render(<UploadForm />);
-    });
-
-    await waitFor(() => {
-      expect(mockGet).toHaveBeenCalledWith('/file-types/');
-    });
-
-    expect(screen.getByText('Image')).toBeInTheDocument();
-    expect(screen.getByText('Video')).toBeInTheDocument();
-    expect(screen.getByText('Audio')).toBeInTheDocument();
+  it('does NOT fetch file types (the picker is gone)', async () => {
+    await act(async () => { render(<UploadForm />); });
+    const fileTypeCalls = mockGet.mock.calls.filter((c) => String(c[0]).startsWith('/file-types'));
+    expect(fileTypeCalls.length).toBe(0);
   });
 
-  it('shows title, tags, and subject inputs', async () => {
-    await act(async () => {
-      render(<UploadForm />);
-    });
-
-    expect(screen.getByPlaceholderText(/compelling headline/i)).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/relevant tags/i)).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/brief summary/i)).toBeInTheDocument();
+  it('has a Submit report button', async () => {
+    await act(async () => { render(<UploadForm />); });
+    expect(screen.getByRole('button', { name: /Submit report/i })).toBeInTheDocument();
   });
 
-  it('shows city and country inputs', async () => {
-    await act(async () => {
-      render(<UploadForm />);
-    });
+  it('defaults severity to LOW and lets the reporter raise it', async () => {
+    await act(async () => { render(<UploadForm />); });
 
-    expect(screen.getByPlaceholderText(/city where the news/i)).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/Enter the country/i)).toBeInTheDocument();
-  });
+    const low = screen.getByRole('button', { name: /LOW/i });
+    const high = screen.getByRole('button', { name: /HIGH/i });
+    expect(low).toHaveAttribute('aria-pressed', 'true');
+    expect(high).toHaveAttribute('aria-pressed', 'false');
 
-  it('has a Use My Location button', async () => {
-    await act(async () => {
-      render(<UploadForm />);
-    });
-
-    expect(screen.getByText(/Use My Location/i)).toBeInTheDocument();
-  });
-
-  it('has a Publish button', async () => {
-    await act(async () => {
-      render(<UploadForm />);
-    });
-
-    expect(screen.getByRole('button', { name: /Publish/i })).toBeInTheDocument();
+    await act(async () => { fireEvent.click(high); });
+    expect(high).toHaveAttribute('aria-pressed', 'true');
+    expect(low).toHaveAttribute('aria-pressed', 'false');
   });
 });
 
@@ -127,12 +92,9 @@ describe('UploadForm', () => {
 
 describe('UploadForm - File Selection', () => {
   it('shows error for file exceeding 60MB', async () => {
-    await act(async () => {
-      render(<UploadForm />);
-    });
+    await act(async () => { render(<UploadForm />); });
 
     const fileInput = document.getElementById('fileInput');
-
     const bigFile = new File(['x'.repeat(100)], 'huge.mp4', { type: 'video/mp4' });
     Object.defineProperty(bigFile, 'size', { value: 70 * 1024 * 1024 });
 
@@ -144,9 +106,7 @@ describe('UploadForm - File Selection', () => {
   });
 
   it('shows error for unsupported file type', async () => {
-    await act(async () => {
-      render(<UploadForm />);
-    });
+    await act(async () => { render(<UploadForm />); });
 
     const fileInput = document.getElementById('fileInput');
     const badFile = new File(['data'], 'script.exe', { type: 'application/x-msdownload' });
@@ -155,31 +115,11 @@ describe('UploadForm - File Selection', () => {
       fireEvent.change(fileInput, { target: { files: [badFile] } });
     });
 
-    expect(screen.getByText(/Invalid file type/i)).toBeInTheDocument();
+    expect(screen.getByText(/isn’t supported|isn't supported/i)).toBeInTheDocument();
   });
 
-  it('accepts valid image file and shows file info', async () => {
-    // Mock the analyze endpoint (auto-triggered for images)
-    mockPost.mockImplementation((url) => {
-      if (url === '/ai/analyze') {
-        return Promise.resolve({
-          data: {
-            title: 'Test Image',
-            tags: 'test',
-            subject: 'A test image',
-            city: '',
-            country: '',
-            confidence: 0.5,
-            analysis_steps: ['Extracting photo metadata (EXIF)...', 'Analyzing image with AI...'],
-          },
-        });
-      }
-      return Promise.resolve({ data: {} });
-    });
-
-    await act(async () => {
-      render(<UploadForm />);
-    });
+  it('attaches a valid image and shows its name', async () => {
+    await act(async () => { render(<UploadForm />); });
 
     const fileInput = document.getElementById('fileInput');
     const imgFile = new File(['fake-image-data'], 'photo.jpg', { type: 'image/jpeg' });
@@ -189,48 +129,31 @@ describe('UploadForm - File Selection', () => {
       fireEvent.change(fileInput, { target: { files: [imgFile] } });
     });
 
-    const matches = screen.getAllByText(/photo.jpg/);
-    expect(matches.length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/photo.jpg/).length).toBeGreaterThanOrEqual(1);
   });
 });
 
-// ── AI Analysis Tests ───────────────────────────────────────────────────
+// ── No AI auto-authoring ──────────────────────────────────────────────────
 
-describe('UploadForm - AI Analysis', () => {
-  it('auto-fills form fields from AI analysis response', async () => {
+describe('UploadForm - reporter authors the claim', () => {
+  it('does NOT auto-fill title/subject from the photo (AI cannot author the report)', async () => {
     mockPost.mockImplementation((url) => {
       if (url === '/ai/analyze') {
         return Promise.resolve({
           data: {
             title: 'Airstrike aftermath in Gaza',
-            tags: 'airstrike, gaza, destruction',
-            subject: 'Damaged buildings after overnight strikes',
+            subject: 'Damaged buildings',
+            tags: 'airstrike',
             city: 'Gaza',
             country: 'Palestine',
-            event_type: 'military_action',
-            confidence: 0.82,
-            content_warnings: 'destruction',
-            analysis_steps: [
-              'Extracting photo metadata (EXIF)...',
-              'Analyzing image with AI...',
-            ],
-            exif: {
-              lat: 31.5,
-              lon: 34.47,
-              has_gps: true,
-              has_timestamp: true,
-              timestamp: '2026-03-15T10:30:00+00:00',
-              device: 'Samsung Galaxy S24',
-            },
+            exif: { has_gps: false },
           },
         });
       }
       return Promise.resolve({ data: {} });
     });
 
-    await act(async () => {
-      render(<UploadForm />);
-    });
+    await act(async () => { render(<UploadForm />); });
 
     const fileInput = document.getElementById('fileInput');
     const imgFile = new File(['data'], 'gaza.jpg', { type: 'image/jpeg' });
@@ -240,127 +163,90 @@ describe('UploadForm - AI Analysis', () => {
       fireEvent.change(fileInput, { target: { files: [imgFile] } });
     });
 
-    // Wait for AI analysis to complete and auto-fill
+    // The photo IS checked (for embedded GPS)…
     await waitFor(() => {
-      expect(screen.getByDisplayValue('Airstrike aftermath in Gaza')).toBeInTheDocument();
+      expect(mockPost.mock.calls.some((c) => c[0] === '/ai/analyze')).toBe(true);
     });
 
-    expect(screen.getByDisplayValue('airstrike, gaza, destruction')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('Damaged buildings after overnight strikes')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('Gaza')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('Palestine')).toBeInTheDocument();
+    // …but the reporter's fields stay empty — the model never authors them.
+    const titleInput = screen.getByPlaceholderText(/compelling headline/i);
+    expect(titleInput.value).toBe('');
+    expect(screen.queryByDisplayValue('Airstrike aftermath in Gaza')).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue('Damaged buildings')).not.toBeInTheDocument();
+  });
+});
 
-    // EXIF metadata section heading should be displayed
-    expect(screen.getByText(/📷 Photo Metadata/i)).toBeInTheDocument();
-    expect(screen.getByText(/Samsung Galaxy S24/i)).toBeInTheDocument();
+// ── Required contract + honest pending redirect ───────────────────────────
 
-    // Silent auto-fill: fields are populated, but no AI confidence / event-type
-    // fanfare is shown (Step 5 removed the AI display).
-    expect(screen.queryByText(/Confidence: 82%/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/military_action/i)).not.toBeInTheDocument();
+describe('UploadForm - submission', () => {
+  it('requires a title', async () => {
+    await act(async () => { render(<UploadForm />); });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Submit report/i }));
+    });
+
+    expect(screen.getByText(/describe what happened in the title/i)).toBeInTheDocument();
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 
-  it('shows transcription field for video analysis', async () => {
+  it('requires city and country', async () => {
+    await act(async () => { render(<UploadForm />); });
+
+    fireEvent.change(screen.getByPlaceholderText(/compelling headline/i), { target: { value: 'Something happened' } });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Submit report/i }));
+    });
+
+    expect(screen.getByText(/at least a city and country/i)).toBeInTheDocument();
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('submits a text-only report and redirects to Your reports with an honest pending toast', async () => {
     mockPost.mockImplementation((url) => {
-      if (url === '/ai/analyze') {
-        return Promise.resolve({
-          data: {
-            title: 'Witness account from Rafah',
-            tags: 'rafah, eyewitness',
-            subject: 'Citizen recording of events',
-            city: 'Rafah',
-            country: 'Palestine',
-            confidence: 0.7,
-            transcription: 'شهادة شاهد عيان من رفح',
-            transcript_language: 'ar',
-            analysis_steps: [
-              'Extracting video keyframes...',
-              'Transcribing audio (multilingual)...',
-              'Analyzing content with AI...',
-            ],
-          },
-        });
+      if (url === '/file_upload/upload') {
+        return Promise.resolve({ data: { file_id: 7, verification_status: 'PENDING' } });
       }
       return Promise.resolve({ data: {} });
     });
 
-    await act(async () => {
-      render(<UploadForm />);
-    });
+    await act(async () => { render(<UploadForm />); });
 
-    const fileInput = document.getElementById('fileInput');
-    const videoFile = new File(['data'], 'witness.mp4', { type: 'video/mp4' });
-    Object.defineProperty(videoFile, 'size', { value: 5 * 1024 * 1024 });
+    fireEvent.change(screen.getByPlaceholderText(/compelling headline/i), { target: { value: 'Shelling near the market' } });
+    fireEvent.change(screen.getByPlaceholderText(/city where the news/i), { target: { value: 'Gaza' } });
+    fireEvent.change(screen.getByPlaceholderText(/Enter the country/i), { target: { value: 'Palestine' } });
 
     await act(async () => {
-      fireEvent.change(fileInput, { target: { files: [videoFile] } });
-    });
-
-    // Wait for transcription to appear
-    await waitFor(() => {
-      expect(screen.getByText(/Audio Transcript/i)).toBeInTheDocument();
-    });
-
-    // Transcript should be editable
-    const transcriptArea = screen.getByDisplayValue('شهادة شاهد عيان من رفح');
-    expect(transcriptArea).toBeInTheDocument();
-    expect(transcriptArea.tagName).toBe('TEXTAREA');
-  });
-
-  it('handles AI analysis failure gracefully', async () => {
-    mockPost.mockImplementation((url) => {
-      if (url === '/ai/analyze') {
-        return Promise.reject({ response: { data: { error: 'Service unavailable' } } });
-      }
-      return Promise.resolve({ data: {} });
-    });
-
-    await act(async () => {
-      render(<UploadForm />);
-    });
-
-    const fileInput = document.getElementById('fileInput');
-    const imgFile = new File(['data'], 'test.jpg', { type: 'image/jpeg' });
-    Object.defineProperty(imgFile, 'size', { value: 1024 });
-
-    await act(async () => {
-      fireEvent.change(fileInput, { target: { files: [imgFile] } });
+      fireEvent.click(screen.getByRole('button', { name: /Submit report/i }));
     });
 
     await waitFor(() => {
-      expect(screen.getByText(/AI analysis unavailable/i)).toBeInTheDocument();
+      expect(mockPost.mock.calls.some((c) => c[0] === '/file_upload/upload')).toBe(true);
     });
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/my-uploads');
+    });
+
+    // Honest copy: pending, not "live on the map".
+    const [, toastMsg] = mockAddToast.mock.calls.find(() => true) || [];
+    expect(mockAddToast).toHaveBeenCalled();
+    expect(String(mockAddToast.mock.calls[0][0])).toMatch(/pending review/i);
   });
 });
 
 // ── Geocoding Proxy Tests ───────────────────────────────────────────────
 
 describe('UploadForm - Geocoding', () => {
-  it('uses backend proxy for geocoding, not direct API call', async () => {
-    await act(async () => {
-      render(<UploadForm />);
-    });
+  it('uses the backend proxy for geocoding', async () => {
+    await act(async () => { render(<UploadForm />); });
 
-    // Type city and country to trigger geocoding
-    const cityInput = screen.getByPlaceholderText(/city where the news/i);
-    const countryInput = screen.getByPlaceholderText(/Enter the country/i);
-
-    await act(async () => {
-      fireEvent.change(cityInput, { target: { value: 'Gaza' } });
-      fireEvent.change(countryInput, { target: { value: 'Palestine' } });
-    });
+    fireEvent.change(screen.getByPlaceholderText(/city where the news/i), { target: { value: 'Gaza' } });
+    fireEvent.change(screen.getByPlaceholderText(/Enter the country/i), { target: { value: 'Palestine' } });
 
     await waitFor(() => {
-      // Should call backend proxy, NOT opencagedata.com directly
-      const geocodeCalls = mockGet.mock.calls.filter(
-        (call) => call[0] === '/ai/geocode'
-      );
+      const geocodeCalls = mockGet.mock.calls.filter((call) => call[0] === '/ai/geocode');
       expect(geocodeCalls.length).toBeGreaterThan(0);
     }, { timeout: 2000 });
-
-    // Verify NO direct axios calls to opencagedata
-    // (axios was removed from imports, so this is structural validation)
   });
 });
-
-// Form submission validation is covered by file selection and AI analysis tests above.

@@ -124,7 +124,9 @@ export const LocationForm = ({ city, setCity, country, setCountry, lat, lon, onU
 );
 
 /* ── File Upload Form (with drag-and-drop + preview) ────────────────── */
-export const FileUploadForm = ({ fileTypes, fileTypeId, setFileTypeId, selectedFile, handleFileChange, handleDrop, handleRemoveFile, isDragging, setIsDragging }) => (
+/* Media is OPTIONAL evidence — a report stands on its words + location.
+   The file type is inferred server-side from the file, so there's no picker. */
+export const FileUploadForm = ({ selectedFile, handleFileChange, handleDrop, handleRemoveFile, isDragging, setIsDragging }) => (
   <div
     className={`form-section file-upload-section ${isDragging ? 'drag-over' : ''} ${selectedFile ? 'has-file' : ''}`}
     onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
@@ -134,26 +136,10 @@ export const FileUploadForm = ({ fileTypes, fileTypeId, setFileTypeId, selectedF
     {!selectedFile ? (
       <>
         <div className="file-upload-icon">{isDragging ? '📥' : '📎'}</div>
-        <h3>{isDragging ? 'Drop your file here' : 'File Upload'}</h3>
-        <p>{isDragging ? 'Release to upload' : 'Drag & drop or click to select your news media file'}</p>
+        <h3>{isDragging ? 'Drop your file here' : 'Add photo, video or audio (optional)'}</h3>
+        <p>{isDragging ? 'Release to attach' : 'Drag & drop or choose a file. You can also report without any media.'}</p>
 
         <div className="form-group">
-          <label className="form-label">File Type *</label>
-          <select
-            className="form-select"
-            value={fileTypeId}
-            onChange={(e) => setFileTypeId(e.target.value)}
-            required
-          >
-            <option value="" disabled>Choose file type</option>
-            {fileTypes.map((type) => (
-              <option key={type.id} value={type.id}>{type.type_name}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="form-group">
-          <label className="form-label">File *</label>
           <div className="file-input-wrapper">
             <input
               id="fileInput"
@@ -161,7 +147,6 @@ export const FileUploadForm = ({ fileTypes, fileTypeId, setFileTypeId, selectedF
               className="file-input"
               onChange={handleFileChange}
               accept="image/*,video/*,audio/*,.csv,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
-              required
             />
             <label htmlFor="fileInput" className="file-input-label">
               <span>📁</span>
@@ -173,23 +158,7 @@ export const FileUploadForm = ({ fileTypes, fileTypeId, setFileTypeId, selectedF
         <div className="file-size-hint">Supported: Images, Videos, Audio, Documents · Max 60MB</div>
       </>
     ) : (
-      <>
-        <MediaPreview file={selectedFile} onRemove={handleRemoveFile} />
-        <div className="form-group" style={{marginTop: '1rem'}}>
-          <label className="form-label">File Type *</label>
-          <select
-            className="form-select"
-            value={fileTypeId}
-            onChange={(e) => setFileTypeId(e.target.value)}
-            required
-          >
-            <option value="" disabled>Choose file type</option>
-            {fileTypes.map((type) => (
-              <option key={type.id} value={type.id}>{type.type_name}</option>
-            ))}
-          </select>
-        </div>
-      </>
+      <MediaPreview file={selectedFile} onRemove={handleRemoveFile} />
     )}
   </div>
 );
