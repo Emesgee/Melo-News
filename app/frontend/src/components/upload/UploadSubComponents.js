@@ -1,31 +1,5 @@
 import React, { useState, useEffect } from 'react';
 
-/* ── Step Indicator ─────────────────────────────────────────────────── */
-export const StepIndicator = ({ currentStep }) => {
-  const steps = [
-    { num: 1, label: 'Upload' },
-    { num: 2, label: 'AI Analysis' },
-    { num: 3, label: 'Review & Publish' },
-  ];
-  return (
-    <div className="step-indicator">
-      {steps.map((s, i) => (
-        <React.Fragment key={s.num}>
-          <div className={`step-item ${currentStep >= s.num ? 'active' : ''} ${currentStep > s.num ? 'completed' : ''}`}>
-            <div className="step-circle">
-              {currentStep > s.num ? '✓' : s.num}
-            </div>
-            <span className="step-label">{s.label}</span>
-          </div>
-          {i < steps.length - 1 && (
-            <div className={`step-line ${currentStep > s.num ? 'active' : ''}`} />
-          )}
-        </React.Fragment>
-      ))}
-    </div>
-  );
-};
-
 /* ── Media Preview ──────────────────────────────────────────────────── */
 export const MediaPreview = ({ file, onRemove }) => {
   const [previewUrl, setPreviewUrl] = useState(null);

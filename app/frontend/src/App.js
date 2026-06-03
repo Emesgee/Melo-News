@@ -87,11 +87,7 @@ const AppContent = () => {
   };
 
   const handleUploadClick = () => {
-    if (!isLoggedIn) {
-      navigate('/login');
-    } else {
-      navigate('/my-uploads', { state: { openCreate: true } });
-    }
+    navigate(isLoggedIn ? '/upload' : '/login');
   };
 
   if (authLoading) {
