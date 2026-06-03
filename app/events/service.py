@@ -83,6 +83,21 @@ def assign_event(upload):
     return event
 
 
+def process_new_report(upload):
+    """Full post-creation pipeline for a fresh report:
+      1. cluster it into an Event (or start a singleton),
+      2. apply the rung gate (initial publication status + safety override),
+      3. recompute the Event so an auto-published rung-2+ report immediately
+         counts toward corroboration.
+    Does not commit -- the caller owns the transaction."""
+    from app.moderation.gate import apply_rung_gate
+    event = assign_event(upload)
+    apply_rung_gate(upload)
+    db.session.flush()
+    recompute_event(event)
+    return event
+
+
 def _find_candidate_event(upload, when, radius_km, window_h):
     """Return the nearest open Event within radius_km AND window_h of `upload`,
     or None. Logs a near-miss when the closest event is just outside the radius

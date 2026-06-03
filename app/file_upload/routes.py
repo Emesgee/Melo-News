@@ -194,8 +194,8 @@ def upload_file():
         )
         db.session.add(new_upload)
         db.session.flush()
-        from app.events.service import assign_event
-        assign_event(new_upload)
+        from app.events.service import process_new_report
+        process_new_report(new_upload)
         db.session.commit()
 
         start_analysis_thread(new_upload.id, analysis_source_path)
@@ -465,8 +465,8 @@ def complete_chunk_upload():
         )
         db.session.add(new_upload)
         db.session.flush()
-        from app.events.service import assign_event
-        assign_event(new_upload)
+        from app.events.service import process_new_report
+        process_new_report(new_upload)
         db.session.commit()
         start_analysis_thread(new_upload.id, analysis_source_path)
         return jsonify({

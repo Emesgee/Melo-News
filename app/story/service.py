@@ -243,9 +243,9 @@ def ingest_story(user_id, payload):
 
     db.session.add(record)
     db.session.flush()
-    # Cluster into an Event (geo+time) or start a singleton — proposes only.
-    from app.events.service import assign_event
-    assign_event(record)
+    # Cluster into an Event, apply the rung gate, recompute corroboration.
+    from app.events.service import process_new_report
+    process_new_report(record)
     db.session.commit()
     db.session.refresh(record)
     return serialize_upload(record)

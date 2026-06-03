@@ -36,6 +36,9 @@ _VALID_STATUSES = {'PENDING', 'VERIFIED', 'REJECTED'}
 _MODERATOR_ROLES = {'moderator', 'steward'}
 
 
+_VALID_ROLES = {'reporter', 'moderator', 'steward'}
+
+
 def moderator_required(fn):
     """Require an authenticated user whose role can moderate."""
     @wraps(fn)
@@ -45,6 +48,19 @@ def moderator_required(fn):
         user = db.session.get(User, user_id)
         if not user or getattr(user, 'role', 'reporter') not in _MODERATOR_ROLES:
             return jsonify({'error': 'Moderator role required'}), 403
+        return fn(*args, **kwargs)
+    return wrapper
+
+
+def steward_required(fn):
+    """Require a steward — the governance role for role/rung changes."""
+    @wraps(fn)
+    @jwt_required()
+    def wrapper(*args, **kwargs):
+        user_id = get_jwt_identity()
+        user = db.session.get(User, user_id)
+        if not user or getattr(user, 'role', 'reporter') != 'steward':
+            return jsonify({'error': 'Steward role required'}), 403
         return fn(*args, **kwargs)
     return wrapper
 
@@ -67,13 +83,21 @@ def queue():
     limit = min(max(request.args.get('limit', default=50, type=int), 1), 200)
     offset = max(request.args.get('offset', default=0, type=int), 0)
 
-    q = (
-        FileUpload.query
-        .filter(FileUpload.verification_status == status)
-        .order_by(FileUpload.upload_date.desc())
-    )
-    total = q.count()
-    rows = q.limit(limit).offset(offset).all()
+    q = FileUpload.query.filter(FileUpload.verification_status == status)
+
+    if status == 'PENDING':
+        # Attention-ordered, not FIFO: priority depends on event state + age, so
+        # sort in Python. Pilot scale is small; revisit with a SQL score if it grows.
+        from app.moderation.gate import compute_priority
+        all_rows = q.all()
+        all_rows.sort(key=compute_priority, reverse=True)
+        total = len(all_rows)
+        rows = all_rows[offset:offset + limit]
+    else:
+        # Audit views (VERIFIED / REJECTED) stay newest-first.
+        q = q.order_by(FileUpload.upload_date.desc())
+        total = q.count()
+        rows = q.limit(limit).offset(offset).all()
 
     return jsonify({
         'items': [serialize_upload(r) for r in rows],
@@ -155,3 +179,59 @@ def _recompute_owning_event(upload):
     event = db.session.get(Event, upload.event_id)
     if event:
         recompute_event(event)
+
+
+@moderation_bp.route('/users/<int:user_id>/role', methods=['POST'])
+@steward_required
+def set_role(user_id):
+    """Steward sets a user's role (reporter | moderator | steward).
+
+    High-impact promotions/revocations are M-of-N in the full governance design;
+    that's deferred. For the pilot the bootstrap steward acts directly.
+    """
+    data = request.get_json(silent=True) or {}
+    role = (data.get('role') or '').strip().lower()
+    if role not in _VALID_ROLES:
+        return jsonify({'error': f'role must be one of {sorted(_VALID_ROLES)}'}), 422
+
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({'error': 'user not found'}), 404
+    user.role = role
+    db.session.commit()
+    return jsonify({'userid': user.userid, 'role': user.role}), 200
+
+
+@moderation_bp.route('/users/<int:user_id>/rung', methods=['POST'])
+@steward_required
+def set_rung(user_id):
+    """Steward vouches a user to a trust rung (1..3) — the cohort bootstrap.
+
+    A bump to rung 2+ can immediately let the reporter's existing corroborated
+    events auto-reach CORROBORATED, so re-evaluate those events here.
+    """
+    data = request.get_json(silent=True) or {}
+    try:
+        rung = int(data.get('rung'))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'rung must be an integer 1..3'}), 422
+    if not 1 <= rung <= 3:
+        return jsonify({'error': 'rung must be between 1 and 3'}), 422
+
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({'error': 'user not found'}), 404
+    user.trust_rung = rung
+
+    from app.events.service import recompute_event
+    event_ids = {
+        fu.event_id for fu in FileUpload.query.filter_by(user_id=user_id).all()
+        if fu.event_id
+    }
+    for eid in event_ids:
+        ev = db.session.get(Event, eid)
+        if ev:
+            recompute_event(ev)
+
+    db.session.commit()
+    return jsonify({'userid': user.userid, 'trust_rung': user.trust_rung}), 200
