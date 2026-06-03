@@ -34,12 +34,17 @@ const fmtDate = (iso) =>
       })
     : '—';
 
+const EVENT_TINT = { CORROBORATED: '#15803d', DISPUTED: '#b91c1c', DEVELOPING: '#a16207', CLOSED: '#4b5563' };
+const EVENT_LABEL = { CORROBORATED: 'Corroborated', DISPUTED: 'Disputed', DEVELOPING: 'Developing', CLOSED: 'Closed' };
+
 const ReviewCard = ({ story, onVerify, onReject, busy }) => {
   const loc = story.location || {};
   const sev = story.metrics?.severity || 'LOW';
   const verifStatus = story.workflow?.verification_status || 'PENDING';
   const verifNote = story.workflow?.verification_note;
-  const isAnonymous = story.provenance?.is_anonymous;
+  const reporter = story.provenance?.reporter || {};
+  const isAnonymous = reporter.is_anonymous;
+  const ev = story.event;
   const sourceLabel = story.provenance?.source_label || story.provenance?.source_name || 'upload';
   const media = story.media?.primary_url;
   const isImage = media && /\.(jpg|jpeg|png|webp|gif)$/i.test(media);
@@ -53,8 +58,26 @@ const ReviewCard = ({ story, onVerify, onReject, busy }) => {
             <strong style={{ fontSize: 16 }}>{story.title || <em>Untitled</em>}</strong>
             <span style={{ ...pill, background: SEVERITY_TINT[sev], color: '#fff' }}>{sev}</span>
             <span style={{ ...pill, background: '#374151', color: '#fff' }}>{sourceLabel}</span>
-            {isAnonymous && (
-              <span style={{ ...pill, background: '#0ea5e9', color: '#fff' }} title="No account attached">anonymous</span>
+            {ev && (
+              <span style={{ ...pill, background: EVENT_TINT[ev.status] || '#a16207', color: '#fff' }} title="Event status">
+                {EVENT_LABEL[ev.status] || ev.status}
+              </span>
+            )}
+            {ev && ev.corroboration_count > 0 && (
+              <span style={{ ...pill, background: '#dcfce7', color: '#14532d' }} title="Distinct corroborating identities">
+                ✓ {ev.corroboration_count}
+              </span>
+            )}
+            {isAnonymous ? (
+              <span style={{ ...pill, background: '#e5e7eb', color: '#6b7280' }} title="No account attached — unverifiable">anonymous</span>
+            ) : (
+              <span style={{ ...pill, background: reporter.rung <= 1 ? '#e5e7eb' : '#374151', color: reporter.rung <= 1 ? '#6b7280' : '#fff' }}
+                    title={`rung ${reporter.rung} · ${reporter.corroborated_count}/${reporter.reports_count} corroborated`}>
+                {(reporter.handle || 'reporter')} · {reporter.rung <= 1 ? 'new' : `rung ${reporter.rung}`}
+              </span>
+            )}
+            {reporter.is_signed && (
+              <span style={{ ...pill, background: '#065f46', color: '#fff' }} title="Signed on device — tamper-evident">🔏</span>
             )}
             <span style={{ ...pill, background: '#e5e7eb', color: '#111' }}>{verifStatus}</span>
           </header>
@@ -71,8 +94,8 @@ const ReviewCard = ({ story, onVerify, onReject, busy }) => {
               <span>{loc.lat.toFixed?.(3) ?? loc.lat}, {loc.lon.toFixed?.(3) ?? loc.lon}</span>
             )}
             <span>{fmtDate(story.timestamps?.published_at)}</span>
-            {story.metrics?.confidence_score != null && (
-              <span>🎯 {Math.round(story.metrics.confidence_score * 100)}%</span>
+            {story.metrics?.confidence_band && (
+              <span title="Automated estimate — secondary to corroboration">🎯 {story.metrics.confidence_band}</span>
             )}
           </div>
 

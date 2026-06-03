@@ -83,6 +83,16 @@ export const getNewsFeed = async (limit = 100) => {
   return api.get('stories/map', { params: { limit } });
 };
 
+// Events feed — the reader-facing corroboration unit (Stage E). Leads with
+// CORROBORATED, keeps DISPUTED prominent; only events with verified members.
+export const getEvents = async ({ status, limit = 100 } = {}) => {
+  return api.get('events', { params: { status, limit } });
+};
+
+export const getEventDetail = async (eventId) => {
+  return api.get(`events/${eventId}`);
+};
+
 // --- Citizen Upload Management ---
 
 export const getMyUploads = async () => {

@@ -12,7 +12,58 @@ import { MAP_STYLES, defaultPosition, createThumbnailIcon } from './mapConstants
 import { ZoomCircles, FitBounds, MapStylePanel } from './MapControls';
 import GlobeView from './GlobeView';
 
-// Marker wrapper component
+// ── Reader-facing trust display (Stage E) ───────────────────────────
+// Shows the *basis* of trust, never a binary "verified". Event status,
+// concrete corroboration count, reporter standing, signature tamper-evidence,
+// and the confidence BAND (an automated estimate, secondary to corroboration).
+const _pill = { padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' };
+
+const EVENT_STATUS = {
+  CORROBORATED: { bg: '#15803d', label: 'Corroborated' },
+  DISPUTED:     { bg: '#b91c1c', label: 'Disputed' },
+  DEVELOPING:   { bg: '#a16207', label: 'Developing' },
+  CLOSED:       { bg: '#4b5563', label: 'Closed' },
+};
+const BAND_LABEL = { LOW: 'Low', MEDIUM: 'Medium', HIGH: 'High' };
+
+export const EventStatusBadge = ({ status }) => {
+  const s = EVENT_STATUS[status] || EVENT_STATUS.DEVELOPING;
+  return <span style={{ ..._pill, background: s.bg, color: '#fff' }} title="Event status">{s.label}</span>;
+};
+
+export const TrustBlock = ({ data }) => {
+  if (!data) return null;
+  const ev = data.event;
+  const rep = data.reporter;
+  const band = data.confidence_band;
+  return (
+    <div className="popup-trust" style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', margin: '8px 0' }}>
+      {ev && <EventStatusBadge status={ev.status} />}
+      {ev && ev.corroboration_count > 0 && (
+        <span style={{ ..._pill, background: '#dcfce7', color: '#14532d' }} title="Distinct corroborating identities (one actor's many keys count once)">
+          ✓ {ev.corroboration_count} corroborating
+        </span>
+      )}
+      {rep && (rep.is_anonymous ? (
+        <span style={{ ..._pill, background: '#e5e7eb', color: '#6b7280' }} title="No account attached — unverifiable">anonymous · unverifiable</span>
+      ) : (
+        <span style={{ ..._pill, background: rep.rung <= 1 ? '#e5e7eb' : '#374151', color: rep.rung <= 1 ? '#6b7280' : '#fff' }}
+              title={`Trust rung ${rep.rung} · ${rep.corroborated_count}/${rep.reports_count} reports corroborated`}>
+          {(rep.handle || 'reporter')} · {rep.rung <= 1 ? 'new reporter' : `rung ${rep.rung}`}
+        </span>
+      ))}
+      {rep && rep.is_signed && (
+        <span style={{ ..._pill, background: '#065f46', color: '#fff' }} title="Signed on device — tamper-evident">🔏 signed</span>
+      )}
+      {band && (
+        <span style={{ ..._pill, background: '#f3f4f6', color: '#374151' }} title="Automated estimate — secondary to human corroboration">
+          confidence: {BAND_LABEL[band] || band}
+        </span>
+      )}
+    </div>
+  );
+};
+
 // Marker wrapper component with map centering
 const MarkerPopupWrapper = ({ time, result, title, city, country, description, files, markerIcon, markerId, onMarkerClick, customData }) => {
   const map = useMap();
@@ -112,6 +163,8 @@ const MarkerPopupWrapper = ({ time, result, title, city, country, description, f
 
         <div className="popup-info-tab">
           <p className="popup-description">{description}</p>
+
+          <TrustBlock data={customData} />
 
           {/* Show additional images if any */}
           {imageFiles.length > 0 && (
@@ -256,11 +309,13 @@ const MapArea = () => {
         video_links:      r.video_links      || med.videos          || [],
         fileUrl:          r.fileUrl          || r.file_path         || med.primary_url  || null,
         severity:         r.severity         || met.severity        || 'MEDIUM',
-        confidence_score: r.confidence_score ?? met.confidence_score ?? null,
+        confidence_band:  r.confidence_band  ?? met.confidence_band ?? null,
         time:             r.time             || ts.published_at     || r.published_at   || '',
         source:           r.source           || prov.source_name    || r.source_type    || '',
         source_count:     r.source_count     ?? met.source_count    ?? 1,
-        escalation:       r.escalation       || met.escalation      || null,
+        // Trust display (Stage E): reporter chip + the Event this report belongs to.
+        reporter:         r.reporter         || prov.reporter       || null,
+        event:            r.event            || null,
       };
     }).filter(Boolean);
   }, [searchResults]);

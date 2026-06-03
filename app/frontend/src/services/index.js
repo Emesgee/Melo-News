@@ -8,5 +8,7 @@ export {
   fetchFileTypes,
   testApiUrl,
   getNewsFeed,
+  getEvents,
+  getEventDetail,
   getMarketData,
 } from './api';

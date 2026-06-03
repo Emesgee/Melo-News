@@ -105,6 +105,7 @@ def create_app(config_name=None):
         from .ai_analyzer.routes import ai_analyzer_bp
         from .story.routes import story_bp
         from .moderation.routes import moderation_bp
+        from .events.routes import events_bp
 
         app.register_blueprint(auth_bp, url_prefix='/api/auth')
         app.register_blueprint(profile_bp, url_prefix='/api/profile')
@@ -116,6 +117,7 @@ def create_app(config_name=None):
         app.register_blueprint(ai_analyzer_bp, url_prefix='/api/ai')
         app.register_blueprint(story_bp)
         app.register_blueprint(moderation_bp)
+        app.register_blueprint(events_bp)
 
         # Flask-Limiter decorators only enforce limits across requests
         # when the limiter is bound to the app. Each route module exposes
