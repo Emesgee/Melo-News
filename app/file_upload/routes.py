@@ -74,33 +74,58 @@ def _should_use_azure() -> bool:
     conn_l = str(conn).lower()
     return 'accountname=' in conn_l and 'defaultendpointsprotocol=' in conn_l
 
+def _normalize_severity(raw):
+    """Clamp a free-form severity to LOW|MEDIUM|HIGH (default LOW)."""
+    severity = (raw or 'LOW').upper()
+    return severity if severity in ('LOW', 'MEDIUM', 'HIGH') else 'LOW'
+
+
+def _get_or_create_other_filetype():
+    """The 'Other' sentinel FileType — keeps text-only / unknown-type reports
+    valid against the NOT-NULL file_type_id FK (mirrors the anonymous path)."""
+    ft = FileType.query.filter_by(type_name='Other').first()
+    if not ft:
+        ft = FileType(type_name='Other', allowed_extensions='*')
+        db.session.add(ft)
+        db.session.flush()
+    return ft
+
+
+def _resolve_file_type(filename, file_type_id_raw):
+    """Resolve a FileType, never returning None.
+
+    Order: an explicit valid id (inferred client-side from the extension) →
+    a match on the file extension → the 'Other' sentinel. The picker is gone
+    on the client, so the backend owns this and never 400s on a type mismatch.
+    """
+    if file_type_id_raw:
+        try:
+            ft = FileType.query.get(int(file_type_id_raw))
+            if ft:
+                return ft
+        except (ValueError, TypeError):
+            pass
+    ext = filename.rsplit('.', 1)[-1].lower() if filename and '.' in filename else ''
+    if ext:
+        ft = FileType.query.filter(FileType.allowed_extensions.ilike(f'%{ext}%')).first()
+        if ft:
+            return ft
+    return _get_or_create_other_filetype()
+
+
 @file_upload_bp.route('/upload', methods=['POST'])
 @limiter.limit('30 per hour; 100 per day')
 @jwt_required()
 def upload_file():
     user_id = get_jwt_identity()
 
-    if 'file' not in request.files:
-        return jsonify({'message': 'No file part in the request'}), 400
+    # Media is optional: a report is "what happened + where", and media is
+    # corroborating evidence, not the point. A reporter who can't safely
+    # capture a photo can still file a text-only report.
+    file = request.files.get('file')
+    has_media = bool(file and file.filename)
 
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'message': 'No selected file'}), 400
-
-    file_type_raw = request.form.get('file_type_id')
-    try:
-        file_type_id = int(file_type_raw) if file_type_raw is not None else None
-    except (ValueError, TypeError):
-        return jsonify({'message': 'Invalid file type ID'}), 400
-
-    if file_type_id is None:
-        return jsonify({'message': 'Invalid file type ID'}), 400
-
-    file_type = FileType.query.get(file_type_id)
-    if not file_type:
-        return jsonify({'message': 'Invalid file type'}), 400
-
-    # Collect additional metadata fields
+    # Collect metadata fields.
     title = request.form.get('title')
     tags = request.form.get('tags')
     subject = request.form.get('subject')
@@ -109,7 +134,8 @@ def upload_file():
     witness_statement = request.form.get('witness_statement')
     source_type = request.form.get('source_type', 'eyewitness')
     is_sensitive = request.form.get('is_sensitive', 'false').lower() == 'true'
-    
+    severity = _normalize_severity(request.form.get('severity'))
+
     # Convert lat/lon to floats - CRITICAL for search/map to work
     lat_raw = request.form.get('lat')
     lon_raw = request.form.get('lon')
@@ -120,63 +146,69 @@ def upload_file():
         lat = None
         lon = None
 
-    # Validate the file extension
-    file_name = file.filename or ''
-    file_extension = file_name.split('.')[-1].lower()
-    allowed_extensions_list = [ext.strip() for ext in file_type.allowed_extensions.split(',')]
-    if file_extension not in allowed_extensions_list:
-        return jsonify({'message': f'Invalid file extension for {file_type.type_name}'}), 400
+    file_type = _resolve_file_type(
+        file.filename if has_media else None,
+        request.form.get('file_type_id'),
+    )
 
-    secure_name = secure_filename(file_name)
-    unique_filename = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{secure_name}"
-    upload_folder = current_app.config.get('UPLOAD_FOLDER', '/tmp')
-    os.makedirs(upload_folder, exist_ok=True)
-    file_path = os.path.join(upload_folder, unique_filename)
-    file.save(file_path)
-
-    # Keep a raw copy for the background analyzer so it can still extract
-    # EXIF GPS/timestamp/device for confidence scoring and map placement.
-    # The public-served file (file_path) gets sanitized in place below.
-    analysis_source_path = file_path + '.raw-for-analysis'
-    try:
-        shutil.copy2(file_path, analysis_source_path)
-    except OSError as exc:
-        current_app.logger.warning("Could not stage raw analysis copy: %s", exc)
-        analysis_source_path = file_path
-
-    # Strip EXIF (GPS + device tags) from the file we will hand to Azure
-    # or serve via /api/uploads. Failures fall back to the raw file but are
-    # logged loudly — reporter location can leak via embedded GPS otherwise.
-    sanitized_path = sanitize_for_upload(file_path)
-    if sanitized_path != file_path:
-        try:
-            os.replace(sanitized_path, file_path)
-        except OSError as exc:
-            current_app.logger.error(
-                "Sanitized file replace failed for %s: %s — uploading raw file",
-                file_path, exc,
-            )
-            safe_remove(sanitized_path)
-
-    # Default to local URL; upgrade to Azure URL only when upload succeeds.
-    blob_url = f"/api/uploads/{unique_filename}"
+    # No-media reports use a sentinel path that the rung gate recognises as
+    # "no media" (so it doesn't trip the first-media safety override).
+    blob_url = 'ingest:no-media'
+    unique_filename = None
+    analysis_source_path = None
     used_azure = False
 
-    if _should_use_azure():
+    if has_media:
+        assert file is not None  # guaranteed by has_media; narrows for type-checkers
+        file_name = file.filename or ''
+        secure_name = secure_filename(file_name)
+        unique_filename = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{secure_name}"
+        upload_folder = current_app.config.get('UPLOAD_FOLDER', '/tmp')
+        os.makedirs(upload_folder, exist_ok=True)
+        file_path = os.path.join(upload_folder, unique_filename)
+        file.save(file_path)
+
+        # Keep a raw copy for the background analyzer so it can still extract
+        # EXIF GPS/timestamp/device for confidence scoring and map placement.
+        # The public-served file (file_path) gets sanitized in place below.
+        analysis_source_path = file_path + '.raw-for-analysis'
         try:
-            container_name = current_app.config.get('AZURE_BLOB_CONTAINER', 'uploads')
-            storage_account = os.getenv('AZURE_STORAGE_ACCOUNT_NAME')
-            upload_file_to_azure_storage(file_path, unique_filename, container_name)
-            blob_url = f"https://{storage_account}.blob.core.windows.net/{container_name}/{unique_filename}"
-            used_azure = True
-            # The sanitized local copy is no longer needed once it's in Azure.
-            safe_remove(file_path)
-        except Exception as e:
-            current_app.logger.warning("Azure upload failed; using local file URL fallback: %s", e)
+            shutil.copy2(file_path, analysis_source_path)
+        except OSError as exc:
+            current_app.logger.warning("Could not stage raw analysis copy: %s", exc)
+            analysis_source_path = file_path
+
+        # Strip EXIF (GPS + device tags) from the file we will hand to Azure
+        # or serve via /api/uploads. Failures fall back to the raw file but are
+        # logged loudly — reporter location can leak via embedded GPS otherwise.
+        sanitized_path = sanitize_for_upload(file_path)
+        if sanitized_path != file_path:
+            try:
+                os.replace(sanitized_path, file_path)
+            except OSError as exc:
+                current_app.logger.error(
+                    "Sanitized file replace failed for %s: %s — uploading raw file",
+                    file_path, exc,
+                )
+                safe_remove(sanitized_path)
+
+        # Default to local URL; upgrade to Azure URL only when upload succeeds.
+        blob_url = f"/api/uploads/{unique_filename}"
+        if _should_use_azure():
+            try:
+                container_name = current_app.config.get('AZURE_BLOB_CONTAINER', 'uploads')
+                storage_account = os.getenv('AZURE_STORAGE_ACCOUNT_NAME')
+                upload_file_to_azure_storage(file_path, unique_filename, container_name)
+                blob_url = f"https://{storage_account}.blob.core.windows.net/{container_name}/{unique_filename}"
+                used_azure = True
+                # The sanitized local copy is no longer needed once it's in Azure.
+                safe_remove(file_path)
+            except Exception as e:
+                current_app.logger.warning("Azure upload failed; using local file URL fallback: %s", e)
 
     try:
         new_upload = FileUpload(
-            filename=unique_filename,
+            filename=unique_filename or f"report-{uuid.uuid4().hex[:12]}",
             file_path=blob_url,
             title=title,
             tags=tags,
@@ -185,24 +217,29 @@ def upload_file():
             country=country,
             upload_date=datetime.utcnow(),
             user_id=user_id,
-            file_type_id=file_type_id,
+            file_type_id=file_type.filetypeid,
             lat=lat,
             lon=lon,
             witness_statement=witness_statement,
             source_type=source_type,
             is_sensitive=is_sensitive,
+            severity=severity,
+            analysis_status='PENDING' if has_media else 'SKIPPED',
         )
         db.session.add(new_upload)
         db.session.flush()
+        # Sets the post-gate verification_status from the reporter's rung +
+        # safety override (severity/is_sensitive must already be set above).
         from app.events.service import process_new_report
         process_new_report(new_upload)
         db.session.commit()
 
-        start_analysis_thread(new_upload.id, analysis_source_path)
+        if has_media:
+            start_analysis_thread(new_upload.id, analysis_source_path)
 
-        msg_suffix = '' if used_azure else ' (local storage fallback)'
+        msg_suffix = '' if (used_azure or not has_media) else ' (local storage fallback)'
         return jsonify({
-            'message': f'File {secure_name} uploaded successfully! Analysis started{msg_suffix}.',
+            'message': f'Report submitted{msg_suffix}.',
             'file_url': blob_url,
             'fileUrl': blob_url,
             'file_id': new_upload.id,
@@ -213,7 +250,9 @@ def upload_file():
             'country': country,
             'lat': lat,
             'lon': lon,
-            'analysis_status': 'PENDING'
+            'severity': severity,
+            'analysis_status': new_upload.analysis_status,
+            'verification_status': new_upload.verification_status,
         }), 200
     except Exception as e:
         db.session.rollback()
@@ -378,23 +417,8 @@ def complete_chunk_upload():
         return jsonify({'message': f"Missing chunks: expected {reg['total']}, got {len(reg['chunks'])}"}), 400
 
     filename = reg['filename']
-    file_extension = filename.split('.')[-1].lower()
 
-    # Resolve file_type_id from extension if not provided
-    file_type_id_raw = data.get('file_type_id')
-    file_type_id = None
-    if file_type_id_raw:
-        try:
-            file_type_id = int(file_type_id_raw)
-        except (ValueError, TypeError):
-            pass
-
-    if not file_type_id:
-        ft = FileType.query.filter(FileType.allowed_extensions.ilike(f'%{file_extension}%')).first()
-        file_type_id = ft.filetypeid if ft else None
-
-    if not file_type_id:
-        return jsonify({'message': 'Could not determine file type'}), 400
+    file_type_id = _resolve_file_type(filename, data.get('file_type_id')).filetypeid
 
     # Assemble chunks into final file
     unique_filename = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{filename}"
@@ -448,6 +472,8 @@ def complete_chunk_upload():
     except (ValueError, TypeError):
         lat = lon = None
 
+    severity = _normalize_severity(data.get('severity'))
+
     try:
         new_upload = FileUpload(
             filename=unique_filename,
@@ -462,6 +488,10 @@ def complete_chunk_upload():
             file_type_id=file_type_id,
             lat=lat,
             lon=lon,
+            witness_statement=data.get('witness_statement'),
+            source_type=data.get('source_type', 'eyewitness'),
+            is_sensitive=bool(data.get('is_sensitive', False)),
+            severity=severity,
         )
         db.session.add(new_upload)
         db.session.flush()
@@ -473,7 +503,9 @@ def complete_chunk_upload():
             'message': 'Upload complete.',
             'file_id': new_upload.id,
             'file_url': blob_url,
-            'analysis_status': 'PENDING',
+            'severity': severity,
+            'analysis_status': new_upload.analysis_status,
+            'verification_status': new_upload.verification_status,
         }), 200
     except Exception as e:
         db.session.rollback()
