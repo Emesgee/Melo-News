@@ -23,6 +23,7 @@ const Intro = React.lazy(() => import('./pages/Intro'));
 const ProfileTest = React.lazy(() => import('./pages/Profile'));
 const MyUploads = React.lazy(() => import('./pages/MyUploads'));
 const Moderation = React.lazy(() => import('./pages/Moderation'));
+const EventsFeed = React.lazy(() => import('./pages/EventsFeed'));
 
 function App({ isLoggedIn: isLoggedInProp }) {
   return (
@@ -215,6 +216,7 @@ const AppContent = () => {
 
         <nav className={`topbar-nav ${sidebarOpen ? 'open' : ''}`}>
           <Link to="/" className="nav-link">Home</Link>
+          <Link to="/events" className="nav-link">Events</Link>
           <Link to="/my-uploads" className="nav-link">Upload</Link>
           <Link to="/my-uploads" className="nav-link">My Stories</Link>
           <Link to={isLoggedIn ? '#' : '/login'} className="nav-link" onClick={isLoggedIn ? handleLogout : undefined}>
@@ -231,6 +233,7 @@ const AppContent = () => {
           <Route path="/login" element={<Suspense fallback={null}><Login /></Suspense>} />
           <Route path="/search" element={<Search />} />
           <Route path="/map" element={<MapArea />} />
+          <Route path="/events" element={<Suspense fallback={null}><EventsFeed /></Suspense>} />
 
           <Route element={<PrivateRoute />}>
             <Route path="/intro" element={<Suspense fallback={null}><Intro /></Suspense>} />
