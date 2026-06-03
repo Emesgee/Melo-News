@@ -1,7 +1,10 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import '@testing-library/jest-dom';
 import EventsFeed from './EventsFeed';
+
+const renderFeed = () => render(<MemoryRouter><EventsFeed /></MemoryRouter>);
 
 jest.mock('../services/api', () => ({
   getEvents: jest.fn(),
@@ -28,7 +31,7 @@ beforeEach(() => jest.clearAllMocks());
 
 test('renders events with trust badges, corroboration, and the dispute warning', async () => {
   getEvents.mockResolvedValue({ data: { events: EVENTS } });
-  render(<EventsFeed />);
+  renderFeed();
 
   await waitFor(() => expect(screen.getByText('Market blast')).toBeInTheDocument());
 
@@ -47,7 +50,7 @@ test('renders events with trust badges, corroboration, and the dispute warning',
 
 test('shows an empty-state message when there are no events', async () => {
   getEvents.mockResolvedValue({ data: { events: [] } });
-  render(<EventsFeed />);
+  renderFeed();
   await waitFor(() =>
     expect(screen.getByText(/No corroborated or developing events yet/)).toBeInTheDocument()
   );

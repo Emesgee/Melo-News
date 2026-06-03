@@ -6,7 +6,6 @@ import Search from './components/searchBar/Search';
 import PrivateRoute from './components/PrivateRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import Toast from './components/Toast';
-import MapArea from './components/leafletMap/MapArea';
 import LoadingScreen from './components/LoadingScreen';
 import { DarkModeProvider, useDarkMode } from './utils/DarkModeContext';
 import { AuthProvider, useAuth } from './utils/AuthContext';
@@ -23,6 +22,7 @@ const ProfileTest = React.lazy(() => import('./pages/Profile'));
 const MyUploads = React.lazy(() => import('./pages/MyUploads'));
 const Moderation = React.lazy(() => import('./pages/Moderation'));
 const EventsFeed = React.lazy(() => import('./pages/EventsFeed'));
+const EventDetail = React.lazy(() => import('./pages/EventDetail'));
 
 function App({ isLoggedIn: isLoggedInProp }) {
   return (
@@ -222,8 +222,8 @@ const AppContent = () => {
           <Route path="/register" element={<Suspense fallback={null}><Register /></Suspense>} />
           <Route path="/login" element={<Suspense fallback={null}><Login /></Suspense>} />
           <Route path="/search" element={<Search />} />
-          <Route path="/map" element={<MapArea />} />
           <Route path="/events" element={<Suspense fallback={null}><EventsFeed /></Suspense>} />
+          <Route path="/events/:id" element={<Suspense fallback={null}><EventDetail /></Suspense>} />
 
           <Route element={<PrivateRoute />}>
             <Route path="/profile" element={<Suspense fallback={null}><ProfileTest /></Suspense>} />

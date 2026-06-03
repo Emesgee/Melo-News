@@ -32,6 +32,7 @@ def list_events():
     """Event feed. Query: status=<STATUS>, limit=<int>."""
     limit = request.args.get('limit', default=100, type=int)
     status_filter = (request.args.get('status') or '').strip().upper() or None
+    q = (request.args.get('q') or '').strip().lower()
 
     # Pilot scale is small; filter/sort in Python for clarity. Replace with a
     # join + window function if volume grows.
@@ -40,6 +41,8 @@ def list_events():
         if not _has_public_member(ev):
             continue
         if status_filter and _effective_status(ev) != status_filter:
+            continue
+        if q and q not in (ev.title or '').lower() and q not in (ev.city or '').lower():
             continue
         visible.append(ev)
 
