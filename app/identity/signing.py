@@ -46,6 +46,7 @@ from cryptography.exceptions import InvalidSignature, UnsupportedAlgorithm
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.serialization import load_der_public_key
+from sqlalchemy.exc import IntegrityError
 
 from app.models import db, User
 
@@ -117,7 +118,16 @@ def register_or_get_pseudonym(public_key_b64):
         trust_rung=1,
     )
     db.session.add(user)
-    db.session.flush()
+    try:
+        db.session.flush()
+    except IntegrityError:
+        # Two signed reports from a brand-new key raced to first-register it
+        # (public_key is UNIQUE). The other request won; roll back and reuse it.
+        db.session.rollback()
+        existing = User.query.filter_by(public_key=pk).first()
+        if existing is not None:
+            return existing
+        raise
     logger.info("self-registered pseudonymous identity %s", user.display_handle)
     return user
 

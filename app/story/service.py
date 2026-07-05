@@ -9,6 +9,7 @@ import logging
 from datetime import datetime, timezone
 
 from sqlalchemy import or_, distinct
+from sqlalchemy.exc import IntegrityError
 
 from app.models import db, FileUpload
 from .serializers import serialize_upload
@@ -265,11 +266,22 @@ def ingest_story(user_id, payload):
         record.upload_date = upload_date
 
     db.session.add(record)
-    db.session.flush()
-    # Cluster into an Event, apply the rung gate, recompute corroboration.
-    from app.events.service import process_new_report
-    process_new_report(record)
-    db.session.commit()
+    try:
+        db.session.flush()
+        # Cluster into an Event, apply the rung gate, recompute corroboration.
+        from app.events.service import process_new_report
+        process_new_report(record)
+        db.session.commit()
+    except IntegrityError:
+        # Concurrent duplicate of the same report (same local_id raced past the
+        # idempotency check above, e.g. a double drain or mesh relay). The other
+        # request already stored it — roll back and return that record.
+        db.session.rollback()
+        if local_id:
+            existing = FileUpload.query.filter_by(local_id=local_id).first()
+            if existing:
+                return serialize_upload(existing)
+        raise
     db.session.refresh(record)
     return serialize_upload(record)
 
