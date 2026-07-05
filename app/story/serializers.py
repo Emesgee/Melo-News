@@ -8,6 +8,10 @@ summary, analytics) should consume going forward.
 
 import re
 
+from sqlalchemy import func
+
+from app.models import db, FileUpload, Event
+
 _IMAGE_EXTS = {'jpg', 'jpeg', 'png', 'gif', 'webp'}
 _VIDEO_EXTS = {'mp4', 'avi', 'mpeg', 'mov', 'webm', 'ogv'}
 
@@ -37,13 +41,55 @@ def confidence_band(score):
     return 'HIGH'
 
 
+def reporter_track_record(user_id):
+    """Compute a reporter's public track record from current state (ADR-0012).
+
+    Derived on read, never a stored counter: `corroborated_count` is volatile
+    (an Event can leave CORROBORATED when a member is rejected/disputed/closed),
+    so a maintained counter would drift on every reversal path. Mirrors how
+    `events.service.recompute_event` derives corroboration fresh.
+
+    - reports_count      = the reporter's VERIFIED (published) reports only.
+    - corroborated_count = DISTINCT Events that are live-status CORROBORATED and
+      hold at least one VERIFIED report by this reporter (honors status_override).
+
+    Returns (reports_count, corroborated_count). At pilot scale these are two
+    cheap indexed counts; one chip per report means the feed does N of them —
+    fine here, batch by user_id if it ever isn't.
+    """
+    reports_count = (
+        db.session.query(func.count(FileUpload.id))
+        .filter(
+            FileUpload.user_id == user_id,
+            FileUpload.verification_status == 'VERIFIED',
+        )
+        .scalar()
+    ) or 0
+
+    live_status = func.coalesce(Event.status_override, Event.status)
+    corroborated_count = (
+        db.session.query(func.count(func.distinct(Event.id)))
+        .select_from(Event)
+        .join(FileUpload, FileUpload.event_id == Event.id)
+        .filter(
+            FileUpload.user_id == user_id,
+            FileUpload.verification_status == 'VERIFIED',
+            live_status == 'CORROBORATED',
+        )
+        .scalar()
+    ) or 0
+
+    return reports_count, corroborated_count
+
+
 def serialize_reporter(upload):
     """Reader-facing reporter chip. Never leaks user_id (deanonymization).
 
     Shows the *basis* of trust: a pseudonymous handle + trust rung + track
-    record, or an explicit anonymous/unverifiable marker. is_signed reflects an
-    on-device cryptographic signature (tamper-evidence); web/anon reports are
-    the unsigned lane.
+    record, or an explicit anonymous/unverifiable marker. The track record is
+    computed on read (ADR-0012), not read off a stored counter. is_signed
+    reflects an on-device cryptographic signature (tamper-evidence); web/anon
+    reports are the unsigned lane.
     """
     is_signed = bool(getattr(upload, 'report_signature', None))
     user = getattr(upload, 'user', None)
@@ -56,11 +102,12 @@ def serialize_reporter(upload):
             'is_anonymous': True,
             'is_signed': is_signed,
         }
+    reports_count, corroborated_count = reporter_track_record(upload.user_id)
     return {
         'handle': user.display_handle or user.username,
         'rung': getattr(user, 'trust_rung', 1),
-        'reports_count': getattr(user, 'reports_count', 0),
-        'corroborated_count': getattr(user, 'corroborated_count', 0),
+        'reports_count': reports_count,
+        'corroborated_count': corroborated_count,
         'is_anonymous': False,
         'is_signed': is_signed,
     }

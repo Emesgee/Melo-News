@@ -75,12 +75,54 @@ def test_reporter_anonymous(ctx):
 
 
 def test_reporter_pseudonymous_signed(ctx):
-    u = _user(rung=2, handle='abu-karim', reports=14, corr=11)
+    u = _user(rung=2, handle='abu-karim')
     r = serialize_reporter(_mk(_ft(), user=u, signed=True))
     assert r['is_anonymous'] is False
     assert r['handle'] == 'abu-karim' and r['rung'] == 2
-    assert r['reports_count'] == 14 and r['corroborated_count'] == 11
     assert r['is_signed'] is True
+
+
+def test_reporter_track_record_computed_on_read(ctx):
+    """Track record is derived from current rows (ADR-0012), not stored counters:
+    only VERIFIED reports count, and corroborated_count counts DISTINCT events
+    whose live status is CORROBORATED."""
+    ft = _ft()
+    u = _user(rung=2, handle='abu-karim')
+
+    corro = Event(status='CORROBORATED')
+    developing = Event(status='DEVELOPING')
+    db.session.add_all([corro, developing])
+    db.session.flush()
+
+    # 3 VERIFIED reports: two in the CORROBORATED event (one distinct event),
+    # one in a DEVELOPING event (published but not corroborated).
+    _mk(ft, user=u, event=corro, status='VERIFIED')
+    _mk(ft, user=u, event=corro, status='VERIFIED')
+    _mk(ft, user=u, event=developing, status='VERIFIED')
+    # PENDING report: not published, must not count toward reports_count.
+    _mk(ft, user=u, event=corro, status='PENDING')
+    db.session.flush()
+
+    r = serialize_reporter(_mk(ft, user=u, signed=True))  # chip's own report is PENDING
+    assert r['reports_count'] == 3          # only the 3 VERIFIED reports; PENDING excluded
+    assert r['corroborated_count'] == 1     # distinct CORROBORATED events, not report count
+
+
+def test_reporter_corroborated_count_reflects_status_override(ctx):
+    """A sticky override that pulls an event OUT of CORROBORATED immediately drops
+    the count — the drift a stored counter would have to chase (ADR-0012)."""
+    ft = _ft()
+    u = _user(rung=2)
+    ev = Event(status='CORROBORATED')
+    db.session.add(ev)
+    db.session.flush()
+    _mk(ft, user=u, event=ev, status='VERIFIED')
+    db.session.flush()
+
+    assert serialize_reporter(_mk(ft, user=u))['corroborated_count'] == 1
+    ev.status_override = 'DISPUTED'         # moderator pins it out of CORROBORATED
+    db.session.flush()
+    assert serialize_reporter(_mk(ft, user=u))['corroborated_count'] == 0
 
 
 def test_serialize_upload_uses_band_and_reporter(ctx):

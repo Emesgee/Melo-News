@@ -29,9 +29,10 @@ class User(db.Model):
     # steward    = governance role (M-of-N actions); also moderator-capable
     role = db.Column(db.String(20), default='reporter', nullable=False)
 
-    # Pseudonymous identity anchor. The Ed25519 public key IS the pseudonym;
-    # it self-registers on the first signed report (Stage C). Null for
-    # web email/password accounts.
+    # Pseudonymous identity anchor. The device public key IS the pseudonym
+    # (ECDSA P-256, AndroidKeyStore — ADR-0013); stored as base64 SPKI DER
+    # (~124 chars, fits 128). Self-registers on the first signed report
+    # (Stage C). Null for web email/password accounts.
     public_key = db.Column(db.String(128), unique=True, nullable=True)
     display_handle = db.Column(db.String(50), nullable=True)
     # 'registered' (web email/password) | 'pseudonymous' (device keypair)
@@ -117,9 +118,15 @@ class FileUpload(db.Model):
     # so existing rows can be backfilled lazily.
     event_id = db.Column(db.Integer, db.ForeignKey('events.id'), nullable=True, index=True)
 
-    # Ed25519 signature over the report payload, produced on-device (Stage C).
-    # Null for web submissions and anonymous reports (the unsigned lane).
+    # ECDSA-P256 signature (base64 DER) over the report payload, produced
+    # on-device (Stage C, ADR-0013). Null for web/anonymous reports (unsigned
+    # lane).
     report_signature = db.Column(db.String(256), nullable=True)
+
+    # The exact canonical signed message (compact sorted-key JSON, ADR-0014)
+    # persisted verbatim, so reader-side verification (ADR-0009) can rebuild
+    # byte-identical input without re-formatting. Null on the unsigned lane.
+    signed_message = db.Column(db.Text, nullable=True)
 
 
 # Event (Incident) model — the primary reader-facing unit. Reports cluster

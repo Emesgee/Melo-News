@@ -248,6 +248,12 @@ def ensure_schema_compatibility():
             # verified_by. report_signature is the unsigned/web lane when null.
             'event_id': 'INTEGER',
             'report_signature': 'VARCHAR(256)',
+            # Editorial "hold this" safety flag; also a signed field (ADR-0008)
+            # read by the rung gate's safety override.
+            'is_sensitive': 'BOOLEAN DEFAULT FALSE' if dialect == 'postgresql' else 'BOOLEAN DEFAULT 0',
+            # Verbatim canonical signed message (ADR-0014) for later reader-side
+            # verification (ADR-0009).
+            'signed_message': 'TEXT',
         }
         # Stage B: extend User into the identity + reputation table. `role`
         # replaces the legacy is_moderator boolean (migrated below).

@@ -197,6 +197,20 @@ def ingest_story(user_id, payload):
         if existing:
             return serialize_upload(existing)
 
+    # Signed reports (Android keypair): the public key IS the identity. A valid
+    # signature self-registers the pseudonym and overrides any caller user_id;
+    # an invalid signature is rejected (raises). Unsigned -> the web/anon lane.
+    from app.identity.signing import resolve_signed_reporter, canonical_message
+    report_signature = None
+    signed_message = None
+    signed = resolve_signed_reporter(payload)
+    if signed:
+        signed_user, report_signature = signed
+        user_id = signed_user.userid
+        # Persist the exact bytes the signature covers (ADR-0014) so reader-side
+        # verification (ADR-0009) can rebuild byte-identical input later.
+        signed_message = canonical_message(payload).decode('utf-8')
+
     tags_raw = payload.get('tags', '')
     if isinstance(tags_raw, list):
         tags_str = ', '.join(str(t).strip() for t in tags_raw if t)
@@ -232,11 +246,18 @@ def ingest_story(user_id, payload):
         lon=_float_or_none(payload.get('lon')),
         severity=severity,
         witness_statement=payload.get('body') or None,
-        source_type=payload.get('source_name') or 'mobile',
+        # source_type is a signed field (ADR-0008: eyewitness|secondhand|...);
+        # fall back to the legacy source_name / 'mobile' when absent.
+        source_type=payload.get('source_type') or payload.get('source_name') or 'mobile',
+        # Signed safety flag (ADR-0008): the client sends "true"/"false"; the
+        # rung gate's safety override reads this.
+        is_sensitive=_as_bool(payload.get('is_sensitive')),
         analysis_status='PENDING',
         user_id=user_id,
         file_type_id=file_type.filetypeid,
         local_id=local_id,
+        report_signature=report_signature,
+        signed_message=signed_message,
     )
     if upload_date:
         record.upload_date = upload_date
@@ -276,6 +297,17 @@ def _float_or_none(value):
         return float(value) if value is not None else None
     except (TypeError, ValueError):
         return None
+
+
+def _as_bool(value):
+    """Parse the signed is_sensitive flag. The canonical form is the string
+    "true"/"false" (ADR-0014: no bools in the signed doc); tolerate a real bool
+    from the unsigned/web lane too."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() == 'true'
+    return False
 
 
 def get_story(source_type, source_record_id, include_unverified=False):
