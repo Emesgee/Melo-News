@@ -123,7 +123,9 @@ def list_story_markers(
             'media': {'primary_url': s['media']['primary_url']},
             'metrics': {
                 'severity': s['metrics']['severity'],
-                'confidence_score': s['metrics']['confidence_score'],
+                # Band, never the raw decimal (ADR-0006); the serializer stopped
+                # exposing confidence_score, so mirror confidence_band here.
+                'confidence_band': s['metrics']['confidence_band'],
             },
             'timestamps': {'published_at': s['timestamps']['published_at']},
         }
@@ -352,7 +354,10 @@ def _published_at_key(story):
 def _sort_stories(stories, sort, order):
     reverse = order != 'asc'
     if sort == 'confidence':
-        stories.sort(key=lambda s: s['metrics']['confidence_score'] or 0.0, reverse=reverse)
+        # The Story dict exposes a band, not the raw score (ADR-0006); rank it.
+        _band_rank = {'HIGH': 3, 'MEDIUM': 2, 'LOW': 1}
+        stories.sort(key=lambda s: _band_rank.get(s['metrics']['confidence_band'], 0),
+                     reverse=reverse)
     elif sort == 'severity':
         stories.sort(
             key=lambda s: _SEVERITY_ORDER.get(s['metrics']['severity'] or 'LOW', 1),
