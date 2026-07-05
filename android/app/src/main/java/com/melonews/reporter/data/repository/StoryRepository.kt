@@ -60,6 +60,7 @@ class StoryRepository(private val context: Context) {
      */
     suspend fun submitReport(request: IngestRequest, mediaFile: File?): ApiResult<String> =
         withContext(Dispatchers.IO) {
+            try {
             // 1. Sanitize + hash the media once, now. The sync layer uploads this
             //    exact file (it does NOT re-sanitize), so bytes == signed hash.
             val sanitized: File? = mediaFile?.let { MediaSanitizer.sanitizeForUpload(context, it) }
@@ -123,6 +124,12 @@ class StoryRepository(private val context: Context) {
             }
 
             ApiResult.Success(localId)
+            } catch (t: Throwable) {
+                // On-device prep (media sanitize/hash, keystore signing, IO) must
+                // never crash the app — surface the reason to the UI instead.
+                android.util.Log.e("StoryRepository", "submitReport failed", t)
+                ApiResult.Error(t.message ?: "Could not prepare the report on this device")
+            }
         }
 
     private suspend fun uploadToAzure(sasUrl: String, file: File): Boolean =

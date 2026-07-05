@@ -34,6 +34,9 @@ class SubmitFragment : Fragment() {
     private val binding get() = _binding!!
     private val viewModel: SubmitViewModel by viewModels()
     private var cameraImageUri: Uri? = null
+    // The real file the camera writes to. cameraImageUri is a FileProvider
+    // content URI whose .path is NOT a filesystem path, so we keep the File.
+    private var cameraImageFile: File? = null
 
     // ── Permission launchers ─────────────────────────────────────────────
 
@@ -48,11 +51,11 @@ class SubmitFragment : Fragment() {
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
-            cameraImageUri?.path?.let { path ->
-                viewModel.attachedMediaFile = File(path)
+            cameraImageFile?.takeIf { it.exists() && it.length() > 0 }?.let { file ->
+                viewModel.attachedMediaFile = file
                 binding.tvMediaName.text = getString(R.string.media_attached)
                 binding.tvMediaName.visibility = View.VISIBLE
-            }
+            } ?: snack("Could not read the captured photo — try again or use Gallery")
         }
     }
 
@@ -256,6 +259,7 @@ class SubmitFragment : Fragment() {
                 "media_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())}",
                 ext, dir
             )
+            cameraImageFile = file
             cameraImageUri = FileProvider.getUriForFile(
                 requireContext(),
                 "${requireContext().packageName}.fileprovider",
