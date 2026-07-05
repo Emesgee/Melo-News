@@ -23,4 +23,10 @@
     <string name="loading">Loading\u2026</string>
     <string name="location_acquired">Location acquired</string>
     <string name="media_attached">Media attached</string>
+    <!-- Device-registration bootstrap (ADR-0016) -->
+    <string name="btn_register_device">Register this device (setup)</string>
+    <string name="register_working">Registering this device…</string>
+    <string name="register_done_title">Device registered</string>
+    <string name="register_done_msg">Your reporter pseudonym is:\n\n%1$s\n\nGive this to the steward so they can approve you (vouch to rung 2). Until then your reports wait for review.</string>
+    <string name="register_failed">Registration failed: %1$s</string>
 </resources>

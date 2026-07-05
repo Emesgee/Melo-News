@@ -91,6 +91,7 @@ class SubmitFragment : Fragment() {
         binding.btnGetLocation.setOnClickListener { requestLocation() }
         binding.btnAttachMedia.setOnClickListener { showMediaPicker() }
         binding.btnSubmit.setOnClickListener { submitReport() }
+        binding.btnRegisterDevice.setOnClickListener { confirmRegisterDevice() }
 
         viewModel.submitState.observe(viewLifecycleOwner) { state ->
             when (state) {
@@ -119,9 +120,48 @@ class SubmitFragment : Fragment() {
                 }
             }
         }
+
+        viewModel.registerState.observe(viewLifecycleOwner) { state ->
+            when (state) {
+                is RegisterState.Working -> {
+                    binding.btnRegisterDevice.isEnabled = false
+                    binding.btnRegisterDevice.text = getString(R.string.register_working)
+                }
+                is RegisterState.Done -> {
+                    binding.btnRegisterDevice.isEnabled = true
+                    binding.btnRegisterDevice.text = getString(R.string.btn_register_device)
+                    showHandleDialog(state.handle)
+                }
+                is RegisterState.Failed -> {
+                    binding.btnRegisterDevice.isEnabled = true
+                    binding.btnRegisterDevice.text = getString(R.string.btn_register_device)
+                    snack(getString(R.string.register_failed, state.message))
+                }
+            }
+        }
     }
 
     // ── Actions ───────────────────────────────────────────────────────────
+
+    private fun confirmRegisterDevice() {
+        android.app.AlertDialog.Builder(requireContext())
+            .setTitle(R.string.btn_register_device)
+            .setMessage(
+                "This creates your device signing key and registers your reporter " +
+                    "pseudonym. Do this once, during setup."
+            )
+            .setPositiveButton(android.R.string.ok) { _, _ -> viewModel.registerDevice() }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun showHandleDialog(handle: String) {
+        android.app.AlertDialog.Builder(requireContext())
+            .setTitle(R.string.register_done_title)
+            .setMessage(getString(R.string.register_done_msg, handle))
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
+    }
 
     private fun submitReport() {
         viewModel.submit(

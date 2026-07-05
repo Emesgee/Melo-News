@@ -73,9 +73,12 @@ is a real-reporter concern, not a comprehension-drill concern.
 
 ## Code state (2026-07-05)
 
-**Current:** both ingest endpoints are `@jwt_required()`; `resolve_signed_reporter`
-overrides the JWT identity with the pseudonym when a report is signed; the steward
-rung-vouch endpoint exists and recomputes events. **Not yet built:** any client
-that signs (so no pseudonym is ever created in practice), and the deferred
-signature-only auth. This ADR fixes the drill's identity + bootstrap approach; it
-lands with the ADR-0010 signing slice.
+**Bootstrap built.** Android: `security/DeviceIdentity.kt` (handle derivation
+matches the server's `derive_handle`, verified) + a "Register this device (setup)"
+action on the submit screen that fires one throwaway signed report and shows the
+`k-xxxx` handle. Server: added `POST /moderation/pseudonyms/<handle>/rung`
+(steward-only) so the steward can vouch by the handle the tester reads off the
+phone — closing the handle→id gap (the numeric `set_rung` refactored to share the
+vouch logic); tests in `test_rung_vouch.py`, green. Ingest endpoints remain
+`@jwt_required()` (turnstile kept for the drill, decision (a)); signature-only
+auth stays deferred to ADR-0011. Uncompiled Kotlin (no JVM toolchain here).

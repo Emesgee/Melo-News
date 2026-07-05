@@ -202,36 +202,60 @@ def set_role(user_id):
     return jsonify({'userid': user.userid, 'role': user.role}), 200
 
 
-@moderation_bp.route('/users/<int:user_id>/rung', methods=['POST'])
-@steward_required
-def set_rung(user_id):
-    """Steward vouches a user to a trust rung (1..3) — the cohort bootstrap.
-
-    A bump to rung 2+ can immediately let the reporter's existing corroborated
-    events auto-reach CORROBORATED, so re-evaluate those events here.
-    """
-    data = request.get_json(silent=True) or {}
+def _parse_rung(data):
+    """Return an int rung in 1..3 from the request body, or None if invalid."""
     try:
         rung = int(data.get('rung'))
     except (TypeError, ValueError):
-        return jsonify({'error': 'rung must be an integer 1..3'}), 422
-    if not 1 <= rung <= 3:
-        return jsonify({'error': 'rung must be between 1 and 3'}), 422
+        return None
+    return rung if 1 <= rung <= 3 else None
 
-    user = db.session.get(User, user_id)
-    if not user:
-        return jsonify({'error': 'user not found'}), 404
+
+def _vouch_user_to_rung(user, rung):
+    """Set the user's rung and re-derive their events. A bump to rung 2+ can
+    immediately let the reporter's existing corroborated events auto-reach
+    CORROBORATED, so re-evaluate those events here. Commits."""
     user.trust_rung = rung
-
     from app.events.service import recompute_event
     event_ids = {
-        fu.event_id for fu in FileUpload.query.filter_by(user_id=user_id).all()
+        fu.event_id for fu in FileUpload.query.filter_by(user_id=user.userid).all()
         if fu.event_id
     }
     for eid in event_ids:
         ev = db.session.get(Event, eid)
         if ev:
             recompute_event(ev)
-
     db.session.commit()
+
+
+@moderation_bp.route('/users/<int:user_id>/rung', methods=['POST'])
+@steward_required
+def set_rung(user_id):
+    """Steward vouches a user to a trust rung (1..3) by numeric id."""
+    rung = _parse_rung(request.get_json(silent=True) or {})
+    if rung is None:
+        return jsonify({'error': 'rung must be an integer 1..3'}), 422
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({'error': 'user not found'}), 404
+    _vouch_user_to_rung(user, rung)
     return jsonify({'userid': user.userid, 'trust_rung': user.trust_rung}), 200
+
+
+@moderation_bp.route('/pseudonyms/<handle>/rung', methods=['POST'])
+@steward_required
+def set_rung_by_handle(handle):
+    """Vouch a pseudonym to a rung by its ``k-xxxx`` handle (ADR-0016 bootstrap).
+
+    The tester reads the handle off their device after registering; the steward
+    vouches it directly, without first resolving a numeric id.
+    """
+    rung = _parse_rung(request.get_json(silent=True) or {})
+    if rung is None:
+        return jsonify({'error': 'rung must be an integer 1..3'}), 422
+    user = User.query.filter_by(display_handle=handle).first()
+    if not user:
+        return jsonify({'error': 'pseudonym not found'}), 404
+    _vouch_user_to_rung(user, rung)
+    return jsonify({'userid': user.userid, 'handle': user.display_handle,
+                    'trust_rung': user.trust_rung}), 200

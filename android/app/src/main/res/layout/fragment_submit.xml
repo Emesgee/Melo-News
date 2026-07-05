@@ -126,6 +126,16 @@
             android:layout_height="wrap_content"
             android:text="@string/btn_submit" />
 
+        <!-- Device-registration bootstrap (ADR-0016): one-time setup so the
+             steward can vouch this device's pseudonym to rung 2. -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnRegisterDevice"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/btn_register_device" />
+
         <!-- Privacy assurance banner -->
         <LinearLayout
             android:layout_width="match_parent"

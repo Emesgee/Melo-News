@@ -10,9 +10,12 @@ import com.melonews.reporter.data.model.ApiResult
 import com.melonews.reporter.data.model.IngestRequest
 import com.melonews.reporter.data.repository.StoryRepository
 import com.melonews.reporter.security.CanonicalReport
+import com.melonews.reporter.security.DeviceIdentity
 import com.melonews.reporter.security.PanicManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 class SubmitViewModel(app: Application) : AndroidViewModel(app) {
@@ -22,9 +25,39 @@ class SubmitViewModel(app: Application) : AndroidViewModel(app) {
     private val _submitState = MutableLiveData<SubmitState>()
     val submitState: LiveData<SubmitState> = _submitState
 
+    private val _registerState = MutableLiveData<RegisterState>()
+    val registerState: LiveData<RegisterState> = _registerState
+
     var currentLat: Double? = null
     var currentLon: Double? = null
     var attachedMediaFile: File? = null
+
+    /**
+     * Device-registration bootstrap (ADR-0016). Fires ONE throwaway signed
+     * report: `ReportSigner` mints the P-256 key on first use, and the signed
+     * ingest self-registers the pseudonym server-side at rung 1 (no dedicated
+     * endpoint — reuses the normal submit path). Surfaces the `k-xxxx` handle so
+     * the tester can tell the steward which pseudonym to vouch to rung 2.
+     */
+    fun registerDevice() {
+        _registerState.value = RegisterState.Working
+        viewModelScope.launch {
+            try {
+                val handle = withContext(Dispatchers.IO) { DeviceIdentity.handle() }
+                val ping = IngestRequest(
+                    title = "Device registration",
+                    body = "Bootstrap ping — self-registers this device's signing key.",
+                    severity = "LOW",
+                )
+                _registerState.value = when (val r = repository.submitReport(ping, null)) {
+                    is ApiResult.Success -> RegisterState.Done(handle)
+                    is ApiResult.Error -> RegisterState.Failed(r.message)
+                }
+            } catch (e: Exception) {
+                _registerState.value = RegisterState.Failed(e.message ?: "Registration failed")
+            }
+        }
+    }
 
     fun submit(
         title: String,
@@ -75,4 +108,10 @@ sealed class SubmitState {
     object Loading : SubmitState()
     object Success : SubmitState()
     data class Error(val message: String) : SubmitState()
+}
+
+sealed class RegisterState {
+    object Working : RegisterState()
+    data class Done(val handle: String) : RegisterState()
+    data class Failed(val message: String) : RegisterState()
 }
