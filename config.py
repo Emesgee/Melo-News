@@ -1,5 +1,6 @@
 import os
 import logging
+from datetime import timedelta
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -47,6 +48,15 @@ class Config:
     else:
         SECRET_KEY = SECRET_KEY or 'dev-only-secret-key'
         JWT_SECRET_KEY = JWT_SECRET_KEY or 'dev-only-jwt-secret-key'
+
+    # Access-token lifetime. flask-jwt-extended defaults to 15 minutes, far too
+    # short for a field reporter who is often offline and can't re-login mid-
+    # report. The JWT is only a turnstile here (ADR-0016) — the signature is the
+    # real identity — and token-at-rest hardening is ADR-0011's job, so a long
+    # default is acceptable for the drill. Override via JWT_ACCESS_TOKEN_EXPIRES_DAYS.
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(
+        days=int(os.getenv('JWT_ACCESS_TOKEN_EXPIRES_DAYS', '30'))
+    )
 
     SQLALCHEMY_DATABASE_URI = DATABASE_URL
     SQLALCHEMY_TRACK_MODIFICATIONS = False
