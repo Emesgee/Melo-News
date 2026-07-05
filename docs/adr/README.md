@@ -42,6 +42,7 @@ honest map of the gap between the design and the implementation.
 | [0015](0015-signing-slice-first-cut.md) | Signing-slice first cut: sign the full ADR-0008 envelope now; defer reader-side verification | Accepted |
 | [0016](0016-drill-identity-and-rung-bootstrap.md) | Drill identity: signature is the reporter of record behind a JWT turnstile; cohort bootstrapped to rung 2 in setup | Accepted |
 | [0017](0017-object-storage-hetzner-s3.md) | Media object storage is S3-compatible (Hetzner), not Azure | Accepted |
+| [0018](0018-identity-recovery-account-adoption.md) | Reporter-identity recovery is account-adoption of a rotated device key, not a key backup | Proposed |
 
 ## Writing a new one
 
