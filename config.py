@@ -66,11 +66,30 @@ class Config:
     JWT_COOKIE_SAMESITE = 'Lax'
     JWT_ACCESS_COOKIE_PATH = '/'
 
+# ── Object storage backend (ADR-0017) ─────────────────────────────────
+# Which store issues the media direct-upload presigned URL: 's3' (Hetzner /
+# any S3-compatible, incl. MinIO) or 'azure'. Default 'azure' for backward
+# compat; the Hetzner deploy sets STORAGE_BACKEND=s3.
+STORAGE_BACKEND = os.getenv("STORAGE_BACKEND", "azure").lower()
+
 # ── Azure / Blob Storage ──────────────────────────────────────────────
 AZURE_CONNECTION_STRING = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
 AZURE_CONTAINER_NAME = os.getenv("AZURE_BLOB_CONTAINER", "uploads")
 DOWNLOADS_FOLDER = os.getenv("DOWNLOAD_FOLDER", "./downloads")
 os.makedirs(DOWNLOADS_FOLDER, exist_ok=True)
+
+# ── S3-compatible object storage (Hetzner Object Storage / MinIO, ADR-0017) ──
+# Endpoint e.g. https://fsn1.your-objectstorage.com (Hetzner) or your MinIO URL.
+S3_ENDPOINT_URL = os.getenv("S3_ENDPOINT_URL")
+S3_REGION = os.getenv("S3_REGION", "auto")
+S3_BUCKET = os.getenv("S3_BUCKET")
+S3_ACCESS_KEY_ID = os.getenv("S3_ACCESS_KEY_ID")
+S3_SECRET_ACCESS_KEY = os.getenv("S3_SECRET_ACCESS_KEY")
+# Optional override for the permanent object URL (e.g. a CDN); when unset the
+# object URL is the presigned URL minus its query string.
+S3_PUBLIC_BASE_URL = os.getenv("S3_PUBLIC_BASE_URL")
+# 'virtual' (bucket.host) or 'path' (host/bucket) addressing.
+S3_ADDRESSING_STYLE = os.getenv("S3_ADDRESSING_STYLE", "virtual").lower()
 
 # ── Azure AI Services ──────────────────────────────────────────────
 AZURE_VISION_ENDPOINT = os.getenv("AZURE_VISION_ENDPOINT")

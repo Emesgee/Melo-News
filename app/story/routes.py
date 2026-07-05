@@ -163,8 +163,9 @@ _ALLOWED_MEDIA_EXTS = {
 @jwt_required()
 def stories_ingest_media_token():
     """
-    Issue a short-lived Azure SAS token so a mobile client can upload a
-    media file directly to Blob Storage without proxying through the server.
+    Issue a short-lived presigned upload URL so a mobile client can upload a
+    media file directly to object storage without proxying through the server.
+    Backend is S3-compatible (Hetzner) or Azure per STORAGE_BACKEND (ADR-0017).
 
     Query params
     ------------
@@ -185,7 +186,7 @@ def stories_ingest_media_token():
       3. POST /api/stories/ingest with blob_url as media_url
     """
     import uuid
-    from modules.azure_handler import generate_sas_upload_url
+    from modules.object_storage import presigned_upload_url
 
     ext = (request.args.get('ext') or '').lstrip('.').lower()
     if not ext:
@@ -197,9 +198,9 @@ def stories_ingest_media_token():
     blob_name = f"field-reports/{user_id}/{uuid.uuid4().hex}.{ext}"
 
     try:
-        token_info = generate_sas_upload_url(blob_name, expiry_minutes=15)
+        token_info = presigned_upload_url(blob_name, expiry_minutes=15)
     except RuntimeError as exc:
-        logger.error("SAS token generation failed: %s", exc)
+        logger.error("presigned upload URL generation failed: %s", exc)
         return jsonify({'error': 'Media upload not available', 'detail': str(exc)}), 503
 
     return jsonify(token_info), 200
