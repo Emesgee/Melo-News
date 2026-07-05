@@ -1,0 +1,47 @@
+{
+  "_comment": "Frozen cross-language contract for the report-signing canonical message (ADR-0014 / ADR-0015). BOTH the Python server (app/identity/test_signing.py) and the Android client MUST reproduce `canonical` byte-for-byte from `payload`. Do not edit a case's expected `canonical` without a signing-contract version bump — it invalidates every prior signature. Notes: keys sorted, compact separators (','/':'), raw UTF-8 (no \\uXXXX), explicit nulls, lat/lon are fixed 5-decimal strings, is_sensitive is 'true'/'false', media_sha256 is lowercase hex or null, tags is a pre-sorted array of strings or null.",
+  "canonical_message": [
+    {
+      "name": "full_text_no_media",
+      "payload": {
+        "title": "Explosion at market",
+        "body": "Loud blast, smoke rising.",
+        "city": "Testoria",
+        "country": "Sandboxia",
+        "lat": "10.00000",
+        "lon": "20.00000",
+        "severity": "HIGH",
+        "is_sensitive": "false",
+        "source_type": "eyewitness",
+        "subject": null,
+        "tags": null,
+        "media_sha256": null,
+        "public_key": "TESTKEY",
+        "published_at": "2026-07-05T14:03:00Z",
+        "local_id": "abc-123"
+      },
+      "canonical": "{\"body\":\"Loud blast, smoke rising.\",\"city\":\"Testoria\",\"country\":\"Sandboxia\",\"is_sensitive\":\"false\",\"lat\":\"10.00000\",\"local_id\":\"abc-123\",\"lon\":\"20.00000\",\"media_sha256\":null,\"public_key\":\"TESTKEY\",\"published_at\":\"2026-07-05T14:03:00Z\",\"severity\":\"HIGH\",\"source_type\":\"eyewitness\",\"subject\":null,\"tags\":null,\"title\":\"Explosion at market\"}"
+    },
+    {
+      "name": "media_tags_sensitive_unicode",
+      "payload": {
+        "title": "قصف السوق",
+        "body": "انفجار كبير",
+        "city": "رفح",
+        "country": "فلسطين",
+        "lat": "31.28840",
+        "lon": "34.25760",
+        "severity": "HIGH",
+        "is_sensitive": "true",
+        "source_type": "eyewitness",
+        "subject": "strike",
+        "tags": ["aftermath", "strike"],
+        "media_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "public_key": "TESTKEY2",
+        "published_at": "2026-07-05T14:05:30Z",
+        "local_id": "def-456"
+      },
+      "canonical": "{\"body\":\"انفجار كبير\",\"city\":\"رفح\",\"country\":\"فلسطين\",\"is_sensitive\":\"true\",\"lat\":\"31.28840\",\"local_id\":\"def-456\",\"lon\":\"34.25760\",\"media_sha256\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"public_key\":\"TESTKEY2\",\"published_at\":\"2026-07-05T14:05:30Z\",\"severity\":\"HIGH\",\"source_type\":\"eyewitness\",\"subject\":\"strike\",\"tags\":[\"aftermath\",\"strike\"],\"title\":\"قصف السوق\"}"
+    }
+  ]
+}

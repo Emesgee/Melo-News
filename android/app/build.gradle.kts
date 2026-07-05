@@ -91,6 +91,10 @@ dependencies {
     // Nearby Connections (mesh relay between devices)
     implementation("com.google.android.gms:play-services-nearby:19.1.0")
 
+    // Unit tests (JVM). gson is used to load the cross-language signing vectors.
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("com.google.code.gson:gson:2.10.1")
+
     // Note: DB at-rest encryption is provided by Android File-Based Encryption (FBE),
     // which is mandatory on all devices since Android 7 (minSdk=26 here).
 }
