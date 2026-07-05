@@ -9,6 +9,10 @@ import com.melonews.reporter.data.local.LocalStory
 import com.melonews.reporter.data.model.ApiResult
 import com.melonews.reporter.data.model.IngestRequest
 import com.melonews.reporter.data.model.MapStory
+import com.melonews.reporter.security.CanonicalReport
+import com.melonews.reporter.security.MediaHash
+import com.melonews.reporter.security.MediaSanitizer
+import com.melonews.reporter.security.ReportSigner
 import com.melonews.reporter.sync.SyncManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -19,6 +23,9 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
+import java.time.Instant
+import java.time.temporal.ChronoUnit
+import java.util.UUID
 
 class StoryRepository(private val context: Context) {
 
@@ -44,31 +51,79 @@ class StoryRepository(private val context: Context) {
         }
     }
 
-    suspend fun submitReport(request: IngestRequest, mediaFile: File?): ApiResult<String> {
-        val local = LocalStory(
-            title          = request.title,
-            body           = request.body ?: "",
-            city           = request.city,
-            country        = request.country,
-            lat            = request.lat,
-            lon            = request.lon,
-            severity       = request.severity,
-            tags           = request.tags?.joinToString(","),
-            subject        = null,
-            mediaLocalPath = mediaFile?.absolutePath,
-        )
-        dao.insert(local)
+    /**
+     * Sign the report on this device, then queue it. Signing happens HERE, at
+     * authoring time — not at send time — so the signature survives offline
+     * queueing and mesh relay (a relaying peer has no key). The media is
+     * sanitized and hashed now too, so the signed `media_sha256` is fixed to the
+     * exact bytes the sync layer will upload.
+     */
+    suspend fun submitReport(request: IngestRequest, mediaFile: File?): ApiResult<String> =
+        withContext(Dispatchers.IO) {
+            // 1. Sanitize + hash the media once, now. The sync layer uploads this
+            //    exact file (it does NOT re-sanitize), so bytes == signed hash.
+            val sanitized: File? = mediaFile?.let { MediaSanitizer.sanitizeForUpload(context, it) }
+            val mediaSha256: String? = sanitized?.let { MediaHash.sha256Hex(it) }
 
-        // Fire-and-forget: never await the network — return success immediately.
-        // SyncManager's NetworkCallback handles the offline→online transition.
-        if (isOnline()) {
-            CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-                try { syncManager.drainQueue() } catch (_: Exception) { }
+            // 2. Assemble the exact signed envelope (ADR-0008/0014/0015). local_id
+            //    is fixed up front so the signature covers the same id we send.
+            val localId = UUID.randomUUID().toString()
+            val publishedAt = Instant.now().truncatedTo(ChronoUnit.SECONDS).toString() // ...Z
+            val tags = request.tags?.map { it.trim() }?.filter { it.isNotEmpty() }?.sorted()
+            val publicKey = ReportSigner.publicKeyB64()
+
+            val fields = CanonicalReport.SignedFields(
+                title = request.title,
+                body = request.body,
+                city = request.city,
+                country = request.country,
+                lat = request.lat,          // already the 5-decimal signed string
+                lon = request.lon,
+                severity = request.severity,
+                isSensitive = request.isSensitive,
+                sourceType = request.sourceType,
+                subject = request.subject,
+                tags = tags,
+                mediaSha256 = mediaSha256,
+                publicKey = publicKey,
+                publishedAt = publishedAt,
+                localId = localId,
+            )
+            val signature = ReportSigner.sign(CanonicalReport.bytes(fields))
+
+            // 3. Persist the signed bundle. The sync layer rebuilds the wire
+            //    request from these verbatim, so send == signed.
+            val local = LocalStory(
+                localId        = localId,
+                title          = request.title,
+                body           = request.body ?: "",
+                city           = request.city,
+                country        = request.country,
+                lat            = request.lat,
+                lon            = request.lon,
+                severity       = request.severity,
+                tags           = tags?.joinToString(","),
+                subject        = request.subject,
+                mediaLocalPath = sanitized?.absolutePath,
+                publishedAt    = publishedAt,
+                isSensitive    = request.isSensitive == "true",
+                sourceType     = request.sourceType,
+                mediaSha256    = mediaSha256,
+                signature      = signature,
+                publicKey      = publicKey,
+            )
+            dao.insert(local)
+
+            // Fire-and-forget: never await the network — return immediately.
+            // SyncManager's NetworkCallback handles the offline→online transition.
+            if (isOnline()) {
+                CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+                    try { syncManager.drainQueue() } catch (_: Exception) { }
+                }
             }
-        }
 
-        return ApiResult.Success(local.localId)
-    }
+            ApiResult.Success(localId)
+        }
 
     private suspend fun uploadToAzure(sasUrl: String, file: File): Boolean =
         withContext(Dispatchers.IO) {

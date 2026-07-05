@@ -61,18 +61,30 @@ data class MediaTokenResponse(
 
 // ── Ingest ───────────────────────────────────────────────────────────────
 
+// lat/lon are STRINGS, not numbers: the server signs `payload.get('lat')`
+// verbatim (ADR-0014), so the wire value must be the exact 5-decimal signed
+// string. Every field below marked "(signed)" is part of the tamper-evident
+// envelope (ADR-0008/0015) and must equal what ReportSigner signed; the rest
+// (media_url, source_name) are server-assigned/unsigned.
 data class IngestRequest(
-    val title: String,
-    val body: String? = null,
-    val city: String? = null,
-    val country: String? = null,
-    val lat: Double? = null,
-    val lon: Double? = null,
-    val severity: String = "LOW",
-    @SerializedName("media_url") val mediaUrl: String? = null,
-    val tags: List<String>? = null,
+    val title: String,                                                   // signed
+    val body: String? = null,                                            // signed
+    val city: String? = null,                                            // signed
+    val country: String? = null,                                         // signed
+    val lat: String? = null,                                             // signed (5-decimal string)
+    val lon: String? = null,                                             // signed
+    val severity: String = "LOW",                                        // signed
+    @SerializedName("is_sensitive") val isSensitive: String = "false",   // signed ("true"/"false")
+    @SerializedName("source_type") val sourceType: String = "eyewitness",// signed
+    val subject: String? = null,                                         // signed
+    @SerializedName("media_sha256") val mediaSha256: String? = null,     // signed (hex, or null)
+    val tags: List<String>? = null,                                      // signed (sorted array)
+    @SerializedName("published_at") val publishedAt: String? = null,     // signed (ISO-8601 UTC)
+    @SerializedName("public_key") val publicKey: String? = null,         // signed (base64 SPKI DER)
+    val signature: String? = null,                                       // the DER ECDSA signature
+    @SerializedName("media_url") val mediaUrl: String? = null,           // unsigned (server ref)
     @SerializedName("source_name") val sourceName: String = "Field Reporter",
-    @SerializedName("local_id") val localId: String? = null,
+    @SerializedName("local_id") val localId: String? = null,             // signed
 )
 
 data class IngestResponse(

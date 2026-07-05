@@ -10,7 +10,6 @@ import com.melonews.reporter.data.local.AppDatabaseFactory
 import com.melonews.reporter.data.local.LocalStory
 import com.melonews.reporter.data.local.SyncStatus
 import com.melonews.reporter.data.model.IngestRequest
-import com.melonews.reporter.security.MediaSanitizer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -96,6 +95,10 @@ class SyncManager(private val context: Context) {
                     uploadMedia(path, story.localId)
                 }
 
+                // Rebuild the wire request from the stored signed bundle. Every
+                // signed field is sent verbatim (ADR-0014) so it matches what
+                // was signed at authoring time; mediaUrl is the only value
+                // resolved here (unsigned — the server signs media_sha256).
                 val request = IngestRequest(
                     title = story.title,
                     body = story.body.ifBlank { null },
@@ -104,8 +107,15 @@ class SyncManager(private val context: Context) {
                     lat = story.lat,
                     lon = story.lon,
                     severity = story.severity ?: "LOW",
-                    mediaUrl = blobUrl,
+                    isSensitive = if (story.isSensitive) "true" else "false",
+                    sourceType = story.sourceType ?: "eyewitness",
+                    subject = story.subject,
+                    mediaSha256 = story.mediaSha256,
                     tags = story.tags?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() },
+                    publishedAt = story.publishedAt,
+                    publicKey = story.publicKey,
+                    signature = story.signature,
+                    mediaUrl = blobUrl,
                     localId = story.localId,
                 )
 
@@ -129,41 +139,35 @@ class SyncManager(private val context: Context) {
     }
 
     private suspend fun uploadMedia(localPath: String, @Suppress("UNUSED_PARAMETER") storyId: String): String? {
-        val rawFile = File(localPath)
-        if (!rawFile.exists()) return null
+        // The file at localPath was ALREADY sanitized at authoring time
+        // (StoryRepository) and its hash is what the report signed. Upload it
+        // as-is — re-sanitizing here would change the bytes and invalidate the
+        // signed media_sha256. Not deleted on failure so retries can resend.
+        val uploadFile = File(localPath)
+        if (!uploadFile.exists()) return null
 
-        // Strip GPS/device metadata before the bytes leave the device.
-        // The SAS upload goes phone → Azure directly, so this is the only
-        // place we control. Falls back to the raw file on any failure.
-        val uploadFile = MediaSanitizer.sanitizeForUpload(context, rawFile)
-        val sanitizedTempCreated = uploadFile !== rawFile
+        val ext = uploadFile.extension.ifBlank { "jpg" }
+        val tokenResp = ApiClient.api.getMediaToken(ext)
+        if (!tokenResp.isSuccessful || tokenResp.code() == 503) return null
 
-        try {
-            val ext = uploadFile.extension.ifBlank { "jpg" }
-            val tokenResp = ApiClient.api.getMediaToken(ext)
-            if (!tokenResp.isSuccessful || tokenResp.code() == 503) return null
-
-            val info = tokenResp.body() ?: return null
-            val mimeType = when (ext.lowercase()) {
-                "mp4", "mpeg", "mov" -> "video/mp4"
-                "avi" -> "video/avi"
-                "webm" -> "video/webm"
-                "png" -> "image/png"
-                "gif" -> "image/gif"
-                "webp" -> "image/webp"
-                else -> "image/jpeg"
-            }
-            val body = uploadFile.asRequestBody(mimeType.toMediaType())
-            val req = Request.Builder()
-                .url(info.uploadUrl)
-                .put(body)
-                .addHeader("x-ms-blob-type", "BlockBlob")
-                .build()
-            val ok = ApiClient.rawOkHttpClient.newCall(req).execute().use { it.isSuccessful }
-            return if (ok) info.blobUrl else null
-        } finally {
-            if (sanitizedTempCreated && uploadFile.exists()) uploadFile.delete()
+        val info = tokenResp.body() ?: return null
+        val mimeType = when (ext.lowercase()) {
+            "mp4", "mpeg", "mov" -> "video/mp4"
+            "avi" -> "video/avi"
+            "webm" -> "video/webm"
+            "png" -> "image/png"
+            "gif" -> "image/gif"
+            "webp" -> "image/webp"
+            else -> "image/jpeg"
         }
+        val body = uploadFile.asRequestBody(mimeType.toMediaType())
+        val req = Request.Builder()
+            .url(info.uploadUrl)
+            .put(body)
+            .addHeader("x-ms-blob-type", "BlockBlob")
+            .build()
+        val ok = ApiClient.rawOkHttpClient.newCall(req).execute().use { it.isSuccessful }
+        return if (ok) info.blobUrl else null
     }
 
     private fun isOnline(): Boolean {

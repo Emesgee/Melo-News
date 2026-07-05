@@ -25,12 +25,26 @@ data class LocalStory(
     val body: String,
     val city: String?,
     val country: String?,
-    val lat: Double?,
-    val lon: Double?,
+    // lat/lon are the exact 5-decimal SIGNED strings (ADR-0014), stored verbatim
+    // so the send path never re-derives them and the signature stays valid.
+    val lat: String?,
+    val lon: String?,
     val severity: String?,
-    val tags: String?,           // comma-separated
+    val tags: String?,           // comma-separated, stored in the SIGNED (sorted) order
     val subject: String?,
-    val mediaLocalPath: String?, // absolute path on this device; null = text-only
+    // mediaLocalPath points at the already-SANITIZED file (StoryRepository
+    // sanitizes at authoring time) — the exact bytes whose hash was signed.
+    val mediaLocalPath: String?, // null = text-only
+
+    // On-device signature bundle (ADR-0013/0015), computed at authoring time so
+    // it survives offline queueing and mesh relay (a relaying peer has no key).
+    // Null on any legacy/unsigned row.
+    val publishedAt: String? = null,   // ISO-8601 UTC, signed attestation time
+    val isSensitive: Boolean = false,  // signed as "true"/"false" on the wire
+    val sourceType: String? = null,    // signed
+    val mediaSha256: String? = null,   // signed hex digest of the sanitized bytes
+    val signature: String? = null,     // base64 DER ECDSA over the canonical message
+    val publicKey: String? = null,     // base64 SPKI DER — the pseudonym
 
     val syncStatus: SyncStatus = SyncStatus.PENDING,
     val createdAt: Long = System.currentTimeMillis(),

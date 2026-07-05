@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.melonews.reporter.data.model.ApiResult
 import com.melonews.reporter.data.model.IngestRequest
 import com.melonews.reporter.data.repository.StoryRepository
+import com.melonews.reporter.security.CanonicalReport
 import com.melonews.reporter.security.PanicManager
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -36,12 +37,14 @@ class SubmitViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
 
+        // Coarsen coordinates to the signed 5-decimal form here (ADR-0014), so
+        // the value that gets signed, stored, and sent is one and the same.
         val request = IngestRequest(
             title = title.trim(),
             body = body.trim().ifBlank { null },
             city = city.trim().ifBlank { null },
-            lat = currentLat,
-            lon = currentLon,
+            lat = CanonicalReport.formatCoord(currentLat),
+            lon = CanonicalReport.formatCoord(currentLon),
             severity = severity
         )
 
