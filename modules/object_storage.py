@@ -13,7 +13,37 @@ The concrete backend functions are imported INSIDE each call so that:
     keep working when STORAGE_BACKEND is 'azure'.
 """
 
+import logging
+
 import config
+
+logger = logging.getLogger(__name__)
+
+# Stored file_path values that mean "no media" — never presign these.
+_NO_MEDIA = {"", "ingest:no-media", "anonymous:no-media"}
+
+
+def read_url(stored_url, expiry_minutes=None):
+    """Turn a stored media reference into a viewable URL at read time.
+
+    For an object in our private S3 bucket, returns a short-lived **presigned
+    GET** URL (ADR-0017) so the bucket stays private but media still displays /
+    can be re-hashed for reader-side verification. No-media sentinels return
+    None; anything else (local `/api/uploads/...`, Azure, external http) is
+    returned unchanged.
+    """
+    if not stored_url or stored_url in _NO_MEDIA:
+        return None
+    if config.STORAGE_BACKEND == "s3":
+        from modules import s3_handler
+        if s3_handler.is_our_object_url(stored_url):
+            ttl = expiry_minutes or getattr(config, "MEDIA_READ_URL_TTL_MINUTES", 60)
+            try:
+                return s3_handler.presigned_get_for_object_url(stored_url, ttl)
+            except Exception as exc:  # noqa: BLE001 — degrade to the stored URL
+                logger.warning("presigned GET failed for %s: %s", stored_url, exc)
+                return stored_url
+    return stored_url
 
 
 def presigned_upload_url(object_name: str, expiry_minutes: int = 15) -> dict:

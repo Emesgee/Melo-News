@@ -57,6 +57,56 @@ def test_dispatcher_routes_to_s3(monkeypatch):
     assert 'X-Amz-Signature=' in r['upload_url']
 
 
+def test_object_key_extraction_virtual_and_path(monkeypatch):
+    _configure_s3(monkeypatch)
+    assert s3_handler._object_key_from_url(
+        'https://melo-media.fsn1.your-objectstorage.com/field-reports/7/abc.jpg'
+    ) == 'field-reports/7/abc.jpg'
+    assert s3_handler._object_key_from_url(
+        'https://fsn1.your-objectstorage.com/melo-media/field-reports/7/abc.jpg'
+    ) == 'field-reports/7/abc.jpg'
+
+
+def test_is_our_object_url(monkeypatch):
+    _configure_s3(monkeypatch)
+    assert s3_handler.is_our_object_url('https://melo-media.fsn1.your-objectstorage.com/x/y.jpg')
+    assert not s3_handler.is_our_object_url('https://example.com/x.jpg')
+    assert not s3_handler.is_our_object_url('')
+
+
+def test_presigned_get_url_shape(monkeypatch):
+    _configure_s3(monkeypatch)
+    url = s3_handler.presigned_get_url('field-reports/7/abc.jpg', expiry_minutes=60)
+    assert 'field-reports/7/abc.jpg' in url
+    assert 'X-Amz-Signature=' in url
+    assert 'X-Amz-Expires=3600' in url
+
+
+def test_read_url_presigns_our_s3_object(monkeypatch):
+    _configure_s3(monkeypatch)
+    monkeypatch.setattr(config, 'STORAGE_BACKEND', 's3', raising=False)
+    out = object_storage.read_url(
+        'https://melo-media.fsn1.your-objectstorage.com/field-reports/7/abc.jpg'
+    )
+    assert 'X-Amz-Signature=' in out and 'field-reports/7/abc.jpg' in out
+
+
+def test_read_url_sentinels_and_passthrough(monkeypatch):
+    _configure_s3(monkeypatch)
+    monkeypatch.setattr(config, 'STORAGE_BACKEND', 's3', raising=False)
+    assert object_storage.read_url('ingest:no-media') is None
+    assert object_storage.read_url('') is None
+    assert object_storage.read_url(None) is None
+    # not our object → unchanged
+    assert object_storage.read_url('https://example.com/x.jpg') == 'https://example.com/x.jpg'
+
+
+def test_read_url_azure_backend_passthrough(monkeypatch):
+    monkeypatch.setattr(config, 'STORAGE_BACKEND', 'azure', raising=False)
+    url = 'https://acct.blob.core.windows.net/uploads/x.jpg'
+    assert object_storage.read_url(url) == url
+
+
 def test_dispatcher_azure_default_uses_azure(monkeypatch):
     """Default backend routes to the Azure handler (keeps existing behaviour/tests)."""
     monkeypatch.setattr(config, 'STORAGE_BACKEND', 'azure', raising=False)

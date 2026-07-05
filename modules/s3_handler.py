@@ -86,6 +86,45 @@ def generate_presigned_upload_url(object_name: str, expiry_minutes: int = 15) ->
     }
 
 
+def _object_key_from_url(object_url: str) -> str:
+    """Recover the object key from a stored object URL, for both virtual-hosted
+    (`https://<bucket>.<host>/<key>`) and path-style
+    (`https://<host>/<bucket>/<key>`) addressing."""
+    from urllib.parse import urlparse, unquote
+    path = unquote(urlparse(object_url).path).lstrip("/")
+    prefix = (config.S3_BUCKET or "") + "/"
+    if config.S3_BUCKET and path.startswith(prefix):
+        return path[len(prefix):]
+    return path
+
+
+def is_our_object_url(url: str) -> bool:
+    """True if `url` points at our configured S3 endpoint (so a stored media_url
+    that lives in our private bucket can be turned into a presigned GET)."""
+    if not url or not config.S3_ENDPOINT_URL:
+        return False
+    from urllib.parse import urlparse
+    endpoint_host = urlparse(config.S3_ENDPOINT_URL).netloc
+    return bool(endpoint_host) and endpoint_host in urlparse(url).netloc
+
+
+def presigned_get_url(object_key: str, expiry_minutes: int = 60) -> str:
+    """Short-lived presigned GET URL so a private-bucket object can be read
+    (displayed, or downloaded for reader-side verification) without making the
+    bucket public."""
+    client = _get_client()
+    return client.generate_presigned_url(
+        "get_object",
+        Params={"Bucket": config.S3_BUCKET, "Key": object_key},
+        ExpiresIn=expiry_minutes * 60,
+    )
+
+
+def presigned_get_for_object_url(object_url: str, expiry_minutes: int = 60) -> str:
+    """Presigned GET for a stored object URL (extracts the key first)."""
+    return presigned_get_url(_object_key_from_url(object_url), expiry_minutes)
+
+
 def upload_file_to_bucket(local_file_path: str) -> str | None:
     """Server-side upload of a local file (web/anonymous lane). Returns the
     object URL, or None on failure."""

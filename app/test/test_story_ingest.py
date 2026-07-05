@@ -49,6 +49,15 @@ def client(app):
     return app.test_client()
 
 
+@pytest.fixture(autouse=True)
+def _pin_azure_backend(monkeypatch):
+    """These media-token tests mock the Azure handler, so pin the backend to
+    'azure'. Otherwise a local .env STORAGE_BACKEND=s3 routes the endpoint to
+    the S3 handler and the Azure mocks never fire (ADR-0017)."""
+    import config
+    monkeypatch.setattr(config, 'STORAGE_BACKEND', 'azure', raising=False)
+
+
 def _post(client, token, payload):
     headers = {'Authorization': f'Bearer {token}'} if token else {}
     return client.post(

@@ -128,9 +128,14 @@ def _slim_event(upload):
 def serialize_upload(upload):
     """Convert a FileUpload ORM record to a normalized Story dict."""
     ext = (upload.filename or '').rsplit('.', 1)[-1].lower()
-    images = [upload.file_path] if ext in _IMAGE_EXTS and upload.file_path else []
-    videos = [upload.file_path] if ext in _VIDEO_EXTS and upload.file_path else []
-    primary_url = upload.file_path
+    # Resolve the stored reference to a viewable URL: a private-S3 object becomes
+    # a short-lived presigned GET (ADR-0017); no-media sentinels become None;
+    # local/Azure/external URLs pass through unchanged.
+    from modules.object_storage import read_url
+    media_url = read_url(upload.file_path)
+    images = [media_url] if ext in _IMAGE_EXTS and media_url else []
+    videos = [media_url] if ext in _VIDEO_EXTS and media_url else []
+    primary_url = media_url
 
     city = upload.city
     country = upload.country

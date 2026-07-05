@@ -90,6 +90,9 @@ S3_SECRET_ACCESS_KEY = os.getenv("S3_SECRET_ACCESS_KEY")
 S3_PUBLIC_BASE_URL = os.getenv("S3_PUBLIC_BASE_URL")
 # 'virtual' (bucket.host) or 'path' (host/bucket) addressing.
 S3_ADDRESSING_STYLE = os.getenv("S3_ADDRESSING_STYLE", "virtual").lower()
+# TTL (minutes) for the short-lived presigned GET URLs handed to readers so a
+# private bucket's media can still be displayed (ADR-0017).
+MEDIA_READ_URL_TTL_MINUTES = int(os.getenv("MEDIA_READ_URL_TTL_MINUTES", "60"))
 
 # ── Azure AI Services ──────────────────────────────────────────────
 AZURE_VISION_ENDPOINT = os.getenv("AZURE_VISION_ENDPOINT")
