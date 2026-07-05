@@ -79,6 +79,11 @@ pseudonym. The server verifies ECDSA-P256, not Ed25519.**
 **Server half done.** `signing.py` now verifies **ECDSA-P256/SHA-256**: it loads
 the public key as base64 SPKI DER (`load_der_public_key`), checks the curve is
 SECP256R1, and verifies the DER signature. Tests migrated to P-256 keys
-(`test_signing.py`), all green. **Client half absent:** Android still has no
-keypair, no keystore usage, and sends no `public_key`/`signature` — that is the
-ADR-0010 signing slice. Deploy checklist item still open: HTTPS base URL.
+(`test_signing.py`), all green. **Client half now built** (uncompiled here — no
+JVM toolchain): `security/ReportSigner.kt` generates the P-256 key in the
+AndroidKeyStore (StrongBox→TEE) and signs; `CanonicalReport.kt` +
+`MediaHash.kt` build/hash; signing is wired into `StoryRepository.submitReport`
+(authoring-time) and `SyncManager` (sends the bundle verbatim). The Android wire
+payload was verified end-to-end against the real server signing code with a real
+P-256 key. Remaining: compile + on-device run, the ADR-0016 device-registration
+bootstrap, and HTTPS base URL (deploy).
