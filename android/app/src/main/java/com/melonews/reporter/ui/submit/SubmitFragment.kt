@@ -67,6 +67,20 @@ class SubmitFragment : Fragment() {
         }
     }
 
+    // CAMERA is declared in the manifest, so Android 6+ requires it be granted
+    // at runtime before ACTION_IMAGE/VIDEO_CAPTURE will work. Remember which
+    // capture the user chose, request the permission, then launch on grant.
+    private var pendingCameraAction: String? = null
+
+    private val cameraPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        val action = pendingCameraAction
+        pendingCameraAction = null
+        if (granted && action != null) launchCamera(action)
+        else if (!granted) snack("Camera permission is required to take a photo or video")
+    }
+
     // ── Lifecycle ─────────────────────────────────────────────────────────
 
     override fun onCreateView(
@@ -209,12 +223,25 @@ class SubmitFragment : Fragment() {
             .setTitle("Attach Media")
             .setItems(items) { _, which ->
                 when (which) {
-                    0 -> launchCamera(MediaStore.ACTION_IMAGE_CAPTURE)
-                    1 -> launchCamera(MediaStore.ACTION_VIDEO_CAPTURE)
+                    0 -> requestCameraThenLaunch(MediaStore.ACTION_IMAGE_CAPTURE)
+                    1 -> requestCameraThenLaunch(MediaStore.ACTION_VIDEO_CAPTURE)
                     2 -> galleryLauncher.launch("image/* video/*")
                 }
             }
             .show()
+    }
+
+    /** Ensure CAMERA is granted (request if needed), then launch the capture. */
+    private fun requestCameraThenLaunch(action: String) {
+        val granted = ContextCompat.checkSelfPermission(
+            requireContext(), Manifest.permission.CAMERA
+        ) == PackageManager.PERMISSION_GRANTED
+        if (granted) {
+            launchCamera(action)
+        } else {
+            pendingCameraAction = action
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+        }
     }
 
     private fun launchCamera(action: String) {
