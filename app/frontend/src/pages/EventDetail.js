@@ -57,7 +57,7 @@ const EventDetail = () => {
       <article style={{ ...card, ...(ev.status === 'DISPUTED' ? disputed : {}) }}>
         <header style={row}>
           <EventStatusBadge status={ev.status} />
-          <CorroborationCount counted={ev.corroboration?.counted} independent={ev.corroboration?.independent} supporting={ev.corroboration?.supporting} />
+          <CorroborationCount counted={ev.corroboration?.counted} independent={ev.corroboration?.independent} supporting={ev.corroboration?.supporting} status={ev.status} />
           <ConfidenceBadge band={ev.confidence_band} />
           {ev.is_overridden && <span style={muted} title="Status set by a moderator">moderator-set</span>}
         </header>
