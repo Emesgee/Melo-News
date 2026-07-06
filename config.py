@@ -69,6 +69,15 @@ class Config:
     PORT = 5000
     UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'app', 'uploads')
 
+    # Anonymous /anonymous-ingest is DISABLED for the pilot (ADR-0007: an
+    # unauthenticated public ingest is the easiest Sybil/spam vector and adds no
+    # value to the scripted drill, which uses signed pseudonyms; anonymous
+    # reports also count 0 toward corroboration). Re-enable post-pilot ONLY with
+    # real anti-abuse (device attestation / proof-of-work) via env override.
+    ANONYMOUS_INGEST_ENABLED = os.getenv(
+        'ANONYMOUS_INGEST_ENABLED', 'false'
+    ).lower() in ('1', 'true', 'yes')
+
     # JWT cookie configuration (httpOnly for XSS protection)
     JWT_TOKEN_LOCATION = ["cookies", "headers"]  # Accept both during migration
     JWT_COOKIE_SECURE = ENVIRONMENT == 'production'  # HTTPS only in prod

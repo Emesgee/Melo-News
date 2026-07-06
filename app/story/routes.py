@@ -260,6 +260,13 @@ def stories_anonymous_ingest():
     Returns 201 with an opaque ack — no IDs that could later be used to
     correlate or enumerate.
     """
+    # Disabled for the pilot (ADR-0007): a public no-account ingest is the top
+    # abuse/Sybil surface and anonymous reports can't corroborate anyway. Gated
+    # behind ANONYMOUS_INGEST_ENABLED so it can be re-enabled post-pilot with
+    # real anti-abuse controls.
+    if not current_app.config.get('ANONYMOUS_INGEST_ENABLED', False):
+        return jsonify({'error': 'Anonymous submission is disabled. Create an account or use the app.'}), 403
+
     title = (request.form.get('title') or '').strip()
     if not title:
         return jsonify({'error': 'title is required'}), 400

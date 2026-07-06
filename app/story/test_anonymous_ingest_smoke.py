@@ -39,6 +39,9 @@ def _token_for(client, email, password):
 
 def main():
     app = create_app('testing')
+    # The endpoint is disabled by default for the pilot (ADR-0007); enable it
+    # here so this smoke test still exercises the anonymous-ingest path.
+    app.config['ANONYMOUS_INGEST_ENABLED'] = True
     with app.app_context():
         db.create_all()
         populate_initial_data()
