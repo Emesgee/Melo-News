@@ -50,8 +50,9 @@ const EventsFeed = () => {
     <div style={wrap}>
       <h1 style={h1}>Events</h1>
       <p style={muted}>
-        Reports grouped into incidents. Corroboration counts <strong>distinct reporters</strong> — never a single source —
-        and a confidence band is an automated estimate, secondary to that.
+        Reports grouped into incidents. Corroboration counts <strong>independent sources</strong> — the same
+        clip reposted under many accounts counts once, never a single source — and a confidence band is an
+        automated estimate, secondary to that.
       </p>
 
       {events.length === 0 && (
@@ -69,7 +70,7 @@ const EventsFeed = () => {
         >
           <header style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             <EventStatusBadge status={ev.status} />
-            <CorroborationCount counted={ev.corroboration?.counted} supporting={ev.corroboration?.supporting} />
+            <CorroborationCount counted={ev.corroboration?.counted} independent={ev.corroboration?.independent} supporting={ev.corroboration?.supporting} />
             <ConfidenceBadge band={ev.confidence_band} />
             {ev.is_overridden && <span style={muted} title="Status set by a moderator">moderator-set</span>}
           </header>

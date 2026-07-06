@@ -33,24 +33,39 @@ export const ConfidenceBadge = ({ band }) => {
   );
 };
 
-// counted = distinct corroborating identities (the falsifiable signal);
-// supporting = anonymous reports (context only) — shown SEPARATELY, never merged.
-export const CorroborationCount = ({ counted = 0, supporting = 0 }) => (
-  <>
-    {counted > 0 && (
-      <span style={{ ...PILL, background: '#dcfce7', color: '#14532d' }}
-            title="Distinct corroborating identities (one actor's many keys count once)">
-        ✓ {counted} corroborating
-      </span>
-    )}
-    {supporting > 0 && (
-      <span style={{ ...PILL, background: '#e5e7eb', color: '#6b7280' }}
-            title="Anonymous reports — supporting context, not counted toward corroboration">
-        +{supporting} anonymous
-      </span>
-    )}
-  </>
-);
+// Leads with INDEPENDENT sources: reshares of the same media (one clip reposted
+// under many keys) collapse to a single origin, so this is the falsifiable
+// number (ADR-0019/UC8), not the raw account count. When more accounts posted
+// than there are independent sources, the gap is surfaced honestly — a detected
+// reshare — rather than hidden. supporting = anonymous reports (context only),
+// always shown separately. `independent` falls back to `counted` for older
+// payloads that don't carry it.
+export const CorroborationCount = ({ counted = 0, independent = null, supporting = 0 }) => {
+  const ind = independent == null ? counted : independent;
+  const reshared = Math.max(0, (counted || 0) - ind);
+  return (
+    <>
+      {ind > 0 && (
+        <span style={{ ...PILL, background: '#dcfce7', color: '#14532d' }}
+              title="Independent sources — reshares of the same media count once, one actor's many keys count once">
+          ✓ {ind} independent source{ind === 1 ? '' : 's'}
+        </span>
+      )}
+      {reshared > 0 && (
+        <span style={{ ...PILL, background: '#fef3c7', color: '#92400e' }}
+              title={`${counted} accounts posted, but ${reshared} reposted the same media — counted once, not as independent corroboration`}>
+          ⤿ {counted} accounts · {reshared} reshared
+        </span>
+      )}
+      {supporting > 0 && (
+        <span style={{ ...PILL, background: '#e5e7eb', color: '#6b7280' }}
+              title="Anonymous reports — supporting context, not counted toward corroboration">
+          +{supporting} anonymous
+        </span>
+      )}
+    </>
+  );
+};
 
 export const ReporterChip = ({ reporter }) => {
   if (!reporter) return null;
