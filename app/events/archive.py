@@ -28,6 +28,7 @@ from collections import Counter
 from datetime import timezone
 
 from app.story.serializers import serialize_reporter, confidence_band
+from app.events.independence import analyze_independence
 
 # Bump when the emitted shape changes in a way a stored/exported graph must be
 # able to distinguish (durability: an old archived graph declares its version).
@@ -150,6 +151,11 @@ def build_event_graph(event):
             'supporting': sum(1 for m in members if m.user_id is None),
             'reshare_clusters': reshare_clusters,
         },
+        # Advisory coordination flags (text/timing). NOT reflected in the counts
+        # above -- they are surfaced for a moderator/reader to weigh, because for
+        # text/timing the same pattern marks genuine corroboration as much as
+        # astroturf (see independence.py). Empty == nothing flagged.
+        'coordination_flags': analyze_independence(members),
         'nodes': nodes,
     }
     graph['integrity'] = {'graph_sha256': graph_content_hash(graph)}
