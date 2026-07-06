@@ -111,64 +111,182 @@ counts **independent** sources, not raw posts. Record verbatim the words they us
 
 ## Part C — Belief-change instrument (exit criterion #6, THE gate)
 
+> **Hardened 2026-07-06 by a 5-persona agent red-team** (opposed skeptic,
+> everything-is-fake cynic, low-effort scroller, brand-skeptic, non-technical
+> elder). Their convergent verdict on the *first* draft of this instrument:
+> **it would likely record a RAW→MELO belief bump and misread it as "the signal
+> works," when the bump is driven by sober formatting while the trust labels
+> themselves partly backfire — and a low score from confusion is
+> indistinguishable from a low score from distrust.** That is the exact false
+> positive ADR-0020 warns about. The controls below exist to prevent it. (The
+> agent pass hardens the *instrument*; it is NOT belief data — only humans run
+> Part C.) See Appendix A (backfire) and Appendix B (jargon).
+
 **Panel:** skeptical, non-aligned, non-technical readers — explicitly *not* T4P
 insiders. Small N is expected; treat results as directional, and pre-register the
 thresholds below *before* running so the result can't be rationalized after.
+**Pre-measure each reader's dispositional trust** (general trust in media /
+institutions, 2–3 items) so a persona effect can't masquerade as an instrument
+effect.
 
-**Design — matched A/B with a within-subjects control.** Two matched claims
-(same kind of event, different specifics), each shown in one of two conditions,
-counterbalanced across the panel:
+### Stimulus arms — RAW-vs-MELO alone is fatally confounded
 
-- **RAW** — the claim as a bare social post: one unverified clip, no trust context.
-- **MELO** — the same claim as a Melo Event card: *"Corroborated · 3 independent
-  sources · signed · confidence: medium,"* with the "why" (the source list /
-  graph) expandable.
+The two-up RAW-vs-MELO comparison changes *many* variables at once (layout,
+sobriety, metadata, a reporter, badges, AND the trust verdict), so a belief lift
+can't be attributed to *corroboration* rather than to *polish*. Run these arms so
+each variable is isolated (one claim per reader per arm, **between-subjects** for
+the core comparison, order **counterbalanced**):
 
-For each stimulus capture, on a 0–10 scale:
-- **Belief** — "How likely is it this really happened?"
-- **Action intent** — "Would you share or cite this?" (0 = no, 10 = definitely).
+| Arm | What it is | Isolates |
+|---|---|---|
+| **RAW** | bare social post, scary clip, no context | floor |
+| **MELO-corroborated** | full trust card (status + N independent + signed + confidence) | the headline claim |
+| **MELO-styled-uncorroborated** | *same chrome*, but "1 source · uncorroborated" | **polish vs signal** (the key control) |
+| **verdict-word-removed** | the evidence ("3 accounts, footage matches across angles") *without* the word "Corroborated" | **the label vs the evidence** |
+| **masthead-swap** | same card attributed to a *known* outlet instead of Melo | **the unknown-brand penalty** (platform-trust transfer) |
+| **false-corroboration trap** | a "Corroborated" card whose claim is actually thin/planted | **over-trust** — does the badge manufacture misplaced confidence? |
 
-**Discrimination controls (run these too — they guard against "Melo = trust"):**
-- a **DISPUTED** event card, and a **LONE-unverified** card. A reader who is
-  genuinely reading the signal should rate these **lower** than the CORROBORATED
-  card — not uniformly high just because it's "in the app".
+### Measures — separate belief, platform-trust, and attention
 
-**Backfire probe (UC4's known failure mode):** after the MELO condition, ask
-"Does *'corroborated'* read to you as evidence, or as the platform taking a side?"
-(scale + free text).
+Per stimulus, in this order:
+
+1. **Noticing / recall gate (before anything else).** Unprompted: *"What did this
+   card tell you?"* and *"Was this event corroborated, disputed, or unconfirmed?"*
+   A reader who can't answer never processed the signal — their belief rating is
+   noise (the scroller fails this). **Notice-rate is itself a primary result.**
+2. **Event belief (about the world), 0–10** — "How likely is it this event
+   actually happened?"
+3. **Platform-assessment trust (about Melo), 0–10** — "How much do you trust
+   *Melo's* assessment of it?" — kept SEPARATE from #2, because a reader can find
+   the event plausible on base rates while distrusting Melo entirely (or vice
+   versa). Fusing them is the instrument's biggest confound.
+4. **Attribution** — "How much of your answer to #2 comes from the labels vs your
+   own prior sense of the event vs the footage itself?"
+5. **Action intent — split** — "share as true?" and "cite it (name attached)?"
+   are different acts; capture both, plus **free-text why-not** ("wouldn't cite —
+   unknown platform" is the exact backfire).
+6. **Backfire — open first, then options.** Ask open: *"What does 'corroborated'
+   tell you here, and who decided it?"* THEN offer ≥4 choices (evidence /
+   platform taking a side / an unverifiable assertion from a party I can't hold
+   accountable / a machine's guess / didn't notice it). The old binary *planted*
+   the "taking a side" frame and hid the real skeptic answers.
+7. **Honest-labeling probe (a likely POSITIVE — test it).** After the DISPUTED /
+   LONE cards: "Did seeing Melo label some events *Disputed* / *Developing* change
+   your trust in the platform? up / down / why?" Every skeptic persona trusted the
+   *method* more for its honest uncertainty — the badge-vs-RAW framing misses this
+   entirely, so measure it directly.
+
+**Comprehension gates belief (run Part B first, per reader).** A low belief score
+from someone who misread "🔏 signed" as "Melo endorsed" or "independent sources"
+as "three newsrooms" measures a *misunderstanding*, not the signal — you cannot
+tell a backfire from a comprehension failure otherwise. Treat any Part-C rating
+built on a failed comprehension item as a **jargon finding, not a trust finding.**
+
+**Realism.** Present in a **time-pressured scrolling feed with distractor items**,
+not a calm side-by-side — side-by-side induces a comparison real readers never
+make and telegraphs the "trust the pretty one" demand effect.
 
 ### Pass / fail (pre-register these)
 
-**#6 PASSES only if all three hold:**
-1. **Lift:** MELO belief > RAW belief for the CORROBORATED claim by a
-   pre-set margin (suggested ≥ **1.5 points** on 0–10, or a clear majority
-   shifting up in the within-subjects pass).
-2. **Discrimination:** readers rate CORROBORATED **above** DISPUTED and LONE —
-   i.e. the lift tracks the *signal*, not the brand.
-3. **No backfire:** the "reads as platform bias" rate is below a set ceiling
-   (suggested < **⅓** of the skeptical panel).
+**#6 PASSES only if all of:**
+1. **Signal, not polish:** MELO-corroborated belief exceeds **MELO-styled-
+   uncorroborated** (same chrome) — not merely RAW — by a pre-set margin
+   (suggested ≥ **1.5 pts**/10). Beating RAW alone does not count; that could be
+   pure formatting.
+2. **Discrimination:** CORROBORATED rated above DISPUTED and LONE — the effect
+   tracks the signal, not the brand.
+3. **No net backfire:** the "unverifiable assertion / platform taking a side /
+   machine's guess" share is below a set ceiling (suggested < **⅓**), and belief
+   is not *lower* than the styled-uncorroborated control.
+4. **No manufactured over-trust:** the **false-corroboration trap** does not
+   raise belief the way a genuine corroboration does — else the badge inflates
+   confidence rather than tracking evidence.
 
-**#6 FAILS** if belief doesn't move, if CORROBORATED/DISPUTED/LONE all move
-together (blanket trust or blanket distrust), or if backfire is high. **A fail is
-the ADR-0020 branch signal** — shift emphasis to the archive (UC9) and debunk
-(UC8) surfaces, which don't depend on lay-reader belief. Record it plainly; do
-not re-run with a friendlier audience to get a pass.
+**#6 FAILS** if the lift vanishes against the styled control (it was polish), if
+CORROBORATED/DISPUTED/LONE move together (blanket trust/distrust), if backfire is
+high, or if the trap inflates belief. **A fail is the ADR-0020 branch signal** —
+shift emphasis to the archive (UC9) and debunk (UC8) surfaces, which don't depend
+on lay-reader belief. Record it plainly; do not re-run with a friendlier audience
+to get a pass.
 
 ---
 
 ## Data capture sheet (per tester)
 
 ```
-tester id (anonymous): ____   aligned/skeptical: ____   technical: y/n
-Part B  rank(CORROB / DEVELOP / DISPUTED): ____  reshare understood: y/n  jargon misread: __________
-Part C  claim1 condition: RAW/MELO   belief:__/10  share:__/10
-        claim2 condition: RAW/MELO   belief:__/10  share:__/10
-        DISPUTED belief:__/10   LONE belief:__/10   CORROBORATED belief:__/10
-        backfire (evidence 0 ── 10 platform-bias): ____   free text: __________
+tester id (anon): ____  disposition: skeptical/aligned  media-trust pre(0-10): __  technical: y/n
+Part B (comprehension GATE, run first)
+  rank CORROB/DEVELOP/DISPUTED: ____   reshare understood: y/n
+  term glosses correct? corroborated:_ independent-sources:_ signed:_ rung:_ confidence(automated):_ handle:_
+Part C (arm assigned): RAW / MELO-corrob / styled-uncorrob / verdict-removed / masthead-swap / trap
+  noticed signal (recall gate): y/n   recalled status correctly: y/n
+  event-belief:__/10   platform-trust:__/10   attribution(label/prior/footage): __________
+  share-as-true:__/10   cite:__/10   why-not: __________
+  backfire (open): __________   then pick: evidence/side/unverifiable/machine-guess/didnt-notice
+  honest-labeling effect (after DISPUTED+LONE): up / down / none — why: __________
 notes: __________________________________________________
 ```
 
 ---
+
+## Appendix A — Backfire-vector register (from the 5-persona red-team)
+
+Concrete ways a skeptical reader reads the trust display as bias/manipulation,
+trusts it *less*, or trusts it for the wrong reason. Ranked by cross-persona
+convergence. These are **hypotheses to test on humans**, and a punch-list for the
+reader-UI (they are *product* findings, not just instrument findings).
+
+| Trigger | How it backfires | Personas |
+|---|---|---|
+| **"Corroborated" as a past-tense STATUS** | reads as a verdict handed down → "by whose authority?" → for an unknown/activist platform = *taking a side*. The positive label is the one that backfires. | 4/5 |
+| **"(automated)"** | "no accountable human — a machine can't be sued, fired, or shamed"; false precision. Undercuts the whole card. | 4/5 |
+| **"🔏 signed"** | misread as *Melo endorsed/approved* (editorial seal) or as *password/lock* — almost nobody read media-integrity; inflates the wrong claim. | 4/5 |
+| **"rung 2"** | reads as platform-internal, self-vouching ("our guy, trusted by us") = circular = taking a side; scale ambiguous, "2 sounds low." | 5/5 |
+| **pseudonymous handle "k-7f3a"** | reads as a bot/spam serial number, machine-made, impersonal → *less* trust; "a codename is the opposite of a byline." | 4/5 |
+| **green ✓ + badge stack** | density of badges on the "good" card pattern-matches to verified-checkmark *advertising* → trust-me chrome, not evidence. | 2/5 |
+| **"independent sources"** | unauditable assertion; "asserting independence is exactly what a coordinated source would also do." | 3/5 |
+| **the evidence is hidden behind "why?"** | the badge does the persuading, the reasoning is unread → **manufactured / wrong-reason trust** in credulous readers. | 2/5 |
+| **✓ on BOTH Corroborated AND Disputed** | for a skimmer the check "closes the question" — *the ✓ cancels the ⚠ warning*; three states collapse to two. (**a real UI bug, not just a test finding**) | 2/5 |
+| **unknown brand ("who is Melo?")** | every reassurance routes back to a party the reader can't hold accountable; "corroborated" from an unaccountable source is a *discount* signal. | 2/5 |
+
+## Appendix B — Jargon / comprehension register
+
+What readers *thought* each element meant. A belief rating built on these misreads
+measures confusion, not the signal — hence the comprehension gate before Part C.
+
+| Element | Common misread | Fix direction |
+|---|---|---|
+| **corroborated** | "confirmed/verified TRUE by an authority" (stronger than "multiple similar reports") — over-promises | gloss: "checked against other people who saw the same thing"; attribute it ("Melo's assessment") |
+| **independent sources** | ambiguous: independent of *each other* / *the reporter* / *Melo*? Elder pictured **newsrooms**, not 3 people with phones | say "different people, not connected to each other, who each reported it" |
+| **rung 2** | game level / rank; "2 sounds low"; no scale | replace with words + scale: "track record: some, not yet well-established" |
+| **🔏 signed** | "Melo approved/endorsed" or "secure/password" | gloss: "the reporter proved this post is really theirs and untampered" |
+| **Confidence: Medium (automated)** | "Medium = they're not sure, so why should I be?"; "(automated) = no human checked"; referent undefined | reconsider showing "(automated)" to lay readers; state confidence *in what* |
+| **k-7f3a** | bot/spam/serial number, not a person | show "a verified reporter (name protected)"; hide the raw code |
+| **~9:40pm** (tilde) | auto-generated/templated/typo → faintly bot-like | drop the tilde or say "about 9:40pm" |
+| **⚠ accounts conflict — treat with caution** | *understood and liked* — the single most trust-building element | **keep**; it's plain-language and action-guiding |
+| **"new reporter"** | understood and liked (plain English) | keep |
+
+## Appendix C — Product findings (beyond the instrument)
+
+Too important to bury in a test doc — surfaced unprompted by every persona:
+
+1. **Honest labeling is the strongest trust-builder; the confident badge is the
+   weakest.** Skeptics trusted Melo's *method* more for its DISPUTED/LONE
+   uncertainty and *less* for the confident CORROBORATED verdict. Lean the reader
+   UI on visible, plain-language uncertainty — not on a green stamp.
+2. **The reader UI has a live bug:** a ✓ on both Corroborated and Disputed. The
+   status must be carried by a single, instantly-different visual, and the ✓ must
+   not appear on Disputed.
+3. **The evidence is buried behind "why?".** The one auditable, persuasive line
+   ("footage matches across angles") sits behind a tap almost no one takes; the
+   unearned badge is what's visible. Consider surfacing a plain-language *reason*
+   on the card face.
+4. **Machine/impersonal framing (codes, "automated", padlocks) reads as
+   bot-generated** next to a human tragedy — actively lowering trust for
+   non-technical readers. Humanize the provenance language.
+
+These feed the reader-UI backlog and a future ADR; they are consistent with
+ADR-0006 (show the basis, plain-language) and the UC4 backfire risk.
 
 ## Summary of exit criteria
 
