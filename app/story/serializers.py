@@ -252,5 +252,11 @@ def serialize_event(event, include_members=False):
         },
     }
     if include_members:
-        data['members'] = [serialize_upload(m) for m in verified]
+        # Chronological (oldest first) so the detail view reads as the event
+        # developing — one account, then another independently backing it. ISO
+        # timestamps sort lexically; a missing time sorts first. Ordering uses
+        # the reporter's self-declared signed published_at (narrative, not proof).
+        members = [serialize_upload(m) for m in verified]
+        members.sort(key=lambda s: (s.get('timestamps') or {}).get('published_at') or '')
+        data['members'] = members
     return data

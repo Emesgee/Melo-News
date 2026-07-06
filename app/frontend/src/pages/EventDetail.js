@@ -18,6 +18,20 @@ const disputeNote = { color: 'var(--status-disputed)', fontWeight: 600, fontSize
 const h2 = { fontSize: 14, color: 'var(--text-secondary)', margin: '16px 0 4px' };
 const memberRow = { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', padding: '8px 0', borderTop: '1px solid var(--border-color)' };
 
+// Arrival time of a report relative to the first in the event — shows the event
+// developing (chronology, NOT a trust signal). Based on the reporter's
+// self-declared, signed published_at, so it's narrative, not proof.
+const arrivalLabel = (ts, firstTs) => {
+  if (!ts || !firstTs) return null;
+  const secs = (new Date(ts) - new Date(firstTs)) / 1000;
+  if (!Number.isFinite(secs) || secs <= 0) return 'earliest';
+  const mins = Math.round(secs / 60);
+  if (mins < 60) return `+${Math.max(1, mins)} min`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `+${hrs} h`;
+  return `+${Math.round(hrs / 24)} d`;
+};
+
 const EventDetail = () => {
   const { id } = useParams();
   const [ev, setEv] = useState(null);
@@ -76,12 +90,23 @@ const EventDetail = () => {
         )}
 
         <h2 style={h2}>Reports</h2>
-        {(ev.members || []).map((m) => (
-          <div key={m.id} style={memberRow}>
-            <ReporterChip reporter={m.provenance?.reporter} />
-            <span style={{ color: 'var(--text-primary)', fontSize: 14 }}>{m.body || m.title}</span>
-          </div>
-        ))}
+        {(ev.members || []).map((m, i, arr) => {
+          const label = arrivalLabel(m.timestamps?.published_at, arr[0]?.timestamps?.published_at);
+          return (
+            <div key={m.id} style={memberRow}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <ReporterChip reporter={m.provenance?.reporter} />
+                {label && (
+                  <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}
+                        title="Time each report arrived, relative to the first — uses the reporter's self-declared, signed time">
+                    {label}
+                  </span>
+                )}
+              </div>
+              <span style={{ color: 'var(--text-primary)', fontSize: 14 }}>{m.body || m.title}</span>
+            </div>
+          );
+        })}
         {(!ev.members || ev.members.length === 0) && (
           <p style={muted}>No published reports yet.</p>
         )}
