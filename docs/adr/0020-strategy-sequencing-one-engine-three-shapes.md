@@ -108,15 +108,44 @@ archive's admissibility tier); and building Lane A ingest *before* the belief hy
 - **Solo-feasible:** by refusing the three-product fork, the sequence keeps one engine one person can
   maintain, and lets partnerships (Mnemonic/eyeWitness) carry the parts Melo should not rebuild.
 
-## Code state (2026-07-06)
+## Code state (updated 2026-07-06)
 
-**Not built — Proposed; this is a roadmap ADR, not an implemented one.** Today the codebase has the
-Lane-B signing/capture stack (ADR-0013/0008/0014/0015, built and proven on-device) and a reader feed
-with an Event/corroboration model (`EventsFeed`, `EventDetail`, `TrustUI`, the Event serializers with
-a rung-2 Sybil backstop). It does **not** have: the archive-grade data model (the current store is
-consumer-shaped — status/serializers, not a durable byte-capturing provenance graph with an explicit
-corroboration-relationship structure); Lane A ingest of public content; the fake-independence detector;
-or any byte-preservation/export path. **For the drill, nothing new is required** — Phase 0 runs on the
-existing Lane-B path; this ADR only fixes the *post-drill* build order and the belief-falsification
-exit criterion. Phase 1 (the shared data model + independence detector) is the first thing to build
-after the drill, and is the no-regret foundation for whichever shape the drill selects.
+**Phase 0 unchanged; Phase 1 no-regret core substantially BUILT (four increments); Phase 2/3 not
+started.** The starting point remains the Lane-B signing/capture stack (ADR-0013/0008/0014/0015, proven
+on-device) plus the reader feed (`EventsFeed`, `EventDetail`, `TrustUI`) over an Event/corroboration
+model with the rung-2 Sybil backstop.
+
+**Phase 1 — built and tested (135 tests green), on branch `citizen-journalism-trust-model`:**
+
+- **Fake-independence detector** (commit `92d8805`). `FileUpload.media_sha256` lifted out of the
+  opaque `signed_message` blob into a first-class indexed column; `Event.independent_source_count`
+  added. `events.service.recompute_event` collapses byte-identical media (reshares/astroturf) to a
+  single origin, and CORROBORATED promotion now gates on independent origins, not raw distinct keys —
+  strictly more conservative, so every prior corroboration/drill test still passes. Closes the UC3/UC8
+  "distinct keys treated as distinct people" hole. Reader API exposes `counted` vs `independent`.
+- **Explicit corroboration graph + archive-grade export** (commit `3a202dd`). `app/events/archive.py`
+  `build_event_graph()` emits a deterministic, privacy-preserving (never a raw `user_id`), hashable
+  (`graph_sha256`) provenance record — per source: pseudonym, provenance tier (verified/unverified;
+  `public` reserved for Lane A), media fingerprint, independence role, plus reshare clusters. Served at
+  `GET /api/events/<id>/graph`.
+- **Durable, content-addressed snapshots** (commit `f263d14`). New append-only `EventGraphSnapshot`
+  table; `recompute_event` captures a snapshot the moment an Event first enters an archival status
+  (CORROBORATED/DISPUTED/CLOSED), deduped by hash — capture-before-deletion (UC9). History at
+  `GET /api/events/<id>/snapshots[/<sid>]`.
+- **Advisory coordination signals** (commit `2de8b14`). `app/events/independence.py` flags text
+  near-duplication and synchronized submission in the graph as `coordination_flags` — **advisory
+  only**, never reducing the count, because for text/timing the pattern also marks genuine corroboration
+  (an honesty-guard test proves similar-text same-time reporters still reach CORROBORATED).
+
+**Phase 1 — still open (deliberate stops):** (1) **byte-capturing, not link-storing** — snapshots
+preserve the corroboration state + hashes, but media is still a storage key/presigned URL; full UC9
+capture needs the bytes, which is infra-heavy and coupled to the UC7 jurisdiction/liability decision;
+(2) **perceptual (near-duplicate) media hashing** — deferred not half-built, since the server never
+sees media bytes (ADR-0009); needs an on-device perceptual hash in the signed envelope (a
+client-contract change); (3) **provenance-tier `verified/public` as a stored field** — waits for Lane A.
+
+**Not started:** Phase 2 (Lane A public-post ingest + graded reader feed, gated on the drill's
+belief-change result) and Phase 3 (per-surface hardening: ADR-0011 for real Lane-B reporters; UC6+UC7
+scoping before any public Lane-A launch). **For the drill, still nothing new is required** — Phase 0
+runs on the existing Lane-B path; the Phase 1 core above is the no-regret foundation for whichever
+shape the drill selects.
