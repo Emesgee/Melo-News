@@ -24,6 +24,7 @@ corroboration graph.
 """
 
 import re
+from datetime import timezone
 from itertools import combinations
 
 import config
@@ -31,6 +32,14 @@ import config
 
 def _cfg(name, default):
     return getattr(config, name, default)
+
+
+def _naive_utc(dt):
+    """Coerce to naive UTC so tz-aware (fresh ORM / ingested) and tz-naive (read
+    from a non-tz DB column) datetimes can be compared without raising."""
+    if dt.tzinfo is not None:
+        return dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt
 
 
 def _norm_text(s):
@@ -90,7 +99,7 @@ def analyze_independence(members):
     window = _cfg('COORDINATION_WINDOW_SECONDS', 30)
     min_ids = _cfg('COORDINATION_MIN_SOURCES', 3)
     timed = sorted(
-        ((m, m.upload_date) for m in named if m.upload_date is not None),
+        ((m, _naive_utc(m.upload_date)) for m in named if m.upload_date is not None),
         key=lambda t: t[1],
     )
     for i, (anchor, t0) in enumerate(timed):
