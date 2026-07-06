@@ -116,6 +116,24 @@ def test_distinct_media_stays_independent(ctx):
     assert ev.status == 'CORROBORATED'
 
 
+def test_same_reporter_multiple_media_counts_once(ctx):
+    """One reporter posting several DIFFERENT files is still ONE independent
+    source — identities are the unit, so extra media never adds sources. Guards
+    against a single rung-2 reporter self-corroborating by uploading two clips
+    (the real-usage bug: a video + a photo from one phone)."""
+    ft, now = _ft(), datetime.utcnow()
+    u1 = _user(2)
+    r1 = _report(ft, u1, 31.5000, 34.4600, now, media_sha256='a' * 64)
+    r2 = _report(ft, u1, 31.5005, 34.4605, now, media_sha256='b' * 64)  # same user, diff clip
+    assert r1.event_id == r2.event_id
+    _verify(r1)
+    _verify(r2)
+    ev = db.session.get(Event, r1.event_id)
+    assert ev.corroboration_count == 1          # one identity
+    assert ev.independent_source_count == 1     # ...one source, despite two files
+    assert ev.status == 'DEVELOPING'            # a reporter cannot corroborate themselves
+
+
 def test_sybil_fresh_keys_count_but_stay_gated(ctx):
     """One actor's two fresh keys = two distinct user_ids: the count climbs to
     2, but with no established (rung-2+) member the Event stays DEVELOPING."""

@@ -9,14 +9,15 @@ safety), or it starts a singleton Event of one. Clustering only *proposes*
 membership; a report never auto-promotes an Event's status on its own.
 
 corroboration_count counts DISTINCT non-anonymous identities among VERIFIED
-members; independent_source_count is that count AFTER collapsing byte-identical
-media (reshares/astroturf) to a single origin (ADR-0020 Phase 1). An Event
-auto-reaches CORROBORATED only when the INDEPENDENT count meets the threshold
-AND at least one verified member is an established (rung-2+) identity. A flood of
-fresh rung-1 keys raises the *count* but the status stays gated at DEVELOPING --
-this is the Sybil backstop (status, not count) -- and a flood that reposts the
-*same* clip raises neither the independent count nor the status. A moderator can
-pin status via status_override (sticky).
+members; independent_source_count is that count with any identities who posted
+byte-identical media MERGED into one source (ADR-0020 Phase 1). The unit is the
+person: one reporter posting several files counts once, and many keys reposting
+one clip collapse to one. An Event auto-reaches CORROBORATED only when the
+INDEPENDENT count meets the threshold AND at least one verified member is an
+established (rung-2+) identity. A flood of fresh rung-1 keys raises the *count*
+but the status stays gated at DEVELOPING -- this is the Sybil backstop (status,
+not count) -- and a flood that reposts the *same* clip raises neither the
+independent count nor the status. A moderator can pin status via status_override.
 
 Semantic clustering is deferred; geo+time only.
 """
@@ -162,11 +163,12 @@ def recompute_event(event):
     event.corroboration_count = len(identities)
 
     # Independent-source count (ADR-0020 Phase 1, the fake-independence
-    # detector): collapse byte-identical media so a single clip reposted under
-    # many pseudonyms cannot fake corroboration (UC3/UC8). A media-bearing
-    # member is keyed by its fingerprint (identical media across keys -> one
-    # origin); a text-only member is keyed by its identity. Two people filming
-    # the same event produce DIFFERENT hashes -> two origins, correctly.
+    # detector). The unit is the PERSON: it counts distinct identities, then
+    # MERGES any who posted byte-identical media (a reshared clip is one source
+    # re-posted, UC3/UC8). Because the base unit is the person, one reporter
+    # posting several different files still counts once, and many keys reposting
+    # one clip collapse to one. Two people filming the same event produce
+    # different hashes and are not merged -> counted separately.
     event.independent_source_count = len(_independent_origins(verified))
 
     _update_aggregates(event, members)
@@ -186,17 +188,48 @@ def recompute_event(event):
 
 
 def _independent_origins(verified):
-    """Set of distinct independent origins among VERIFIED members. Media-bearing
-    members collapse by fingerprint (a reshared clip = one origin no matter how
-    many keys post it); text-only members key by identity. Anonymous members are
-    supporting context, never a counted origin."""
-    origins = set()
+    """Set of independent-source roots among VERIFIED members (len = the count).
+
+    The unit is the PERSON (user_id); anonymous members are supporting context,
+    never a counted source. Two distinct identities that posted byte-identical
+    media are merged into one source (a reshare is one clip re-posted, not two
+    witnesses). One person posting several different files is still one source,
+    because identities are the nodes and extra media never adds nodes. Uses
+    union-find: each distinct user is a node; users sharing a media fingerprint
+    are unioned; the number of connected components is the independent count."""
+    users = {m.user_id for m in verified if m.user_id is not None}
+    if not users:
+        return set()
+
+    parent = {u: u for u in users}
+
+    def find(x):
+        root = x
+        while parent[root] != root:
+            root = parent[root]
+        while parent[x] != root:      # path compression
+            parent[x], x = root, parent[x]
+        return root
+
+    def union(a, b):
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[ra] = rb
+
+    # Link identities that share a media fingerprint (same clip -> same source).
+    fp_owner = {}
     for m in verified:
         if m.user_id is None:
             continue
         h = (m.media_sha256 or '').strip().lower() or None
-        origins.add(('media', h) if h else ('id', m.user_id))
-    return origins
+        if not h:
+            continue
+        if h in fp_owner:
+            union(fp_owner[h], m.user_id)
+        else:
+            fp_owner[h] = m.user_id
+
+    return {find(u) for u in users}
 
 
 def _update_aggregates(event, members):

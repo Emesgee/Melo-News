@@ -29,6 +29,7 @@ from datetime import timezone
 
 from app.story.serializers import serialize_reporter, confidence_band
 from app.events.independence import analyze_independence
+from app.events.service import _independent_origins
 
 # Bump when the emitted shape changes in a way a stored/exported graph must be
 # able to distinguish (durability: an old archived graph declares its version).
@@ -105,15 +106,9 @@ def build_event_graph(event):
     ordered = sorted(members, key=lambda m: (_iso(m.upload_date) or '', m.id))
     nodes = [_node(m, fp_counts) for m in ordered]
 
-    # Independent origins = distinct fingerprints (each reshare cluster is one)
-    # + distinct identities among text-only members. Mirrors
-    # events.service._independent_origins.
-    origins = set()
-    for m in members:
-        if m.user_id is None:
-            continue
-        fp = (m.media_sha256 or '').strip().lower() or None
-        origins.add(('media', fp) if fp else ('id', m.user_id))
+    # Independent sources, computed by the SAME rule as the live engine
+    # (person-based, reshares merged) so the graph and the Event never disagree.
+    origins = _independent_origins(members)
 
     reshare_clusters = [
         {'fingerprint': fp, 'size': n}
