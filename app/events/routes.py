@@ -7,9 +7,11 @@ one VERIFIED member are surfaced — unverified content never reaches the public
 The feed leads with CORROBORATED and keeps DISPUTED prominent.
 """
 
+import json
+
 from flask import Blueprint, jsonify, request
 
-from app.models import db, Event
+from app.models import db, Event, EventGraphSnapshot
 from app.story.serializers import serialize_event
 from app.events.archive import build_event_graph
 
@@ -74,3 +76,41 @@ def event_graph(event_id):
     if ev is None or not _has_public_member(ev):
         return jsonify({'error': 'Event not found'}), 404
     return jsonify(build_event_graph(ev)), 200
+
+
+@events_bp.route('/<int:event_id>/snapshots', methods=['GET'])
+def event_snapshots(event_id):
+    """Durable snapshot history for an Event (ADR-0020 Phase 1 / UC9): the
+    append-only, content-addressed record of its corroboration graph at each
+    archival moment. Metadata only (hash + status + reason + time); fetch a
+    single snapshot's full graph via the detail route below."""
+    ev = db.session.get(Event, event_id)
+    if ev is None or not _has_public_member(ev):
+        return jsonify({'error': 'Event not found'}), 404
+    snaps = (
+        EventGraphSnapshot.query
+        .filter_by(event_id=event_id)
+        .order_by(EventGraphSnapshot.created_at.asc(), EventGraphSnapshot.id.asc())
+        .all()
+    )
+    return jsonify({'snapshots': [{
+        'id': s.id,
+        'schema_version': s.schema_version,
+        'graph_sha256': s.graph_sha256,
+        'status': s.status,
+        'reason': s.reason,
+        'created_at': s.created_at.isoformat() if s.created_at else None,
+    } for s in snaps]}), 200
+
+
+@events_bp.route('/<int:event_id>/snapshots/<int:snapshot_id>', methods=['GET'])
+def event_snapshot_detail(event_id, snapshot_id):
+    """The full, verbatim corroboration graph captured in one snapshot -- the
+    preserved archive record, exactly as it was hashed."""
+    ev = db.session.get(Event, event_id)
+    if ev is None or not _has_public_member(ev):
+        return jsonify({'error': 'Event not found'}), 404
+    s = db.session.get(EventGraphSnapshot, snapshot_id)
+    if s is None or s.event_id != event_id:
+        return jsonify({'error': 'Snapshot not found'}), 404
+    return jsonify(json.loads(s.graph_json)), 200

@@ -32,6 +32,9 @@ logger = logging.getLogger(__name__)
 
 _SEVERITY_RANK = {'LOW': 1, 'MEDIUM': 2, 'HIGH': 3}
 
+# Statuses worth preserving a durable graph snapshot for on first entry.
+_ARCHIVE_WORTHY_STATUS = {'CORROBORATED', 'DISPUTED', 'CLOSED'}
+
 
 def _cfg(name, default):
     return getattr(config, name, default)
@@ -167,8 +170,18 @@ def recompute_event(event):
     event.independent_source_count = len(_independent_origins(verified))
 
     _update_aggregates(event, members)
+    prev_status = event.status
     event.status = _derive_status(event, _has_established_member(identities))
     db.session.flush()
+
+    # Capture-before-deletion (ADR-0020 Phase 1 / UC9): the moment an Event
+    # first enters an archival status, persist a durable, content-addressed
+    # snapshot of its corroboration graph so it survives later mutation or
+    # takedown. snapshot_event dedups by hash, so repeated recomputes at the
+    # same status are cheap no-ops.
+    if event.status != prev_status and event.status in _ARCHIVE_WORTHY_STATUS:
+        from app.events.archive import snapshot_event
+        snapshot_event(event, reason=event.status.lower())
     return event
 
 

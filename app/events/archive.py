@@ -25,6 +25,7 @@ from a reader endpoint, an export job, or a future snapshot writer alike.
 import hashlib
 import json
 from collections import Counter
+from datetime import timezone
 
 from app.story.serializers import serialize_reporter, confidence_band
 
@@ -42,7 +43,15 @@ def _provenance_tier(upload):
 
 
 def _iso(dt):
-    return dt.isoformat() if dt else None
+    """Canonical UTC-naive ISO string. Coercing to a single representation is
+    what makes the content hash stable: the ORM hands us tz-aware datetimes on
+    a fresh write but tz-naive ones after a DB round-trip, and an unnormalized
+    mix would change the hash for no substantive reason."""
+    if dt is None:
+        return None
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt.isoformat()
 
 
 def _node(upload, fp_counts):
@@ -126,9 +135,12 @@ def build_event_graph(event):
             },
             'severity': event.severity,
             'confidence_band': confidence_band(event.confidence_score),
+            # updated_at is deliberately omitted: it is "last touched"
+            # bookkeeping, not corroboration substance, and including it would
+            # churn the content hash on every incidental write. created_at and
+            # closed_at are lifecycle facts and stay.
             'timestamps': {
                 'created_at': _iso(event.created_at),
-                'updated_at': _iso(event.updated_at),
                 'closed_at': _iso(event.closed_at),
             },
         },
@@ -156,3 +168,37 @@ def graph_content_hash(graph):
     """Lowercase-hex SHA-256 over the canonical graph bytes -- a stable content
     address for integrity checks and preservation (UC9)."""
     return hashlib.sha256(canonical_graph_bytes(graph)).hexdigest()
+
+
+def snapshot_event(event, reason=None):
+    """Persist a durable, content-addressed snapshot of `event`'s corroboration
+    graph -- capture-before-deletion (UC9). Append-only and deduplicated: if the
+    latest snapshot already has this exact graph hash, nothing material changed
+    and the existing row is returned instead of storing a duplicate. Does not
+    commit -- the caller owns the transaction (matches events.service)."""
+    from app.models import db, EventGraphSnapshot
+
+    graph = build_event_graph(event)
+    digest = graph['integrity']['graph_sha256']
+
+    latest = (
+        EventGraphSnapshot.query
+        .filter_by(event_id=event.id)
+        .order_by(EventGraphSnapshot.id.desc())
+        .first()
+    )
+    if latest is not None and latest.graph_sha256 == digest:
+        return latest
+
+    snap = EventGraphSnapshot(
+        event_id=event.id,
+        schema_version=graph['schema_version'],
+        graph_sha256=digest,
+        graph_json=json.dumps(graph, sort_keys=True, separators=(',', ':'),
+                              ensure_ascii=False),
+        status=graph['event']['status'],
+        reason=reason,
+    )
+    db.session.add(snap)
+    db.session.flush()
+    return snap

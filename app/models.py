@@ -192,6 +192,30 @@ class Event(db.Model):
     )
 
 
+# Durable corroboration-graph snapshot (ADR-0020 Phase 1). An append-only,
+# content-addressed capture of an Event's corroboration state at an archival
+# moment (e.g. the instant it reached CORROBORATED). The point is
+# capture-before-deletion (UC9): the live Event can later mutate or its media be
+# taken down, but the snapshot preserves what was corroborated, by whom
+# (pseudonymously), and its integrity hash. New table -> created by
+# db.create_all(); no ensure_schema_compatibility entry needed.
+class EventGraphSnapshot(db.Model):
+    __tablename__ = 'event_graph_snapshots'
+
+    id = db.Column(db.Integer, primary_key=True)
+    event_id = db.Column(db.Integer, db.ForeignKey('events.id'), nullable=False, index=True)
+    # Emitted-shape version, so an old stored graph can always be interpreted.
+    schema_version = db.Column(db.Integer, nullable=False)
+    # Content address of the graph (lowercase-hex SHA-256), also the dedup key.
+    graph_sha256 = db.Column(db.String(64), nullable=False, index=True)
+    # The full canonical graph JSON, verbatim and exportable.
+    graph_json = db.Column(db.Text, nullable=False)
+    # Effective status + what triggered the capture, for cheap querying.
+    status = db.Column(db.String(20), nullable=True)
+    reason = db.Column(db.String(40), nullable=True)  # corroborated|disputed|closed|manual
+    created_at = db.Column(db.DateTime, default=_utcnow, index=True)
+
+
 # FileType model
 class FileType(db.Model):
     __tablename__ = 'file_types'
