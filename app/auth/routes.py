@@ -12,10 +12,16 @@ import re
 # Create blueprint for authentication routes
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
-# Rate limiter for auth endpoints
+# Rate limiter for auth endpoints.
+#
+# NOTE: no `default_limits` here. This Limiter is init_app'd onto the whole app
+# (app/__init__.py), and flask-limiter applies a limiter's default_limits to
+# EVERY route in the app — so a default here silently throttles the public
+# reader feed (`/api/events`, the map) to 50/hour per IP, blocking real readers.
+# The sensitive endpoints carry explicit per-route limits instead (register
+# 5/min, login 10/min); public reads stay ungated by this limiter.
 limiter = Limiter(
     key_func=get_remote_address,
-    default_limits=["200 per day", "50 per hour"],
     storage_uri="memory://"
 )
 
