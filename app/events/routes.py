@@ -11,6 +11,7 @@ from flask import Blueprint, jsonify, request
 
 from app.models import db, Event
 from app.story.serializers import serialize_event
+from app.events.archive import build_event_graph
 
 events_bp = Blueprint('events', __name__, url_prefix='/api/events')
 
@@ -61,3 +62,15 @@ def event_detail(event_id):
     if ev is None or not _has_public_member(ev):
         return jsonify({'error': 'Event not found'}), 404
     return jsonify(serialize_event(ev, include_members=True)), 200
+
+
+@events_bp.route('/<int:event_id>/graph', methods=['GET'])
+def event_graph(event_id):
+    """The corroboration graph: an explicit, deterministic, privacy-preserving
+    provenance record of the Event and its sources, with an integrity hash
+    (ADR-0020 Phase 1). The archive-grade export -- same visibility as the
+    detail view (VERIFIED members only, never a raw user_id)."""
+    ev = db.session.get(Event, event_id)
+    if ev is None or not _has_public_member(ev):
+        return jsonify({'error': 'Event not found'}), 404
+    return jsonify(build_event_graph(ev)), 200
