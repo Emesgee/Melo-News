@@ -130,9 +130,20 @@ def _slim_event(upload):
     }
 
 
+def _media_ext(value):
+    """Lowercase file extension from a path/URL's last segment, ignoring any
+    query string (presigned URLs) and dots in the host. '' when none."""
+    seg = (value or '').split('?', 1)[0].rstrip('/').rsplit('/', 1)[-1]
+    return seg.rsplit('.', 1)[-1].lower() if '.' in seg else ''
+
+
 def serialize_upload(upload):
     """Convert a FileUpload ORM record to a normalized Story dict."""
-    ext = (upload.filename or '').rsplit('.', 1)[-1].lower()
+    # Type the media from the stored PATH (which carries the real .mp4/.jpg
+    # extension), not filename: the Android app sets filename to the report
+    # title (e.g. "test"), which has no extension, so images/videos never
+    # bucketed and the reader/moderation media rendering drew nothing.
+    ext = _media_ext(upload.file_path) or _media_ext(upload.filename)
     # Resolve the stored reference to a viewable URL: a private-S3 object becomes
     # a short-lived presigned GET (ADR-0017); no-media sentinels become None;
     # local/Azure/external URLs pass through unchanged.
