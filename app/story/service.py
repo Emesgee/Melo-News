@@ -227,6 +227,13 @@ def ingest_story(user_id, payload):
     media_url = (payload.get('media_url') or '').strip()
     file_type = _resolve_file_type(media_url)
 
+    # Media fingerprint — lifted to a first-class column (ADR-0020 Phase 1).
+    # For signed reports it is bound by the signature (tamper-evident); accept
+    # it only in canonical form (64 lowercase hex chars) so a malformed value
+    # can never masquerade as a real fingerprint in the independence check.
+    raw_sha = (payload.get('media_sha256') or '').strip().lower()
+    media_sha256 = raw_sha if (len(raw_sha) == 64 and all(c in '0123456789abcdef' for c in raw_sha)) else None
+
     upload_date = None
     if payload.get('published_at'):
         try:
@@ -261,6 +268,7 @@ def ingest_story(user_id, payload):
         local_id=local_id,
         report_signature=report_signature,
         signed_message=signed_message,
+        media_sha256=media_sha256,
     )
     if upload_date:
         record.upload_date = upload_date

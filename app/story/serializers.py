@@ -225,8 +225,17 @@ def serialize_event(event, include_members=False):
         },
         'severity': event.severity,
         'confidence_band': confidence_band(event.confidence_score),
+        # `counted` = distinct accounts; `independent` = distinct accounts AFTER
+        # collapsing byte-identical media (reshares/astroturf) to one origin
+        # (ADR-0020 Phase 1). `independent` is the honest, falsifiable signal
+        # and is what promotion gates on; a gap between the two means a reshare
+        # was detected. Falls back to `counted` for legacy rows not yet
+        # recomputed.
         'corroboration': {
             'counted': event.corroboration_count or 0,
+            'independent': (event.independent_source_count
+                            if event.independent_source_count is not None
+                            else (event.corroboration_count or 0)),
             'supporting': supporting,
         },
         'dispute_count': event.dispute_count or 0,

@@ -206,9 +206,13 @@ def ensure_schema_compatibility():
             users_q = text(
                 "SELECT column_name FROM information_schema.columns WHERE table_name = 'users'"
             )
+            events_q = text(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = 'events'"
+            )
         elif dialect == 'sqlite':
             file_uploads_q = text("PRAGMA table_info(file_uploads)")
             users_q = text("PRAGMA table_info(users)")
+            events_q = text("PRAGMA table_info(events)")
         else:
             logger.warning("Unsupported database dialect: %s", dialect)
             return
@@ -218,6 +222,7 @@ def ensure_schema_compatibility():
 
         file_upload_cols = _cols(db.session.execute(file_uploads_q).fetchall())
         user_cols = _cols(db.session.execute(users_q).fetchall())
+        event_cols = _cols(db.session.execute(events_q).fetchall())
 
         # Keep this list minimal and explicit for safe startup compatibility.
         # `verification_status` uses DEFAULT 'VERIFIED' for the ALTER so
@@ -254,6 +259,16 @@ def ensure_schema_compatibility():
             # Verbatim canonical signed message (ADR-0014) for later reader-side
             # verification (ADR-0009).
             'signed_message': 'TEXT',
+            # Media fingerprint lifted to a first-class column (ADR-0020 Phase 1)
+            # so the fake-independence detector can query it; backfilled NULL for
+            # legacy rows (recompute_event treats NULL media as its own origin).
+            'media_sha256': 'VARCHAR(64)',
+        }
+        # Events table: independent_source_count is derived by recompute_event
+        # (ADR-0020 Phase 1). Backfill 0 for legacy rows; _derive_status falls
+        # back to corroboration_count until each event is next recomputed.
+        required_event_columns = {
+            'independent_source_count': 'INTEGER DEFAULT 0 NOT NULL',
         }
         # Stage B: extend User into the identity + reputation table. `role`
         # replaces the legacy is_moderator boolean (migrated below).
@@ -281,6 +296,12 @@ def ensure_schema_compatibility():
                 db.session.execute(text(f"ALTER TABLE users ADD COLUMN {col_name} {col_ddl}"))
                 altered = True
                 logger.info("Added missing column users.%s", col_name)
+
+        for col_name, col_ddl in required_event_columns.items():
+            if col_name not in event_cols:
+                db.session.execute(text(f"ALTER TABLE events ADD COLUMN {col_name} {col_ddl}"))
+                altered = True
+                logger.info("Added missing column events.%s", col_name)
 
         # Migrate legacy is_moderator → role, only on the run that first adds
         # `role` (so a later manual steward/moderator assignment isn't clobbered

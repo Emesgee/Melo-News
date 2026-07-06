@@ -150,12 +150,13 @@ def test_serialize_event_counted_vs_supporting(ctx):
     _mk(ft, user=_user(rung=2), event=ev, status='VERIFIED')   # counted identity
     _mk(ft, user=None, event=ev, status='VERIFIED')            # anonymous → supporting
     _mk(ft, user=_user(rung=2), event=ev, status='PENDING')    # not public
-    ev.corroboration_count = 1  # set by recompute in real flow
+    ev.corroboration_count = 1        # set by recompute in real flow
+    ev.independent_source_count = 1    # one real source = one independent origin
     db.session.flush()
 
     d = serialize_event(ev, include_members=True)
     assert d['status'] == 'CORROBORATED'
-    assert d['corroboration'] == {'counted': 1, 'supporting': 1}
+    assert d['corroboration'] == {'counted': 1, 'independent': 1, 'supporting': 1}
     assert d['member_count'] == 2          # verified only (the PENDING one excluded)
     assert d['confidence_band'] == 'HIGH'
     assert len(d['members']) == 2

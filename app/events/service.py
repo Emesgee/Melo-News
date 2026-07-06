@@ -9,10 +9,13 @@ safety), or it starts a singleton Event of one. Clustering only *proposes*
 membership; a report never auto-promotes an Event's status on its own.
 
 corroboration_count counts DISTINCT non-anonymous identities among VERIFIED
-members. An Event auto-reaches CORROBORATED only when that count meets the
-threshold AND at least one verified member is an established (rung-2+) identity.
-A flood of fresh rung-1 keys raises the *count* but the status stays gated at
-DEVELOPING -- this is the Sybil backstop (status, not count). A moderator can
+members; independent_source_count is that count AFTER collapsing byte-identical
+media (reshares/astroturf) to a single origin (ADR-0020 Phase 1). An Event
+auto-reaches CORROBORATED only when the INDEPENDENT count meets the threshold
+AND at least one verified member is an established (rung-2+) identity. A flood of
+fresh rung-1 keys raises the *count* but the status stays gated at DEVELOPING --
+this is the Sybil backstop (status, not count) -- and a flood that reposts the
+*same* clip raises neither the independent count nor the status. A moderator can
 pin status via status_override (sticky).
 
 Semantic clustering is deferred; geo+time only.
@@ -155,10 +158,32 @@ def recompute_event(event):
     identities = {m.user_id for m in verified if m.user_id is not None}
     event.corroboration_count = len(identities)
 
+    # Independent-source count (ADR-0020 Phase 1, the fake-independence
+    # detector): collapse byte-identical media so a single clip reposted under
+    # many pseudonyms cannot fake corroboration (UC3/UC8). A media-bearing
+    # member is keyed by its fingerprint (identical media across keys -> one
+    # origin); a text-only member is keyed by its identity. Two people filming
+    # the same event produce DIFFERENT hashes -> two origins, correctly.
+    event.independent_source_count = len(_independent_origins(verified))
+
     _update_aggregates(event, members)
     event.status = _derive_status(event, _has_established_member(identities))
     db.session.flush()
     return event
+
+
+def _independent_origins(verified):
+    """Set of distinct independent origins among VERIFIED members. Media-bearing
+    members collapse by fingerprint (a reshared clip = one origin no matter how
+    many keys post it); text-only members key by identity. Anonymous members are
+    supporting context, never a counted origin."""
+    origins = set()
+    for m in verified:
+        if m.user_id is None:
+            continue
+        h = (m.media_sha256 or '').strip().lower() or None
+        origins.add(('media', h) if h else ('id', m.user_id))
+    return origins
 
 
 def _update_aggregates(event, members):
@@ -204,6 +229,14 @@ def _derive_status(event, has_established_member):
     if (event.dispute_count or 0) > 0:
         return 'DISPUTED'
     threshold = _cfg('EVENT_CORROBORATION_THRESHOLD', 2)
-    if event.corroboration_count >= threshold and has_established_member:
+    # Gate on INDEPENDENT origins, not raw distinct keys: reshares/astroturf
+    # (byte-identical media under many pseudonyms) inflate corroboration_count
+    # but not independent_source_count, so they can no longer promote an Event
+    # (ADR-0020 Phase 1). independent_source_count <= corroboration_count
+    # always, so this is strictly more conservative than the old count gate.
+    independent = event.independent_source_count
+    if independent is None:  # legacy row not yet recomputed
+        independent = event.corroboration_count
+    if (independent or 0) >= threshold and has_established_member:
         return 'CORROBORATED'
     return 'DEVELOPING'

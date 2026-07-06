@@ -128,6 +128,14 @@ class FileUpload(db.Model):
     # byte-identical input without re-formatting. Null on the unsigned lane.
     signed_message = db.Column(db.Text, nullable=True)
 
+    # Media fingerprint (lowercase hex SHA-256 of the sanitized bytes) lifted
+    # out of the signed_message blob into a first-class, queryable column
+    # (ADR-0020 Phase 1: archive-grade + exportable). It is the primitive the
+    # fake-independence detector keys on — byte-identical media across many
+    # pseudonyms is a reshare/astroturf, not independent corroboration
+    # (UC3/UC8). Null when text-only or on the unsigned lane.
+    media_sha256 = db.Column(db.String(64), nullable=True, index=True)
+
 
 # Event (Incident) model — the primary reader-facing unit. Reports cluster
 # into Events (geo+time, Stage D); corroboration = an Event accumulating
@@ -156,6 +164,15 @@ class Event(db.Model):
     # with user_id NOT NULL (anonymous members count 0 toward the threshold).
     corroboration_count = db.Column(db.Integer, default=0, nullable=False)
     dispute_count = db.Column(db.Integer, default=0, nullable=False)
+
+    # independent_source_count = distinct identities AFTER collapsing
+    # byte-identical media (reshares/astroturf) to a single origin (ADR-0020
+    # Phase 1, the fake-independence detector). Two people filming the same
+    # event produce DIFFERENT hashes -> counted separately; one clip reposted
+    # under many keys collapses to one origin. Always <= corroboration_count,
+    # so gating promotion on it is strictly more conservative. This is the
+    # number the CORROBORATED gate and the reader display should trust.
+    independent_source_count = db.Column(db.Integer, default=0, nullable=False)
 
     # Aggregated metrics (confidence is shown to readers as a band, not raw).
     severity = db.Column(db.String(20), nullable=True)

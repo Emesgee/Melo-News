@@ -45,12 +45,13 @@ def _user(rung):
     return u
 
 
-def _report(ft, user, lat, lon, when, city=None, severity='LOW'):
+def _report(ft, user, lat, lon, when, city=None, severity='LOW', media_sha256=None):
     up = FileUpload(
         filename='x', file_path='x', file_type_id=ft.filetypeid,
         user_id=(user.userid if user else None),
         lat=lat, lon=lon, city=city, severity=severity,
         upload_date=when, verification_status='PENDING',
+        media_sha256=media_sha256,
     )
     db.session.add(up)
     db.session.flush()
@@ -79,6 +80,40 @@ def test_distinct_established_identities_corroborate(ctx):
     ev = db.session.get(Event, r1.event_id)
     assert ev.corroboration_count == 2
     assert ev.status == 'CORROBORATED'  # 2 distinct rung-2 identities
+
+
+def test_reshared_media_collapses_to_one_origin(ctx):
+    """Two established keys posting BYTE-IDENTICAL media is a reshare/astroturf,
+    not independent corroboration (UC3/UC8). The raw count is honest (2 distinct
+    keys), but independent_source_count collapses to 1 and the Event stays
+    DEVELOPING even though a rung-2 member is present (ADR-0020 Phase 1)."""
+    ft, now = _ft(), datetime.utcnow()
+    u1, u2 = _user(2), _user(2)
+    same = 'a' * 64
+    r1 = _report(ft, u1, 31.5000, 34.4600, now, media_sha256=same)
+    r2 = _report(ft, u2, 31.5005, 34.4605, now, media_sha256=same)  # same clip
+    assert r1.event_id == r2.event_id
+    _verify(r1)
+    _verify(r2)
+    ev = db.session.get(Event, r1.event_id)
+    assert ev.corroboration_count == 2         # two distinct keys, honestly
+    assert ev.independent_source_count == 1     # ...but one piece of evidence
+    assert ev.status == 'DEVELOPING'            # reshare cannot promote
+
+
+def test_distinct_media_stays_independent(ctx):
+    """Two established keys with DIFFERENT media hashes (two people filming the
+    same event) are genuinely independent -> two origins -> CORROBORATED."""
+    ft, now = _ft(), datetime.utcnow()
+    u1, u2 = _user(2), _user(2)
+    r1 = _report(ft, u1, 31.5000, 34.4600, now, media_sha256='a' * 64)
+    r2 = _report(ft, u2, 31.5005, 34.4605, now, media_sha256='b' * 64)
+    _verify(r1)
+    _verify(r2)
+    ev = db.session.get(Event, r1.event_id)
+    assert ev.corroboration_count == 2
+    assert ev.independent_source_count == 2
+    assert ev.status == 'CORROBORATED'
 
 
 def test_sybil_fresh_keys_count_but_stay_gated(ctx):
