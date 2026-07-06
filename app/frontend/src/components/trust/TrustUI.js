@@ -20,7 +20,11 @@ const BAND_LABEL = { LOW: 'Low', MEDIUM: 'Medium', HIGH: 'High' };
 
 export const EventStatusBadge = ({ status }) => {
   const s = EVENT_STATUS[status] || EVENT_STATUS.DEVELOPING;
-  return <span style={{ ...PILL, background: s.bg, color: '#fff' }} title="Event status">{s.label}</span>;
+  // DISPUTED carries a leading ⚠ so the warning is a PRESENT, loud signal, not
+  // merely the absence of a corroboration ✓ (a skimmer misses what isn't there —
+  // red-team finding).
+  const label = status === 'DISPUTED' ? `⚠ ${s.label}` : s.label;
+  return <span style={{ ...PILL, background: s.bg, color: '#fff' }} title="Event status">{label}</span>;
 };
 
 export const ConfidenceBadge = ({ band }) => {
@@ -85,23 +89,26 @@ export const ReporterChip = ({ reporter }) => {
       </span>
     );
   }
-  // Lead with a plain-language standing, not the raw "rung N" jargon (ambiguous
-  // scale) or the code-like handle first (which reads as a bot/spam serial number
-  // — red-team finding). The pseudonym is kept, but as a SECONDARY, explained tag
-  // so continuity survives without the code being the reporter's face. The rung
-  // number and track record move to the tooltip.
-  const fresh = (reporter.rung ?? 1) <= 1;
-  const standing = fresh ? 'New reporter' : 'Established reporter';
+  // Put the EARNED, falsifiable fact on the visible face — "N of M reports
+  // corroborated" — not a conferred authority word. ("Established reporter" read
+  // as an unearned masthead-style claim; its justification was tooltip-only, i.e.
+  // invisible on mobile — round-2 red-team finding.) The raw k-xxxx code moves
+  // OFF the face (it reads as a bot serial number) into the tooltip, where it
+  // still supports recognising a repeat reporter. New reporters say so plainly.
+  const corr = reporter.corroborated_count ?? 0;
+  const total = reporter.reports_count ?? 0;
+  const idNote = `Pseudonymous, identity protected${reporter.handle ? ` — ${reporter.handle}` : ''}`;
   return (
     <>
-      <span style={{ ...PILL, background: fresh ? '#e5e7eb' : '#374151', color: fresh ? '#6b7280' : '#fff' }}
-            title={`Pseudonymous, identity protected · trust rung ${reporter.rung} · ${reporter.corroborated_count}/${reporter.reports_count} prior reports corroborated`}>
-        {standing}
-      </span>
-      {reporter.handle && (
-        <span style={{ ...PILL, background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border-color)', fontFamily: 'var(--font-mono, monospace)', fontWeight: 500 }}
-              title="A stable pseudonym — lets you recognise the same reporter across reports without revealing who they are">
-          {reporter.handle}
+      {total > 0 ? (
+        <span style={{ ...PILL, background: '#374151', color: '#fff' }}
+              title={`${idNote} · trust rung ${reporter.rung}`}>
+          {corr} of {total} report{total === 1 ? '' : 's'} corroborated
+        </span>
+      ) : (
+        <span style={{ ...PILL, background: '#e5e7eb', color: '#6b7280' }}
+              title={`${idNote} · no reports corroborated yet`}>
+          New reporter · no track record yet
         </span>
       )}
       {reporter.is_signed && (
@@ -124,7 +131,6 @@ export const TrustBlock = ({ data }) => {
       {ev && <EventStatusBadge status={ev.status} />}
       {ev && <CorroborationCount counted={ev.corroboration_count} status={ev.status} />}
       <ReporterChip reporter={data.reporter} />
-      <ConfidenceBadge band={data.confidence_band} />
     </div>
   );
 };

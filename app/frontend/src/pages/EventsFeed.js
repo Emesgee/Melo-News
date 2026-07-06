@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getEvents } from '../services/api';
 import { useSearch } from '../utils/SearchContext';
-import { EventStatusBadge, ConfidenceBadge, CorroborationCount } from '../components/trust/TrustUI';
+import { EventStatusBadge, CorroborationCount } from '../components/trust/TrustUI';
 
 // Public reader surface (List view): reports grouped into Events, the feed
 // leading with CORROBORATED and keeping DISPUTED prominent (server-ordered).
@@ -71,7 +71,6 @@ const EventsFeed = () => {
           <header style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             <EventStatusBadge status={ev.status} />
             <CorroborationCount counted={ev.corroboration?.counted} independent={ev.corroboration?.independent} supporting={ev.corroboration?.supporting} status={ev.status} />
-            <ConfidenceBadge band={ev.confidence_band} />
             {ev.is_overridden && <span style={muted} title="Status set by a moderator">moderator-set</span>}
           </header>
 

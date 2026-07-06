@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getEventDetail } from '../services/api';
-import { EventStatusBadge, ConfidenceBadge, CorroborationCount, ReporterChip } from '../components/trust/TrustUI';
+import { EventStatusBadge, CorroborationCount, ReporterChip } from '../components/trust/TrustUI';
 
 // Shareable, deep-linkable detail for one Event — the trust artifact a reader
 // can send to someone else. Opened from a map pin or a List card.
@@ -58,7 +58,6 @@ const EventDetail = () => {
         <header style={row}>
           <EventStatusBadge status={ev.status} />
           <CorroborationCount counted={ev.corroboration?.counted} independent={ev.corroboration?.independent} supporting={ev.corroboration?.supporting} status={ev.status} />
-          <ConfidenceBadge band={ev.confidence_band} />
           {ev.is_overridden && <span style={muted} title="Status set by a moderator">moderator-set</span>}
         </header>
 
