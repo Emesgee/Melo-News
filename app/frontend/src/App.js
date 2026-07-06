@@ -14,11 +14,12 @@ import { SearchProvider } from './utils/SearchContext';
 import { setupInterceptors } from './services/apiInterceptors';
 import './App.css';
 
-// Lazy-loaded routes
+// Lazy-loaded routes. The web is the reader + moderation surface; reporting is
+// the Android app's job (ADR-0001/0007), so there is no web upload route —
+// /report is a static "get the app" notice instead.
 const Register = React.lazy(() => import('./pages/Register'));
 const Login = React.lazy(() => import('./pages/Login'));
-const FileUpload = React.lazy(() => import('./pages/UploadForm'));
-const MyUploads = React.lazy(() => import('./pages/MyUploads'));
+const GetTheApp = React.lazy(() => import('./pages/GetTheApp'));
 const Moderation = React.lazy(() => import('./pages/Moderation'));
 const EventsFeed = React.lazy(() => import('./pages/EventsFeed'));
 const EventDetail = React.lazy(() => import('./pages/EventDetail'));
@@ -86,8 +87,9 @@ const AppContent = () => {
     navigate('/login');
   };
 
-  const handleUploadClick = () => {
-    navigate(isLoggedIn ? '/upload' : '/login');
+  const handleReportClick = () => {
+    // The web has no upload lane — point would-be reporters at the app.
+    navigate('/report');
   };
 
   if (authLoading) {
@@ -135,19 +137,19 @@ const AppContent = () => {
 
         {/* Right-side actions */}
         <div className="topbar-actions">
-          {/* Submit a report (secondary CTA) */}
+          {/* Report → static "get the app" notice (web has no upload lane) */}
           <button
             className="topbar-action-btn submit-btn"
-            onClick={handleUploadClick}
-            title="Submit a report"
-            aria-label="Submit a report"
+            onClick={handleReportClick}
+            title="How to report"
+            aria-label="How to report"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
               <polyline points="17 8 12 3 7 8" />
               <line x1="12" y1="3" x2="12" y2="15" />
             </svg>
-            <span className="submit-label">Submit</span>
+            <span className="submit-label">Report</span>
           </button>
 
           {/* Dark mode toggle (kept persistent) */}
@@ -182,9 +184,6 @@ const AppContent = () => {
               </button>
               {accountOpen && (
                 <div className="account-dropdown" role="menu">
-                  <button role="menuitem" onClick={() => { setAccountOpen(false); navigate('/my-uploads'); }}>
-                    Your reports
-                  </button>
                   {isModerator && (
                     <button role="menuitem" onClick={() => { setAccountOpen(false); navigate('/moderation'); }}>
                       Moderation
@@ -217,10 +216,9 @@ const AppContent = () => {
           <Route path="/login" element={<Suspense fallback={null}><Login /></Suspense>} />
           <Route path="/events" element={<Suspense fallback={null}><EventsFeed /></Suspense>} />
           <Route path="/events/:id" element={<Suspense fallback={null}><EventDetail /></Suspense>} />
+          <Route path="/report" element={<Suspense fallback={null}><GetTheApp /></Suspense>} />
 
           <Route element={<PrivateRoute />}>
-            <Route path="/upload" element={<Suspense fallback={null}><FileUpload /></Suspense>} />
-            <Route path="/my-uploads" element={<Suspense fallback={null}><MyUploads /></Suspense>} />
             <Route path="/moderation" element={<Suspense fallback={null}><Moderation /></Suspense>} />
           </Route>
         </Routes>

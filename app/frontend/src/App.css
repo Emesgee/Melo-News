@@ -83,7 +83,7 @@
 }
 
 .menu-button:hover span {
-  background: #c81515;
+  background: var(--primary-color);
 }
 
 /* Search Icon Button */
@@ -103,7 +103,7 @@
 
 .search-icon-btn:hover {
   background: rgba(0, 0, 0, 0.05);
-  color: #c81515;
+  color: var(--primary-color);
 }
 
 .search-icon-btn svg {
@@ -143,8 +143,8 @@
 }
 
 .nav-link:hover {
-  background: rgba(200, 21, 21, 0.1);
-  color: #c81515;
+  background: rgba(26, 35, 126, 0.08);
+  color: var(--primary-color);
   padding-left: 1.25rem;
   font-weight: 600;
 }
@@ -152,14 +152,14 @@
 /* Highlight login and upload links */
 .nav-link[href="/login"],
 .nav-link[href="/upload"] {
-  background: linear-gradient(135deg, rgba(200, 21, 21, 0.05), rgba(37, 99, 235, 0.05));
+  background: linear-gradient(135deg, rgba(26, 35, 126, 0.05), rgba(37, 99, 235, 0.05));
   border-left: 3px solid transparent;
 }
 
 .nav-link[href="/login"]:hover,
 .nav-link[href="/upload"]:hover {
-  border-left-color: #c81515;
-  background: linear-gradient(135deg, rgba(200, 21, 21, 0.15), rgba(37, 99, 235, 0.1));
+  border-left-color: var(--primary-color);
+  background: linear-gradient(135deg, rgba(26, 35, 126, 0.12), rgba(37, 99, 235, 0.1));
 }
 
 /* Search container in topbar */
@@ -223,7 +223,7 @@
   width: 30px;
   height: 30px;
   border-radius: 8px;
-  background: #c81515;
+  background: var(--primary-color);
   color: #fff;
   font-weight: 800;
 }
@@ -252,7 +252,7 @@
   border-radius: 999px;
   transition: all 0.15s;
 }
-.view-link:hover { color: #c81515; }
+.view-link:hover { color: var(--primary-color); }
 .view-link.active {
   background: #fff;
   color: #111;
@@ -267,7 +267,7 @@
   width: auto;
   padding: 0 14px;
   gap: 6px;
-  background: linear-gradient(135deg, #c81515 0%, #a01111 100%);
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
   color: #fff;
 }
 .submit-label { font-weight: 600; font-size: 0.85rem; }
@@ -299,7 +299,7 @@
   color: #111;
 }
 .account-dropdown button:hover { background: rgba(0, 0, 0, 0.06); }
-.account-dropdown .account-logout { color: #c81515; }
+.account-dropdown .account-logout { color: var(--primary-color); }
 .topbar-action-btn.auth-btn.login { width: auto; padding: 0 14px; font-weight: 600; font-size: 0.85rem; }
 
 /* Dark mode for the new chrome */
@@ -313,24 +313,26 @@
 
 /* Upload button */
 .topbar-action-btn.upload-btn {
-  background: linear-gradient(135deg, #c81515 0%, #a01111 100%);
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
   color: white;
 }
 
 .topbar-action-btn.upload-btn:hover {
-  background: linear-gradient(135deg, #a01111 0%, #800000 100%);
-  box-shadow: 0 4px 12px rgba(200, 21, 21, 0.4);
+  background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-dark) 100%);
+  box-shadow: 0 4px 12px rgba(26, 35, 126, 0.35);
 }
 
-/* Auth button - Login style */
+/* Auth button - Login style (neutral secondary; indigo is reserved for the
+   brand + primary Submit CTA so there is one accent, Android-style) */
 .topbar-action-btn.auth-btn {
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-  color: white;
+  background: var(--bg-primary);
+  color: var(--primary-color);
+  box-shadow: inset 0 0 0 1px var(--border-color);
 }
 
 .topbar-action-btn.auth-btn:hover {
-  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+  box-shadow: inset 0 0 0 1px var(--primary-color);
+  background: var(--banner-info-bg);
 }
 
 /* Auth button - Logout style */
@@ -470,7 +472,7 @@
 }
 
 .app-shell.dark-mode .nav-link:hover {
-  background: rgba(200, 21, 21, 0.2);
+  background: rgba(26, 35, 126, 0.16);
   color: #f87171;
 }
 

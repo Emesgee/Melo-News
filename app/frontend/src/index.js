@@ -1,6 +1,7 @@
 // src/index.js
 import React from 'react';
 import { createRoot } from 'react-dom/client';
+import './theme.css'; // design tokens + primitives — must load before App/page CSS
 import App from './App';
 
 const container = document.getElementById('root');

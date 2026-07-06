@@ -7,16 +7,16 @@ import { EventStatusBadge, ConfidenceBadge, CorroborationCount, ReporterChip } f
 // can send to someone else. Opened from a map pin or a List card.
 
 const wrap = { maxWidth: 720, margin: '0 auto', padding: '24px 16px' };
-const back = { display: 'inline-block', color: '#2563eb', textDecoration: 'none', fontSize: 14, marginBottom: 12 };
-const muted = { color: '#6b7280', fontSize: 13 };
-const card = { border: '1px solid #e5e7eb', borderRadius: 10, padding: 18, background: '#fff' };
-const disputed = { borderColor: '#fecaca', background: '#fef2f2' };
+const back = { display: 'inline-block', color: 'var(--primary-color)', textDecoration: 'none', fontSize: 14, marginBottom: 12 };
+const muted = { color: 'var(--text-secondary)', fontSize: 13 };
+const card = { border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: 18, background: 'var(--bg-primary)' };
+const disputed = { borderColor: 'var(--status-disputed)', background: 'rgba(211, 47, 47, 0.08)' };
 const row = { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' };
-const title = { fontSize: 20, margin: '10px 0 4px' };
-const meta = { display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 13, color: '#6b7280', margin: '4px 0 8px' };
-const disputeNote = { color: '#b91c1c', fontWeight: 600, fontSize: 13, margin: '6px 0' };
-const h2 = { fontSize: 14, color: '#374151', margin: '16px 0 4px' };
-const memberRow = { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', padding: '8px 0', borderTop: '1px solid #f3f4f6' };
+const title = { fontSize: 20, margin: '10px 0 4px', color: 'var(--text-primary)' };
+const meta = { display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 13, color: 'var(--text-secondary)', margin: '4px 0 8px' };
+const disputeNote = { color: 'var(--status-disputed)', fontWeight: 600, fontSize: 13, margin: '6px 0' };
+const h2 = { fontSize: 14, color: 'var(--text-secondary)', margin: '16px 0 4px' };
+const memberRow = { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', padding: '8px 0', borderTop: '1px solid var(--border-color)' };
 
 const EventDetail = () => {
   const { id } = useParams();
@@ -80,7 +80,7 @@ const EventDetail = () => {
         {(ev.members || []).map((m) => (
           <div key={m.id} style={memberRow}>
             <ReporterChip reporter={m.provenance?.reporter} />
-            <span style={{ color: '#374151', fontSize: 14 }}>{m.body || m.title}</span>
+            <span style={{ color: 'var(--text-primary)', fontSize: 14 }}>{m.body || m.title}</span>
           </div>
         ))}
         {(!ev.members || ev.members.length === 0) && (

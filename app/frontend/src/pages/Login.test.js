@@ -61,7 +61,7 @@ describe('Login', () => {
 
     expect(mockLoginUser).toHaveBeenCalledWith({ email: 'test@test.com', password: 'password123' });
     expect(mockLogin).toHaveBeenCalled();
-    expect(mockNavigate).toHaveBeenCalledWith('/intro');
+    expect(mockNavigate).toHaveBeenCalledWith('/');
   });
 
   it('shows error message on login failure', async () => {

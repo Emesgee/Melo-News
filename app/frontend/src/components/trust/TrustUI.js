@@ -11,10 +11,10 @@ const PILL = {
 };
 
 const EVENT_STATUS = {
-  CORROBORATED: { bg: '#15803d', label: 'Corroborated' },
-  DISPUTED:     { bg: '#b91c1c', label: 'Disputed' },
-  DEVELOPING:   { bg: '#a16207', label: 'Developing' },
-  CLOSED:       { bg: '#4b5563', label: 'Closed' },
+  CORROBORATED: { bg: 'var(--status-corroborated)', label: 'Corroborated' },
+  DISPUTED:     { bg: 'var(--status-disputed)', label: 'Disputed' },
+  DEVELOPING:   { bg: 'var(--status-developing)', label: 'Developing' },
+  CLOSED:       { bg: 'var(--status-closed)', label: 'Closed' },
 };
 const BAND_LABEL = { LOW: 'Low', MEDIUM: 'Medium', HIGH: 'High' };
 
@@ -26,7 +26,7 @@ export const EventStatusBadge = ({ status }) => {
 export const ConfidenceBadge = ({ band }) => {
   if (!band) return null;
   return (
-    <span style={{ ...PILL, background: '#f3f4f6', color: '#374151' }}
+    <span style={{ ...PILL, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)' }}
           title="Automated estimate — secondary to human corroboration">
       confidence: {BAND_LABEL[band] || band}
     </span>

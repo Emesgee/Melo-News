@@ -9,14 +9,14 @@ import { EventStatusBadge, ConfidenceBadge, CorroborationCount } from '../compon
 // A card opens the shareable /events/:id detail page.
 
 const wrap = { maxWidth: 760, margin: '0 auto', padding: '24px 16px' };
-const h1 = { fontSize: 22, margin: '0 0 4px' };
-const muted = { color: '#6b7280', fontSize: 13 };
-const card = { border: '1px solid #e5e7eb', borderRadius: 10, padding: 16, margin: '14px 0', background: '#fff', cursor: 'pointer' };
-const disputedCard = { borderColor: '#fecaca', background: '#fef2f2' };
-const title = { fontSize: 17, margin: '8px 0 4px' };
-const meta = { display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 13, color: '#6b7280', margin: '4px 0' };
-const disputeNote = { color: '#b91c1c', fontWeight: 600, fontSize: 13, margin: '6px 0' };
-const openLink = { color: '#2563eb', fontSize: 13, fontWeight: 600 };
+const h1 = { fontSize: 20, margin: '0 0 4px', color: 'var(--primary-color)' };
+const muted = { color: 'var(--text-secondary)', fontSize: 13 };
+const card = { border: '1px solid var(--border-color)', borderRadius: 'var(--radius-lg)', padding: 16, margin: '14px 0', background: 'var(--bg-primary)', cursor: 'pointer' };
+const disputedCard = { borderColor: 'var(--status-disputed)', background: 'rgba(211, 47, 47, 0.08)' };
+const title = { fontSize: 17, margin: '8px 0 4px', color: 'var(--text-primary)' };
+const meta = { display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 13, color: 'var(--text-secondary)', margin: '4px 0' };
+const disputeNote = { color: 'var(--status-disputed)', fontWeight: 600, fontSize: 13, margin: '6px 0' };
+const openLink = { color: 'var(--primary-color)', fontSize: 13, fontWeight: 600 };
 
 const EventsFeed = () => {
   const navigate = useNavigate();

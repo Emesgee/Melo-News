@@ -32,7 +32,7 @@ const Login = () => {
 
       setMessage('Login successful');
       setMessageType('success');
-      navigate('/intro');
+      navigate('/'); // reader home (map); moderators open the queue from the account menu
     } catch (error) {
       setMessage(error.response?.data?.error || error.response?.data?.message || 'Login failed');
       setMessageType('error');
