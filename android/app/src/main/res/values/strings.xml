@@ -29,4 +29,5 @@
     <string name="register_done_title">Device registered</string>
     <string name="register_done_msg">Your reporter pseudonym is:\n\n%1$s\n\nGive this to the steward so they can approve you (vouch to rung 2). Until then your reports wait for review.</string>
     <string name="register_failed">Registration failed: %1$s</string>
+    <string name="device_registered">Registered · %1$s</string>
 </resources>

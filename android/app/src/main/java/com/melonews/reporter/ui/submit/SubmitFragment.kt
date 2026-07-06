@@ -23,6 +23,7 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.material.snackbar.Snackbar
 import com.melonews.reporter.R
 import com.melonews.reporter.databinding.FragmentSubmitBinding
+import com.melonews.reporter.security.DeviceIdentity
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -108,7 +109,12 @@ class SubmitFragment : Fragment() {
         binding.btnGetLocation.setOnClickListener { requestLocation() }
         binding.btnAttachMedia.setOnClickListener { showMediaPicker() }
         binding.btnSubmit.setOnClickListener { submitReport() }
-        binding.btnRegisterDevice.setOnClickListener { confirmRegisterDevice() }
+        binding.btnRegisterDevice.setOnClickListener {
+            // Already registered -> just show the handle (useful for the steward
+            // vouch); otherwise run the one-time setup registration.
+            if (DeviceIdentity.isRegistered()) showHandleDialog(DeviceIdentity.handle())
+            else confirmRegisterDevice()
+        }
 
         viewModel.submitState.observe(viewLifecycleOwner) { state ->
             when (state) {
@@ -123,6 +129,7 @@ class SubmitFragment : Fragment() {
                               else getString(R.string.submit_queued)
                     snack(msg)
                     clearForm()
+                    refreshRegisteredState()   // signing a report creates the key -> now registered
                     viewModel.resetState()
                 }
                 is SubmitState.Error -> {
@@ -146,15 +153,30 @@ class SubmitFragment : Fragment() {
                 }
                 is RegisterState.Done -> {
                     binding.btnRegisterDevice.isEnabled = true
-                    binding.btnRegisterDevice.text = getString(R.string.btn_register_device)
+                    refreshRegisteredState()
                     showHandleDialog(state.handle)
                 }
                 is RegisterState.Failed -> {
                     binding.btnRegisterDevice.isEnabled = true
-                    binding.btnRegisterDevice.text = getString(R.string.btn_register_device)
+                    refreshRegisteredState()
                     snack(getString(R.string.register_failed, state.message))
                 }
             }
+        }
+
+        // Reflect whether this device already has a pseudonym (ADR-0016): if so,
+        // the button shows "Registered · k-xxxx" instead of prompting to set up.
+        refreshRegisteredState()
+    }
+
+    /** Show the registered pseudonym on the button when the device already has a
+     * signing key; otherwise prompt for the one-time setup registration. */
+    private fun refreshRegisteredState() {
+        if (DeviceIdentity.isRegistered()) {
+            binding.btnRegisterDevice.text =
+                getString(R.string.device_registered, DeviceIdentity.handle())
+        } else {
+            binding.btnRegisterDevice.text = getString(R.string.btn_register_device)
         }
     }
 
