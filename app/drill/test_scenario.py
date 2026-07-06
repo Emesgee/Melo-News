@@ -37,6 +37,10 @@ def test_full_scenario_reaches_expected_endstate(ctx):
     assert s['DELTA']['status'] == 'DEVELOPING' and s['DELTA']['counted'] == 1
     # NEARMISS: ~1.5 km off ALPHA -> its own event.
     assert s['NEARMISS']['separate_from_alpha'] is True
+    # ECHO: two accounts, one reshared clip -> counted 2 but 1 independent
+    # source, so it must NOT corroborate (the reshare defense).
+    assert s['ECHO']['counted'] == 2 and s['ECHO']['independent'] == 1
+    assert s['ECHO']['status'] == 'DEVELOPING'
 
 
 def test_sybil_accounts_are_rejected_not_counted(ctx):
@@ -52,7 +56,8 @@ def test_role_cards_cover_every_report(ctx):
     cards = scenario.role_cards()
     assert len(cards) == len(scenario.REPORTS)
     assert sum(1 for c in cards if c['sybil_of']) == 2     # the two Sybil briefs
-    assert {c['event'] for c in cards} == {'ALPHA', 'BRAVO', 'CHARLIE', 'DELTA', 'NEARMISS'}
+    assert sum(1 for c in cards if c['media_sha256']) == 2  # the two ECHO reshare briefs
+    assert {c['event'] for c in cards} == {'ALPHA', 'BRAVO', 'CHARLIE', 'DELTA', 'NEARMISS', 'ECHO'}
 
 
 def test_reset_removes_only_drill_data(ctx):

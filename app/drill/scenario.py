@@ -9,7 +9,7 @@ THROWAWAY tooling: all data lives in a fictional locale (Testoria / Sandboxia)
 and every identity's display_handle is prefixed `drill:`, so reset() can wipe it
 without touching real data. Never point this at a database holding real reports.
 
-Six scripted elements, each mapped to an exit criterion:
+Seven scripted elements, each mapped to an exit criterion:
   ALPHA    auto path        -- 2 rung-2 reporters -> auto-CORROBORATED, no mod
   BRAVO    moderator-gated  -- 3 rung-1 reporters -> mod-confirmed, then a
                                steward vouch promotes it to CORROBORATED
@@ -18,6 +18,9 @@ Six scripted elements, each mapped to an exit criterion:
   CHARLIE  DISPUTED         -- two contradicting reporters; moderator pins DISPUTED
   DELTA    lone unverified  -- a single witness -> verified-but-uncorroborated
   NEARMISS clustering edge  -- ~1.5 km from ALPHA, must NOT merge
+  ECHO     reshare probe    -- 2 rung-2 reporters post BYTE-IDENTICAL media; the
+                               engine collapses it to ONE independent source, so
+                               a reshared clip cannot corroborate (ADR-0020/UC8)
 
 provision()/simulate()/reset() take a live `db` and run inside an app context;
 the CLI (scripts/seed_drill.py) supplies that via create_app(). role_cards() is
@@ -41,6 +44,12 @@ _ALPHA = (10.000, 20.000)
 _BRAVO = (10.150, 20.150)
 _CHARLIE = (10.300, 20.300)
 _DELTA = (10.450, 20.450)
+_ECHO = (10.600, 20.600)
+
+# A single fictional clip's fingerprint. Both ECHO reporters post THIS exact
+# hash -> the independence detector treats them as one origin (a reshare),
+# not two independent witnesses.
+_ECHO_SHA = 'e' * 64
 
 
 def _off(base, dlat, dlon):
@@ -80,6 +89,13 @@ REPORTS = [
     # NEARMISS -- ~1.5 km from ALPHA; must start its own event, not merge
     dict(key='NM', handle='nearmiss-1', rung=1, event='NEARMISS', pos=_off(_ALPHA, 0.014, 0.0),
          severity='LOW', text='Unrelated: a minor traffic accident on the ring road.'),
+    # ECHO -- reshare probe: two rung-2 reporters post the SAME clip (identical
+    # media_sha256). Distinct keys (counted=2) but ONE independent origin
+    # (independent=1), so it must NOT auto-corroborate.
+    dict(key='E1', handle='echo-1', rung=2, event='ECHO', pos=_off(_ECHO, 0, 0),
+         severity='MEDIUM', text='Footage of the burning warehouse by the port.', media_sha256=_ECHO_SHA),
+    dict(key='E2', handle='echo-2', rung=2, event='ECHO', pos=_off(_ECHO, 0.0004, 0.0004),
+         severity='MEDIUM', text='Same warehouse fire clip, forwarded on.', media_sha256=_ECHO_SHA),
 ]
 
 STEWARD_HANDLE = 'steward'  # also the sole moderator for round one
@@ -201,9 +217,14 @@ def simulate(db):
     uploads = {}
     for spec in REPORTS:
         u = users[spec['handle']]
+        sha = spec.get('media_sha256')
         up = FileUpload(
-            filename=f"drill-{spec['key']}.txt",
-            file_path='ingest:no-media',           # text-only: avoids first-media safety gate
+            filename=f"drill-{spec['key']}." + ('jpg' if sha else 'txt'),
+            # Media-bearing reports carry a sandbox path + the fingerprint the
+            # independence detector keys on; text-only reports use the no-media
+            # sentinel (also avoids the first-media safety gate).
+            file_path=(f"drill-media/{spec['key']}.jpg" if sha else 'ingest:no-media'),
+            media_sha256=sha,
             title=spec['text'][:100],
             witness_statement=spec['text'],
             city=SANDBOX_CITY, country=SANDBOX_COUNTRY,
@@ -236,19 +257,27 @@ def simulate(db):
     # DELTA: approve the lone witness -> verified-but-uncorroborated.
     _verify(uploads['D1'], steward)
 
+    # ECHO: approve both reshare reports; the engine collapses the identical clip
+    # to one independent origin, so the event stays DEVELOPING (not corroborated).
+    for k in ('E1', 'E2'):
+        _verify(uploads[k], steward)
+
     db.session.commit()
 
     def ev_of(key):
         return db.session.get(Event, uploads[key].event_id)
 
-    alpha, bravo, charlie, delta, nm = (ev_of('A1'), ev_of('B1'), ev_of('C1'),
-                                        ev_of('D1'), ev_of('NM'))
+    alpha, bravo, charlie, delta, nm, echo = (ev_of('A1'), ev_of('B1'), ev_of('C1'),
+                                              ev_of('D1'), ev_of('NM'), ev_of('E1'))
     summary = {
         'ALPHA':   {'status': alpha.status, 'counted': alpha.corroboration_count, 'note': 'auto-CORROBORATED (no moderator)'},
         'BRAVO':   {'status': bravo.status, 'counted': bravo.corroboration_count, 'note': 'mod-confirmed + steward vouch; 2 Sybil accounts rejected'},
         'CHARLIE': {'status': charlie.status, 'counted': charlie.corroboration_count, 'note': 'moderator-pinned DISPUTED (contradiction)'},
         'DELTA':   {'status': delta.status, 'counted': delta.corroboration_count, 'note': 'lone, verified-but-uncorroborated'},
         'NEARMISS': {'separate_from_alpha': nm.id != alpha.id, 'note': '~1.5 km off ALPHA -> own event'},
+        'ECHO':    {'status': echo.status, 'counted': echo.corroboration_count,
+                    'independent': echo.independent_source_count,
+                    'note': 'same clip reshared under 2 accounts -> 1 independent source, NOT corroborated'},
     }
     return summary
 
@@ -271,5 +300,8 @@ def role_cards():
             'severity': r['severity'],
             'text': r['text'],
             'sybil_of': r.get('sybil_of'),
+            # Present -> this brief attaches media; ECHO's two briefs share the
+            # SAME clip (identical fingerprint) to exercise the reshare probe.
+            'media_sha256': r.get('media_sha256'),
         })
     return cards
