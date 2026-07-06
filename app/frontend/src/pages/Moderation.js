@@ -45,8 +45,6 @@ const ReviewCard = ({ story, onVerify, onReject, busy }) => {
   const isAnonymous = reporter.is_anonymous;
   const ev = story.event;
   const sourceLabel = story.provenance?.source_label || story.provenance?.source_name || 'upload';
-  const media = story.media?.primary_url;
-  const isImage = media && /\.(jpg|jpeg|png|webp|gif)$/i.test(media);
 
   return (
     <article style={cardStyle}>
@@ -98,19 +96,27 @@ const ReviewCard = ({ story, onVerify, onReject, busy }) => {
             )}
           </div>
 
-          {media && (
-            <div style={{ marginTop: 10 }}>
-              {isImage ? (
-                <img
-                  src={media}
-                  alt=""
-                  style={{ maxWidth: '100%', maxHeight: 220, borderRadius: 6, objectFit: 'cover' }}
-                />
-              ) : (
-                <a href={media} target="_blank" rel="noreferrer">View attached media</a>
-              )}
-            </div>
-          )}
+          {(() => {
+            // Use the server-bucketed images/videos (serialize_upload), NOT a
+            // client-side extension regex: presigned S3 URLs carry query params,
+            // so a "$"-anchored extension test misclassifies and hid mp4s behind
+            // a bare link. Videos now play inline for review.
+            const imgs = story.media?.images || [];
+            const vids = story.media?.videos || [];
+            if (!imgs.length && !vids.length) return null;
+            return (
+              <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {imgs.map((src, k) => (
+                  <img key={`i${k}`} src={src} alt="" loading="lazy"
+                       style={{ width: 300, maxWidth: '100%', maxHeight: 220, borderRadius: 6, objectFit: 'cover', border: '1px solid var(--border-color)' }} />
+                ))}
+                {vids.map((src, k) => (
+                  <video key={`v${k}`} src={src} controls preload="metadata"
+                         style={{ width: 300, maxWidth: '100%', maxHeight: 220, borderRadius: 6, background: '#000', border: '1px solid var(--border-color)' }} />
+                ))}
+              </div>
+            );
+          })()}
 
           {verifNote && verifStatus !== 'PENDING' && (
             <div style={noteBox}>
