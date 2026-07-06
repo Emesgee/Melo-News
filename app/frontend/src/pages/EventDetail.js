@@ -16,7 +16,9 @@ const title = { fontSize: 20, margin: '10px 0 4px', color: 'var(--text-primary)'
 const meta = { display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 13, color: 'var(--text-secondary)', margin: '4px 0 8px' };
 const disputeNote = { color: 'var(--status-disputed)', fontWeight: 600, fontSize: 13, margin: '6px 0' };
 const h2 = { fontSize: 14, color: 'var(--text-secondary)', margin: '16px 0 4px' };
-const memberRow = { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', padding: '8px 0', borderTop: '1px solid var(--border-color)' };
+const memberRow = { display: 'flex', flexDirection: 'column', gap: 6, padding: '10px 0', borderTop: '1px solid var(--border-color)' };
+const mediaWrap = { display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 2 };
+const mediaEl = { width: 320, maxWidth: '100%', maxHeight: 240, objectFit: 'cover', borderRadius: 'var(--radius-sm, 4px)', border: '1px solid var(--border-color)', background: '#000' };
 
 // Arrival time of a report relative to the first in the event — shows the event
 // developing (chronology, NOT a trust signal). Based on the reporter's
@@ -104,6 +106,22 @@ const EventDetail = () => {
                 )}
               </div>
               <span style={{ color: 'var(--text-primary)', fontSize: 14 }}>{m.body || m.title}</span>
+              {(() => {
+                const imgs = m.media?.images || [];
+                const vids = m.media?.videos || [];
+                if (!imgs.length && !vids.length) return null;
+                return (
+                  <div style={mediaWrap}>
+                    {imgs.map((src, k) => (
+                      <img key={`i${k}`} src={src} alt={m.title || 'report media'} loading="lazy" style={mediaEl} />
+                    ))}
+                    {vids.map((src, k) => (
+                      // controls + metadata preload; the presigned S3 URL is short-lived and refreshed each fetch
+                      <video key={`v${k}`} src={src} controls preload="metadata" style={mediaEl} />
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
           );
         })}
