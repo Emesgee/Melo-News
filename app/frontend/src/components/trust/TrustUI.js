@@ -90,27 +90,37 @@ export const ReporterChip = ({ reporter }) => {
     );
   }
   // Put the EARNED, falsifiable fact on the visible face — "N of M reports
-  // corroborated" — not a conferred authority word. ("Established reporter" read
-  // as an unearned masthead-style claim; its justification was tooltip-only, i.e.
-  // invisible on mobile — round-2 red-team finding.) The raw k-xxxx code moves
-  // OFF the face (it reads as a bot serial number) into the tooltip, where it
-  // still supports recognising a repeat reporter. New reporters say so plainly.
+  // corroborated" — not a conferred authority word ("Established reporter" read
+  // as an unearned masthead-style claim). The raw k-xxxx code stays in the
+  // tooltip (it reads as a bot serial number on the face).
+  //
+  // The ratio only carries SIGNAL once a reporter has a history: for a single
+  // report it is always "1 of 1" (or "0 of 1") and reads as circular on the very
+  // event that produced it, so single-report reporters show a plain "First
+  // report" instead, with the detail in the tooltip.
   const corr = reporter.corroborated_count ?? 0;
   const total = reporter.reports_count ?? 0;
   const idNote = `Pseudonymous, identity protected${reporter.handle ? ` — ${reporter.handle}` : ''}`;
+
+  let standing, standingStyle, standingTitle;
+  if (total >= 2) {
+    standing = `${corr} of ${total} reports corroborated`;
+    standingStyle = { ...PILL, background: '#374151', color: '#fff' };
+    standingTitle = `${idNote} · trust rung ${reporter.rung}`;
+  } else if (total === 1) {
+    standing = 'First report';
+    standingStyle = { ...PILL, background: '#e5e7eb', color: '#6b7280' };
+    standingTitle = `${idNote} · trust rung ${reporter.rung} · first published report`
+      + (corr ? ' (in a corroborated event)' : '');
+  } else {
+    standing = 'New reporter · no track record yet';
+    standingStyle = { ...PILL, background: '#e5e7eb', color: '#6b7280' };
+    standingTitle = `${idNote} · no reports corroborated yet`;
+  }
+
   return (
     <>
-      {total > 0 ? (
-        <span style={{ ...PILL, background: '#374151', color: '#fff' }}
-              title={`${idNote} · trust rung ${reporter.rung}`}>
-          {corr} of {total} report{total === 1 ? '' : 's'} corroborated
-        </span>
-      ) : (
-        <span style={{ ...PILL, background: '#e5e7eb', color: '#6b7280' }}
-              title={`${idNote} · no reports corroborated yet`}>
-          New reporter · no track record yet
-        </span>
-      )}
+      <span style={standingStyle} title={standingTitle}>{standing}</span>
       {reporter.is_signed && (
         <span style={{ ...PILL, background: '#065f46', color: '#fff' }}
               title="Cryptographically signed on the reporter's device — proves the report is really theirs and untampered. Not an endorsement by Melo.">
