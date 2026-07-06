@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, Tooltip } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Tooltip, useMap } from 'react-leaflet';
 import { useNavigate } from 'react-router-dom';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -34,12 +34,46 @@ const eventIcon = (status) => {
   });
 };
 
+// Flies/zooms the map to `target` ({lat, lon, t}) whenever it changes. `t` is a
+// nonce so re-selecting the same incident still re-triggers the fly.
+function FlyTo({ target }) {
+  const map = useMap();
+  useEffect(() => {
+    if (target && target.lat != null && target.lon != null) {
+      map.flyTo([target.lat, target.lon], 13, { duration: 0.8 });
+    }
+  }, [target, map]);
+  return null;
+}
+
+const _RANK = { CORROBORATED: 0, DISPUTED: 1, DEVELOPING: 2, CLOSED: 3 };
+
+// Overlay styles (inline, self-contained — no CSS file changes).
+const panelStyle = {
+  position: 'absolute', top: 12, left: 12, zIndex: 1000, width: 264,
+  maxHeight: '58vh', overflowY: 'auto', background: 'var(--bg-primary, #fff)',
+  border: '1px solid var(--border-color, #ddd)', borderRadius: 8,
+  boxShadow: '0 2px 10px rgba(0,0,0,0.18)', fontSize: 13,
+};
+const panelHeader = {
+  position: 'sticky', top: 0, padding: '8px 12px', fontWeight: 600,
+  background: 'var(--bg-secondary, #f5f5f5)', borderBottom: '1px solid var(--border-color, #ddd)',
+  color: 'var(--text-primary, #222)',
+};
+const itemStyle = {
+  display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+  padding: '7px 12px', border: 'none', borderBottom: '1px solid var(--border-color, #eee)',
+  background: 'transparent', cursor: 'pointer', color: 'var(--text-primary, #222)',
+};
+const dotStyle = { width: 9, height: 9, borderRadius: '50%', flex: '0 0 auto' };
+
 const MapArea = () => {
   const navigate = useNavigate();
   const { filter } = useSearch();
   const { isDark } = useDarkMode();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [focus, setFocus] = useState(null);
 
   // Basemap follows the app theme — light in light mode, dark in dark. No picker.
   const tile = MAP_STYLES[isDark ? 1 : 0];
@@ -65,6 +99,12 @@ const MapArea = () => {
     [events],
   );
   const bounds = useMemo(() => pins.map((ev) => [ev.location.lat, ev.location.lon]), [pins]);
+  const listed = useMemo(
+    () => [...pins].sort((a, b) =>
+      (_RANK[a.status] ?? 9) - (_RANK[b.status] ?? 9) ||
+      (a.title || '').localeCompare(b.title || '')),
+    [pins],
+  );
 
   return (
     <div className="map-area">
@@ -74,6 +114,29 @@ const MapArea = () => {
           <div className="map-empty-sub">
             This is a young, closed pilot. Corroborated reports appear here as independent reporters file them.
           </div>
+        </div>
+      )}
+
+      {pins.length > 0 && (
+        <div style={panelStyle} aria-label="Incident list — click to locate">
+          <div style={panelHeader}>Incidents · {pins.length}</div>
+          {listed.map((ev) => (
+            <button
+              key={ev.id}
+              type="button"
+              style={itemStyle}
+              title="Zoom to this incident"
+              onClick={() => setFocus({ lat: ev.location.lat, lon: ev.location.lon, t: Date.now() })}
+            >
+              <span style={{ ...dotStyle, background: STATUS_COLOR[ev.status] || STATUS_COLOR.DEVELOPING }} />
+              <span style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {ev.title || 'Incident'}
+              </span>
+              <span style={{ color: 'var(--text-secondary, #777)', marginLeft: 6, flex: '0 0 auto' }}>
+                {ev.location.city}
+              </span>
+            </button>
+          ))}
         </div>
       )}
 
@@ -89,7 +152,8 @@ const MapArea = () => {
         >
           <TileLayer url={tile.url} attribution={tile.attribution} />
           <ZoomCircles />
-          {bounds.length > 0 && <FitBounds bounds={bounds} />}
+          <FlyTo target={focus} />
+          {bounds.length > 0 && !focus && <FitBounds bounds={bounds} />}
 
           <MarkerClusterGroup chunkedLoading showCoverageOnHover={false} spiderfyOnMaxZoom>
             {pins.map((ev) => (
