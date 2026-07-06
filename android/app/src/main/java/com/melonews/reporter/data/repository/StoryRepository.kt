@@ -7,6 +7,7 @@ import com.melonews.reporter.data.api.ApiClient
 import com.melonews.reporter.data.local.AppDatabaseFactory
 import com.melonews.reporter.data.local.LocalStory
 import com.melonews.reporter.data.model.ApiResult
+import com.melonews.reporter.data.model.EventMarker
 import com.melonews.reporter.data.model.IngestRequest
 import com.melonews.reporter.data.model.MapStory
 import com.melonews.reporter.security.CanonicalReport
@@ -45,6 +46,21 @@ class StoryRepository(private val context: Context) {
                 ApiResult.Success(response.body()?.items ?: emptyList())
             } else {
                 ApiResult.Error("Failed to load stories", response.code())
+            }
+        } catch (e: Exception) {
+            ApiResult.Error(e.message ?: "Network error")
+        }
+    }
+
+    /** Reader map data: one entry per corroborated/developing Event (ADR-0004),
+     * the same feed the webapp map uses. */
+    suspend fun getEvents(): ApiResult<List<EventMarker>> {
+        return try {
+            val response = ApiClient.api.getEvents()
+            if (response.isSuccessful) {
+                ApiResult.Success(response.body()?.events ?: emptyList())
+            } else {
+                ApiResult.Error("Failed to load events", response.code())
             }
         } catch (e: Exception) {
             ApiResult.Error(e.message ?: "Network error")

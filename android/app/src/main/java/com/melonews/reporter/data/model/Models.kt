@@ -50,6 +50,38 @@ data class MapStory(
     val severity: String? get() = metrics?.severity
 }
 
+// ── Events (reader map: one mark per incident, ADR-0004) ───────────────────
+
+data class EventsResponse(
+    val events: List<EventMarker>
+)
+
+data class EventLocation(
+    val lat: Double?,
+    val lon: Double?,
+    val city: String?,
+    val country: String?
+)
+
+data class EventCorroboration(
+    val counted: Int = 0,
+    val independent: Int = 0,
+    val supporting: Int = 0
+)
+
+data class EventMarker(
+    val id: Int,
+    val status: String?,
+    val title: String?,
+    val severity: String?,
+    val location: EventLocation?,
+    val corroboration: EventCorroboration?
+) {
+    val lat: Double? get() = location?.lat
+    val lon: Double? get() = location?.lon
+    val city: String? get() = location?.city
+}
+
 // ── Media token ──────────────────────────────────────────────────────────
 
 data class MediaTokenResponse(

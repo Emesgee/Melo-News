@@ -24,6 +24,15 @@ interface ApiService {
         @Query("limit") limit: Int = 500
     ): Response<MapStoriesResponse>
 
+    // ── Events ────────────────────────────────────────────────────────────
+    // The reader map plots one mark per EVENT/incident (ADR-0004), not per
+    // report — the same events feed the webapp map uses.
+
+    @GET("api/events")
+    suspend fun getEvents(
+        @Query("limit") limit: Int = 200
+    ): Response<EventsResponse>
+
     // ── Media token ───────────────────────────────────────────────────────
 
     @GET("api/stories/ingest/media-token")

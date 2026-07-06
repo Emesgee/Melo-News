@@ -8,7 +8,7 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
-import com.melonews.reporter.data.model.MapStory
+import com.melonews.reporter.data.model.EventMarker
 import com.melonews.reporter.databinding.FragmentMapBinding
 import com.melonews.reporter.sync.SyncManager
 import kotlinx.coroutines.launch
@@ -44,7 +44,7 @@ class MapFragment : Fragment() {
         binding.fabRefresh.setOnClickListener {
             // Drain any queued offline stories first, then refresh the map
             lifecycleScope.launch { SyncManager(requireContext()).drainQueue() }
-            viewModel.loadStories()
+            viewModel.loadEvents()
         }
 
         viewModel.loading.observe(viewLifecycleOwner) { loading ->
@@ -56,23 +56,25 @@ class MapFragment : Fragment() {
             binding.tvError.visibility = if (error != null) View.VISIBLE else View.GONE
         }
 
-        viewModel.stories.observe(viewLifecycleOwner) { stories ->
-            plotMarkers(stories)
+        viewModel.events.observe(viewLifecycleOwner) { events ->
+            plotMarkers(events)
         }
 
-        viewModel.loadStories()
+        viewModel.loadEvents()
     }
 
-    private fun plotMarkers(stories: List<MapStory>) {
+    // One mark per EVENT/incident (ADR-0004): colored by trust status, with the
+    // independent-source count in the snippet so corroboration reads at a glance.
+    private fun plotMarkers(events: List<EventMarker>) {
         binding.mapView.overlays.clear()
         // Track how many markers share the same position for jitter offset.
         val positionCount = mutableMapOf<String, Int>()
-        stories.forEach { story ->
-            val lat = story.lat ?: return@forEach
-            val lon = story.lon ?: return@forEach
+        events.forEach { event ->
+            val lat = event.lat ?: return@forEach
+            val lon = event.lon ?: return@forEach
 
-            // Apply a tiny golden-angle spiral offset to markers at identical coordinates
-            // so each one remains individually tappable.
+            // Golden-angle spiral offset for events at identical centroids so each
+            // stays individually tappable.
             val posKey = "%.5f,%.5f".format(lat, lon)
             val idx = positionCount.getOrDefault(posKey, 0)
             positionCount[posKey] = idx + 1
@@ -81,28 +83,38 @@ class MapFragment : Fragment() {
             val jLat = if (idx == 0) lat else lat + jitterRadius * Math.cos(jitterAngle)
             val jLon = if (idx == 0) lon else lon + jitterRadius * Math.sin(jitterAngle)
 
+            val n = event.corroboration?.independent ?: 0
+            val sources = if (n == 1) "1 independent source" else "$n independent sources"
             val marker = Marker(binding.mapView).apply {
                 position = GeoPoint(jLat, jLon)
-                title = story.title ?: "Untitled"
-                snippet = listOfNotNull(story.city, story.severity).joinToString(" · ")
+                title = event.title ?: "Untitled incident"
+                snippet = listOfNotNull(statusLabel(event.status), sources, event.city)
+                    .joinToString(" · ")
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                // Tint by severity
+                // Tint by trust status (matches the webapp's status-colored pins).
                 icon = resources.getDrawable(
                     android.R.drawable.ic_menu_mylocation, null
                 ).mutate().also { drawable ->
-                    drawable.setTint(severityColor(story.severity))
+                    drawable.setTint(statusColor(event.status))
                 }
-
             }
             binding.mapView.overlays.add(marker)
         }
         binding.mapView.invalidate()
     }
 
-    private fun severityColor(severity: String?) = when (severity?.uppercase()) {
-        "HIGH" -> Color.RED
-        "MEDIUM" -> Color.parseColor("#F57C00")
-        else -> Color.parseColor("#388E3C")
+    private fun statusColor(status: String?) = when (status?.uppercase()) {
+        "CORROBORATED" -> Color.parseColor("#2E7D32") // green
+        "DISPUTED"     -> Color.parseColor("#D32F2F") // red
+        "CLOSED"       -> Color.parseColor("#9E9E9E") // grey
+        else           -> Color.parseColor("#F57C00") // developing = amber
+    }
+
+    private fun statusLabel(status: String?) = when (status?.uppercase()) {
+        "CORROBORATED" -> "Corroborated"
+        "DISPUTED"     -> "Disputed"
+        "CLOSED"       -> "Closed"
+        else           -> "Developing"
     }
 
     override fun onResume() {
