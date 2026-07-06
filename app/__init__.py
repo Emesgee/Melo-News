@@ -303,6 +303,23 @@ def ensure_schema_compatibility():
                 altered = True
                 logger.info("Added missing column events.%s", col_name)
 
+        # The first time independent_source_count is added (ADR-0020 Phase 1),
+        # backfill it by recomputing every event. Without this, existing rows
+        # keep the ALTER's DEFAULT 0 — which under-reports corroboration in the
+        # reader UI and would drop a stored-CORROBORATED event to DEVELOPING on
+        # its next recompute. (`event_cols` is the pre-ALTER snapshot, so this
+        # runs only on the migrating startup.)
+        if 'independent_source_count' not in event_cols:
+            try:
+                from app.events.service import recompute_event
+                from app.models import Event
+                for _ev in Event.query.all():
+                    recompute_event(_ev)
+                altered = True
+                logger.info("Backfilled events.independent_source_count via recompute")
+            except Exception as _bf:
+                logger.warning("independent_source_count backfill skipped: %s", _bf)
+
         # Migrate legacy is_moderator → role, only on the run that first adds
         # `role` (so a later manual steward/moderator assignment isn't clobbered
         # on every startup). 'role' not in user_cols == it was just added above.
