@@ -27,10 +27,14 @@ Two sub-decisions were open:
 - **`reports_count`** = the reporter's **published** reports only
   (`verification_status == 'VERIFIED'`). Counting PENDING/REJECTED submissions
   would let unvetted or rejected spam inflate a public trust number.
-- **`corroborated_count`** = the number of **distinct** Events that are live-
-  status `CORROBORATED` and contain at least one VERIFIED report by this
-  reporter. A lone reporter with a singleton event scores 0 — corroboration
-  means *others independently backed the same incident*.
+- **`corroborated_count`** = the reporter's **VERIFIED reports** whose Event is
+  live-status `CORROBORATED`. A lone reporter with a singleton event scores 0 —
+  corroboration means *others independently backed the same incident*.
+  **Refined 2026-07-06:** originally this counted *distinct corroborated events*;
+  it now counts *reports* so the chip's "X of Y **reports** corroborated" ratio
+  compares like-with-like. The old event-based numerator produced a misleading
+  "1 of 2" when a reporter filed twice into one corroborated event (both reports
+  corroborated, but the event counted once). Now always `<= reports_count`.
 
 ## Decision
 

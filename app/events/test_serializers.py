@@ -84,8 +84,8 @@ def test_reporter_pseudonymous_signed(ctx):
 
 def test_reporter_track_record_computed_on_read(ctx):
     """Track record is derived from current rows (ADR-0012), not stored counters:
-    only VERIFIED reports count, and corroborated_count counts DISTINCT events
-    whose live status is CORROBORATED."""
+    only VERIFIED reports count, and corroborated_count counts the reporter's
+    VERIFIED reports whose event's live status is CORROBORATED (report-vs-report)."""
     ft = _ft()
     u = _user(rung=2, handle='abu-karim')
 
@@ -94,8 +94,8 @@ def test_reporter_track_record_computed_on_read(ctx):
     db.session.add_all([corro, developing])
     db.session.flush()
 
-    # 3 VERIFIED reports: two in the CORROBORATED event (one distinct event),
-    # one in a DEVELOPING event (published but not corroborated).
+    # 3 VERIFIED reports: two in the CORROBORATED event, one in a DEVELOPING
+    # event (published but not corroborated).
     _mk(ft, user=u, event=corro, status='VERIFIED')
     _mk(ft, user=u, event=corro, status='VERIFIED')
     _mk(ft, user=u, event=developing, status='VERIFIED')
@@ -105,7 +105,7 @@ def test_reporter_track_record_computed_on_read(ctx):
 
     r = serialize_reporter(_mk(ft, user=u, signed=True))  # chip's own report is PENDING
     assert r['reports_count'] == 3          # only the 3 VERIFIED reports; PENDING excluded
-    assert r['corroborated_count'] == 1     # distinct CORROBORATED events, not report count
+    assert r['corroborated_count'] == 2     # 2 VERIFIED reports sit in a CORROBORATED event
 
 
 def test_reporter_corroborated_count_reflects_status_override(ctx):

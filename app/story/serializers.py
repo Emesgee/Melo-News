@@ -49,9 +49,14 @@ def reporter_track_record(user_id):
     so a maintained counter would drift on every reversal path. Mirrors how
     `events.service.recompute_event` derives corroboration fresh.
 
+    Both counts are REPORTS, so the chip's "X of Y reports corroborated" ratio
+    never mixes units (refines ADR-0012, which originally counted the numerator
+    as distinct events — that made "1 of 2" show when a reporter filed twice into
+    one corroborated event, misreading as "only one report corroborated").
+
     - reports_count      = the reporter's VERIFIED (published) reports only.
-    - corroborated_count = DISTINCT Events that are live-status CORROBORATED and
-      hold at least one VERIFIED report by this reporter (honors status_override).
+    - corroborated_count = of those, the ones whose Event's live status is
+      CORROBORATED (honors status_override). Always <= reports_count.
 
     Returns (reports_count, corroborated_count). At pilot scale these are two
     cheap indexed counts; one chip per report means the feed does N of them —
@@ -68,9 +73,9 @@ def reporter_track_record(user_id):
 
     live_status = func.coalesce(Event.status_override, Event.status)
     corroborated_count = (
-        db.session.query(func.count(func.distinct(Event.id)))
-        .select_from(Event)
-        .join(FileUpload, FileUpload.event_id == Event.id)
+        db.session.query(func.count(FileUpload.id))
+        .select_from(FileUpload)
+        .join(Event, FileUpload.event_id == Event.id)
         .filter(
             FileUpload.user_id == user_id,
             FileUpload.verification_status == 'VERIFIED',
