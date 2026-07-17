@@ -11,6 +11,7 @@ Covers:
 - Confidence scoring for citizen uploads
 """
 
+import importlib.util
 import io
 import json
 import os
@@ -19,6 +20,12 @@ import tempfile
 from unittest.mock import patch, MagicMock
 
 import pytest
+
+# `openai` is an optional dependency (the app has pivoted away from AI features,
+# ADR-0019). Detect it without importing so the guard is cheap, and use skipif —
+# not an in-body importorskip — because the @patch('openai.OpenAI') decorator
+# resolves openai at call time, before any test body runs.
+_HAS_OPENAI = importlib.util.find_spec("openai") is not None
 
 
 # ── EXIF Extractor Tests ────────────────────────────────────────────────
@@ -114,6 +121,7 @@ class TestExifExtractor:
 class TestTranscriber:
     """Test Whisper and Azure Speech transcription."""
 
+    @pytest.mark.skipif(not _HAS_OPENAI, reason="openai not installed (optional AI dep)")
     @patch.dict(os.environ, {'OPENAI_API_KEY': 'test-key'})
     @patch('openai.OpenAI')
     def test_whisper_transcription(self, mock_openai_cls, tmp_path):
