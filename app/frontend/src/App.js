@@ -1,85 +1,128 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
+import React, { Suspense, useEffect, useRef } from 'react';
+import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
 
 import Home from './pages/Home';
-import Register from './pages/Register';
-import Login from './pages/Login';
-import FileUpload from './pages/UploadForm';
-import Intro from './pages/Intro';
-import ProfileTest from './pages/Profile';
-import Search from './components/search_bar/Search';
+import Search from './components/searchBar/Search';
 import PrivateRoute from './components/PrivateRoute';
-import MapArea from './components/letleaf_map/MapArea';
-import MeloSummary from './components/letleaf_map/MeloSummary';
+import ErrorBoundary from './components/ErrorBoundary';
+import Toast from './components/Toast';
+import LoadingScreen from './components/LoadingScreen';
+import { DarkModeProvider, useDarkMode } from './utils/DarkModeContext';
+import { AuthProvider, useAuth } from './utils/AuthContext';
+import { ToastProvider, useToast } from './utils/ToastContext';
+import { SearchProvider } from './utils/SearchContext';
+import { setupInterceptors } from './services/apiInterceptors';
 import './App.css';
-import { dedupeStories } from './utils/storyUtils';
+
+// Lazy-loaded routes. The web is the reader + moderation surface; reporting is
+// the Android app's job (ADR-0001/0007), so there is no web upload route —
+// /report is a static "get the app" notice instead.
+const Register = React.lazy(() => import('./pages/Register'));
+const Login = React.lazy(() => import('./pages/Login'));
+const GetTheApp = React.lazy(() => import('./pages/GetTheApp'));
+const Moderation = React.lazy(() => import('./pages/Moderation'));
+const EventsFeed = React.lazy(() => import('./pages/EventsFeed'));
+const EventDetail = React.lazy(() => import('./pages/EventDetail'));
 
 function App({ isLoggedIn: isLoggedInProp }) {
   return (
-    <Router>
-      <AppContent isLoggedInProp={isLoggedInProp} />
-    </Router>
+    <ErrorBoundary>
+      <ToastProvider>
+        <AuthProvider initialLoggedIn={isLoggedInProp}>
+          <SearchProvider>
+            <DarkModeProvider>
+              <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+                <AppContent />
+                <Toast />
+              </Router>
+            </DarkModeProvider>
+          </SearchProvider>
+        </AuthProvider>
+      </ToastProvider>
+    </ErrorBoundary>
   );
 }
 
-const AppContent = ({ isLoggedInProp }) => {
-  const [searchResults, setSearchResults] = React.useState([]);
-  const [sidebarOpen, setSidebarOpen] = React.useState(false);
-  const [isLoggedIn, setIsLoggedIn] = React.useState(
-    typeof isLoggedInProp === 'boolean'
-      ? isLoggedInProp
-      : !!localStorage.getItem('token')
-  );
-  const [showMeloSummary, setShowMeloSummary] = React.useState(false);
+const AppContent = () => {
+  const { addToast } = useToast();
+  const interceptorsSetup = useRef(false);
   const [searchOpen, setSearchOpen] = React.useState(false);
+  const [accountOpen, setAccountOpen] = React.useState(false);
+  const accountRef = useRef(null);
+  const { isDark, toggle: toggleDark } = useDarkMode();
+  const { isLoggedIn, isModerator, authLoading, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const mainRef = useRef(null);
 
-  const handleTopbarSearchResult = React.useCallback((results = []) => {
-    setSearchResults(dedupeStories(Array.isArray(results) ? results : []));
-  }, []);
+  // Setup API interceptors once (toast + retry + auth expiry)
+  useEffect(() => {
+    if (interceptorsSetup.current) return;
+    interceptorsSetup.current = true;
+    setupInterceptors(addToast, () => {
+      logout();
+      navigate('/login');
+    });
+  }, [addToast, logout, navigate]);
 
-  // Check login status on mount and when token changes
-  React.useEffect(() => {
-    const checkLoginStatus = () => {
-      setIsLoggedIn(!!localStorage.getItem('token'));
+  // Focus management: move focus to main content on route change
+  useEffect(() => {
+    mainRef.current?.focus({ preventScroll: true });
+  }, [location.pathname]);
+
+  // Close the account menu on outside click or route change
+  useEffect(() => {
+    if (!accountOpen) return undefined;
+    const onClick = (e) => {
+      if (accountRef.current && !accountRef.current.contains(e.target)) setAccountOpen(false);
     };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [accountOpen]);
 
-    window.addEventListener('storage', checkLoginStatus);
-    return () => window.removeEventListener('storage', checkLoginStatus);
-  }, []);
+  useEffect(() => { setAccountOpen(false); }, [location.pathname]);
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    setIsLoggedIn(false);
+  const handleLogout = async () => {
+    await logout();
     navigate('/login');
   };
 
-  const handleUploadClick = () => {
-    if (!isLoggedIn) {
-      navigate('/login');
-    } else {
-      navigate('/upload');
-    }
+  const handleReportClick = () => {
+    // The web has no upload lane — point would-be reporters at the app.
+    navigate('/report');
   };
 
-  return (
-    <div className="app-shell">
-      {/* Fixed Top Bar with Search and Menu */}
-      <header className="topbar-fixed">
-        <button 
-          className="menu-button" 
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          aria-label="Toggle menu"
-          title="Menu"
-        >
-          <span></span>
-          <span></span>
-          <span></span>
-        </button>
+  if (authLoading) {
+    return <LoadingScreen />;
+  }
 
-        <button 
+  return (
+    <div className={`app-shell ${isDark ? 'dark-mode' : ''}`}>
+      {/* Skip-nav link for keyboard accessibility */}
+      <a href="#main-content" className="skip-nav">
+        Skip to main content
+      </a>
+
+      {/* Fixed top bar */}
+      <header className="topbar-fixed">
+        {/* Brand → the one reader screen */}
+        <Link to="/" className="topbar-brand" aria-label="Melo News — home">
+          <span className="brand-mark">M</span>
+          <span className="brand-name">Melo News</span>
+        </Link>
+
+        {/* Primary views (becomes a single Map/List toggle once the views merge) */}
+        <nav className="topbar-views" aria-label="Primary views">
+          <Link to="/" className={`view-link${location.pathname === '/' ? ' active' : ''}`}>Map</Link>
+          <Link to="/events" className={`view-link${location.pathname === '/events' ? ' active' : ''}`}>Events</Link>
+        </nav>
+
+        <span className="topbar-spacer" />
+
+        {/* Search */}
+        <button
           className="search-icon-btn"
-          onClick={() => setSearchOpen(!searchOpen)}
+          onClick={() => setSearchOpen((o) => !o)}
           aria-label="Toggle search"
           title="Search"
         >
@@ -88,94 +131,95 @@ const AppContent = ({ isLoggedInProp }) => {
             <path d="m21 21-4.35-4.35" />
           </svg>
         </button>
-        
-        {/* Right side action buttons */}
-        <div className="topbar-actions" style={{position: 'absolute', right: '0.5rem', display: 'flex', gap: '0.5rem'}}>
-          <button 
-            className="topbar-action-btn summary-btn"
-            onClick={() => setShowMeloSummary(true)}
-            title="Generate Melo Summary"
-            aria-label="Generate Melo Summary"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M4 3h16a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
-              <line x1="16" y1="2" x2="16" y2="6" />
-              <line x1="8" y1="2" x2="8" y2="6" />
-              <line x1="3" y1="10" x2="21" y2="10" />
-            </svg>
-          </button>
+        <div className="search-topbar-container" style={{ display: searchOpen ? 'flex' : 'none' }}>
+          <Search />
+        </div>
 
-          <button 
-            className="topbar-action-btn upload-btn"
-            onClick={handleUploadClick}
-            title="Upload news"
-            aria-label="Upload"
+        {/* Right-side actions */}
+        <div className="topbar-actions">
+          {/* Report → static "get the app" notice (web has no upload lane) */}
+          <button
+            className="topbar-action-btn submit-btn"
+            onClick={handleReportClick}
+            title="How to report"
+            aria-label="How to report"
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
               <polyline points="17 8 12 3 7 8" />
               <line x1="12" y1="3" x2="12" y2="15" />
             </svg>
+            <span className="submit-label">Report</span>
           </button>
-          
-          <button 
-            className={`topbar-action-btn auth-btn ${isLoggedIn ? 'logout' : 'login'}`}
-            onClick={isLoggedIn ? handleLogout : () => navigate('/login')}
-            title={isLoggedIn ? 'Logout' : 'Login'}
-            aria-label={isLoggedIn ? 'Logout' : 'Login'}
+
+          {/* Dark mode toggle (kept persistent) */}
+          <button
+            className="topbar-action-btn dark-btn"
+            onClick={toggleDark}
+            title={isDark ? 'Light mode' : 'Dark mode'}
+            aria-label="Toggle dark mode"
           >
-            {isLoggedIn ? (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                <polyline points="16 17 21 12 16 7" />
-                <line x1="21" y1="12" x2="9" y2="12" />
-              </svg>
-            ) : (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M15 3H9a2 2 0 0 0-2 2v4" />
-                <path d="M9 21h6a2 2 0 0 0 2-2v-4" />
-                <polyline points="8 12 3 12 3 7" />
-                <polyline points="16 12 21 12 21 17" />
-              </svg>
-            )}
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              {isDark
+                ? <circle cx="12" cy="12" r="5" />
+                : <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />}
+            </svg>
           </button>
+
+          {/* Account */}
+          {isLoggedIn ? (
+            <div className="account-menu" ref={accountRef}>
+              <button
+                className="topbar-action-btn account-btn"
+                onClick={() => setAccountOpen((o) => !o)}
+                aria-haspopup="true"
+                aria-expanded={accountOpen}
+                title="Account"
+                aria-label="Account menu"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              </button>
+              {accountOpen && (
+                <div className="account-dropdown" role="menu">
+                  {isModerator && (
+                    <button role="menuitem" onClick={() => { setAccountOpen(false); navigate('/moderation'); }}>
+                      Moderation
+                    </button>
+                  )}
+                  <button role="menuitem" className="account-logout" onClick={() => { setAccountOpen(false); handleLogout(); }}>
+                    Log out
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <button
+              className="topbar-action-btn auth-btn login"
+              onClick={() => navigate('/login')}
+              title="Log in"
+              aria-label="Log in"
+            >
+              Log in
+            </button>
+          )}
         </div>
-
-        {searchOpen && <Search onSearchResult={handleTopbarSearchResult} showAsTopbar={true} />}
-
-        <nav className={`topbar-nav ${sidebarOpen ? 'open' : ''}`}>
-          <Link to="/" className="nav-link">Home</Link>
-          <Link to="/upload" className="nav-link">Upload</Link>
-          <Link to={isLoggedIn ? '#' : '/login'} className="nav-link" onClick={isLoggedIn ? handleLogout : undefined}>
-            {isLoggedIn ? 'Logout' : 'Login'}
-          </Link>
-        </nav>
       </header>
 
       {/* Main content */}
-      <main className="main">
-        {/* Melo Summary Modal */}
-        {showMeloSummary && (
-          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999 }}>
-            <MeloSummary 
-              searchResults={searchResults}
-              onClose={() => setShowMeloSummary(false)}
-              initialOpen={true}
-            />
-          </div>
-        )}
-
+      <main id="main-content" className="main" ref={mainRef} tabIndex={-1}>
         <Routes>
-          <Route path="/" element={<Home searchResults={searchResults} onSearchResult={handleTopbarSearchResult} />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/login" element={<Login onLoginSuccess={() => setIsLoggedIn(true)} />} />
-          <Route path="/intro" element={<Intro />} />
-          <Route path="/search" element={<Search onSearchResult={handleTopbarSearchResult} />} />
-          <Route path="/map" element={<MapArea />} />
+          <Route path="/" element={<Home />} />
+          <Route path="/register" element={<Suspense fallback={null}><Register /></Suspense>} />
+          <Route path="/login" element={<Suspense fallback={null}><Login /></Suspense>} />
+          <Route path="/events" element={<Suspense fallback={null}><EventsFeed /></Suspense>} />
+          <Route path="/events/:id" element={<Suspense fallback={null}><EventDetail /></Suspense>} />
+          <Route path="/report" element={<Suspense fallback={null}><GetTheApp /></Suspense>} />
 
           <Route element={<PrivateRoute />}>
-            <Route path="/profile" element={<ProfileTest />} />
-            <Route path="/upload" element={<FileUpload />} />
+            <Route path="/moderation" element={<Suspense fallback={null}><Moderation /></Suspense>} />
           </Route>
         </Routes>
       </main>

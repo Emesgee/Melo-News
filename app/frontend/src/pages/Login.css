@@ -39,13 +39,50 @@
     cursor: pointer;
   }
   
-  .login-container button:hover {
+  .login-container button:hover:not(:disabled) {
     background-color: #0056b3;
   }
-  
-  .login-container p {
-    margin-top: 20px;
+
+  .login-container button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .login-container .message {
+    margin-top: 15px;
     text-align: center;
-    color: green;
+    font-weight: 500;
+  }
+
+  .login-container .message--success {
+    color: #22c55e;
+  }
+
+  .login-container .message--error {
+    color: #dc2626;
+  }
+
+  .login-container .login-hint {
+    margin-top: 10px;
+    text-align: center;
+    color: #888;
+    font-size: 0.9rem;
+  }
+
+  /* Dark mode */
+  .dark-mode .login-container {
+    border-color: #374151;
+    background: #1f2937;
+    color: #e5e7eb;
+  }
+
+  .dark-mode .login-container input {
+    background: #111827;
+    border-color: #4b5563;
+    color: #e5e7eb;
+  }
+
+  .dark-mode .login-container .login-hint {
+    color: #9ca3af;
   }
   

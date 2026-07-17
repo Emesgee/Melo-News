@@ -39,13 +39,59 @@
     cursor: pointer;
   }
   
-  .register-container button:hover {
+  .register-container button:hover:not(:disabled) {
     background-color: #0056b3;
   }
-  
-  .register-container p {
-    margin-top: 20px;
+
+  .register-container button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .register-container .message {
+    margin-top: 15px;
     text-align: center;
-    color: green;
+    font-weight: 500;
+  }
+
+  .register-container .message--success {
+    color: #22c55e;
+  }
+
+  .register-container .message--error {
+    color: #dc2626;
+  }
+
+  .register-container .field-hint {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.8rem;
+    color: #888;
+  }
+
+  .register-container .register-login-btn {
+    margin-top: 10px;
+    background-color: #22c55e;
+  }
+
+  .register-container .register-login-btn:hover {
+    background-color: #16a34a;
+  }
+
+  /* Dark mode */
+  .dark-mode .register-container {
+    border-color: #374151;
+    background: #1f2937;
+    color: #e5e7eb;
+  }
+
+  .dark-mode .register-container input {
+    background: #111827;
+    border-color: #4b5563;
+    color: #e5e7eb;
+  }
+
+  .dark-mode .register-container .field-hint {
+    color: #9ca3af;
   }
   

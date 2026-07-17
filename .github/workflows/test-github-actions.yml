@@ -1,0 +1,19 @@
+name: Test GitHub Actions
+
+on:
+  push:
+    branches:
+      - develop
+  pull_request:
+    branches:
+      - develop
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hello World
+        run: echo "✅ GitHub Actions is working!"
+      
+      - name: List current branch
+        run: echo "Branch ref: ${{ github.ref }}"

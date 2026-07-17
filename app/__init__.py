@@ -1,35 +1,72 @@
+import logging
+import os
+import json
+from datetime import datetime, timezone, timedelta
+
 from flask import Flask, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from flask_socketio import SocketIO
-import os
-import json
-from datetime import datetime, timedelta
 from sqlalchemy.exc import SQLAlchemyError
-from .models import db, InputTemplate, OutputTemplate, FileType, Telegram
+from sqlalchemy import text
+from .models import db, InputTemplate, OutputTemplate, FileType
 
-
+logger = logging.getLogger(__name__)
 
 # Initialize SocketIO globally
-socketio = SocketIO(cors_allowed_origins="*")
+socketio = SocketIO(
+    cors_allowed_origins=["https://app.melonews.tech", "http://localhost:3000", "http://localhost:3001"],
+    async_mode="threading",
+)
 
-def create_app():
-
+def create_app(config_name=None):
+    """
+    Create and configure Flask application
+    
+    Args:
+        config_name: 'development', 'production', or 'testing' (auto-detected if not provided)
+    """
     app = Flask(__name__)
+    
+    # Auto-detect environment from ENVIRONMENT variable if not provided
+    if config_name is None:
+        env = os.getenv('ENVIRONMENT', 'development').lower()
+        config_name = 'production' if env == 'production' else 'development'
+    
     # Use the Config class from config.py
     from config import Config
     app.config.from_object(Config)
+    
+    # Override for testing
+    if config_name == 'testing':
+        app.config['TESTING'] = True
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+        app.config['JWT_SECRET_KEY'] = 'test-secret-key-at-least-32-bytes-long!'
+        # In tests we hit endpoints with Bearer tokens; the CSRF check that
+        # guards cookie-based auth blocks those POSTs even when a header
+        # token is present, because login also sets the cookie. Off in
+        # testing only — production keeps full CSRF protection.
+        app.config['JWT_COOKIE_CSRF_PROTECT'] = False
 
-    # CORS Configuration
-    CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True,
-         methods=["GET", "POST", "OPTIONS", "PUT", "DELETE"],
-         allow_headers=["Content-Type", "Authorization"])
+    # CORS Configuration restricted to known frontends (wildcard is invalid with credentials)
+    CORS(
+        app,
+        resources={r"/*": {"origins": ["https://app.melonews.tech", "http://localhost:3000", "http://localhost:3001"]}},
+        supports_credentials=True,
+        methods=["GET", "POST", "OPTIONS", "PUT", "DELETE"],
+        allow_headers=["Content-Type", "Authorization"],
+    )
 
-    # Log database URI for debugging
-    print(f"Connected to database: {app.config['SQLALCHEMY_DATABASE_URI']}")
-
+    # Log database URI for debugging (masked)
+    logger.info("Environment: %s", config_name)
+    db_uri = app.config.get('SQLALCHEMY_DATABASE_URI')
+    if db_uri:
+        masked_uri = db_uri.split('://')[0] + '://***:***@' + db_uri.split('@')[-1]
+        logger.info("Connected to database: %s", masked_uri)
+    else:
+        logger.error("SQLALCHEMY_DATABASE_URI is not set in config!")
     # SQLAlchemy engine options
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
         "pool_pre_ping": True,
@@ -57,41 +94,56 @@ def create_app():
     app.config['EXPORT_DIR'] = EXPORT_DIR
 
     # Register Blueprints
-    from .auth.routes import auth_bp
-    from .profile.routes import profile_bp
-    from .file_upload.routes import file_upload_bp
-    from .file_types.routes import file_types_bp
-    from .templates.routes import templates_bp
-    from .search.routes import search_bp
-    from .output.routes import output_bp
-    from .telegram.routes import telegram_bp
-    from .city_history.routes import city_history_bp
-    from .city_history.chat_routes import news_chat_bp
-    from .summary.summary import summary_bp
-    from .ai_analyzer.routes import ai_analyzer_bp
+    try:
+        from .auth.routes import auth_bp
+        from .profile.routes import profile_bp
+        from .file_upload.routes import file_upload_bp
+        from .file_types.routes import file_types_bp
+        from .templates.routes import templates_bp
+        from .search.routes import search_bp
+        from .output.routes import output_bp
+        from .ai_analyzer.routes import ai_analyzer_bp
+        from .story.routes import story_bp
+        from .moderation.routes import moderation_bp
+        from .events.routes import events_bp
 
-    app.register_blueprint(auth_bp, url_prefix='/api/auth')
-    app.register_blueprint(profile_bp, url_prefix='/api/profile')
-    app.register_blueprint(file_upload_bp)
-    app.register_blueprint(file_types_bp)
-    app.register_blueprint(templates_bp, url_prefix='/api')
-    app.register_blueprint(search_bp, url_prefix='/api')
-    app.register_blueprint(output_bp)
-    app.register_blueprint(telegram_bp, url_prefix='/api/telegram')
-    app.register_blueprint(city_history_bp)
-    app.register_blueprint(news_chat_bp)
-    app.register_blueprint(summary_bp)
-    app.register_blueprint(ai_analyzer_bp, url_prefix='/api/ai')
+        app.register_blueprint(auth_bp, url_prefix='/api/auth')
+        app.register_blueprint(profile_bp, url_prefix='/api/profile')
+        app.register_blueprint(file_upload_bp)
+        app.register_blueprint(file_types_bp)
+        app.register_blueprint(templates_bp, url_prefix='/api')
+        app.register_blueprint(search_bp, url_prefix='/api')
+        app.register_blueprint(output_bp)
+        app.register_blueprint(ai_analyzer_bp, url_prefix='/api/ai')
+        app.register_blueprint(story_bp)
+        app.register_blueprint(moderation_bp)
+        app.register_blueprint(events_bp)
+
+        # Flask-Limiter decorators only enforce limits across requests
+        # when the limiter is bound to the app. Each route module exposes
+        # its limiter at module scope; bind them all here so rate limits
+        # actually take effect at request time.
+        from .auth.routes import limiter as auth_limiter
+        from .file_upload.routes import limiter as file_upload_limiter
+        from .story.routes import limiter as story_limiter, anon_limiter
+        for _lim in (auth_limiter, file_upload_limiter, story_limiter, anon_limiter):
+            try:
+                _lim.init_app(app)
+            except Exception as _le:
+                logger.warning("limiter init_app failed: %s", _le)
+
+        logger.info("All blueprints registered successfully")
+    except ImportError as e:
+        logger.warning("Could not import blueprints: %s", e)
     
     @app.route('/api/health')
     def health_check():
         return jsonify({
             'status': 'healthy',
-            'timestamp': datetime.utcnow().isoformat(),
-            'version': '1.0.0'
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'version': '1.0.0',
+            'environment': config_name
         })
-
-    
 
     # Error Handlers
     @app.errorhandler(404)
@@ -102,27 +154,30 @@ def create_app():
     def server_error(error):
         return jsonify({"error": "Server error"}), 500
 
-    # Initialize Database and Populate Data
-    with app.app_context():
-        try:
-            # Create tables
-            print("Creating database tables...")
-            db.create_all()
-
-            # Populate initial data
-            print("Populating initial data...")
-            populate_initial_data()
-            print("Initial data populated successfully.")
-        except SQLAlchemyError as e:
-            print(f"Database error during initialization: {e}")
-            db.session.rollback()
-        finally:
-            db.session.close()
+    # Initialize Database and Populate Data (skip for testing)
+    # NOTE: In production, use `flask db upgrade` (Alembic migrations) instead of db.create_all().
+    # db.create_all() is kept here as a fallback for dev environments without migrations.
+    if config_name != 'testing':
+        with app.app_context():
+            try:
+                logger.info("Initializing database tables...")
+                db.create_all()
+                logger.info("Populating initial data...")
+                populate_initial_data()
+                logger.info("Initial data populated successfully.")
+            except SQLAlchemyError as e:
+                logger.error("Database error during initialization: %s", e)
+                db.session.rollback()
+            except Exception as e:
+                logger.error("Unexpected error during initialization: %s", e)
+            finally:
+                db.session.close()
 
     # Ensure proper session cleanup at the end of each request
     @app.teardown_appcontext
     def shutdown_session(exception=None):
         if exception:
+            logger.error("Exception during request: %s", exception)
             db.session.rollback()
         db.session.remove()
 
@@ -130,28 +185,233 @@ def create_app():
 
 # Populate Initial Data
 def populate_initial_data():
-    populate_file_types()
-    populate_input_templates()
-    populate_output_templates()
+    """Populate database with initial data"""
+    try:
+        ensure_schema_compatibility()
+        populate_file_types()
+        populate_input_templates()
+        populate_output_templates()
+    except Exception as e:
+        logger.error("Failed to populate initial data: %s", e)
+
+
+def ensure_schema_compatibility():
+    """Backfill columns that exist in models but may be missing in legacy databases."""
+    try:
+        dialect = db.engine.dialect.name
+        if dialect == 'postgresql':
+            file_uploads_q = text(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = 'file_uploads'"
+            )
+            users_q = text(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = 'users'"
+            )
+            events_q = text(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = 'events'"
+            )
+        elif dialect == 'sqlite':
+            file_uploads_q = text("PRAGMA table_info(file_uploads)")
+            users_q = text("PRAGMA table_info(users)")
+            events_q = text("PRAGMA table_info(events)")
+        else:
+            logger.warning("Unsupported database dialect: %s", dialect)
+            return
+
+        def _cols(rows):
+            return {row[0] if dialect == 'postgresql' else row[1] for row in rows}
+
+        file_upload_cols = _cols(db.session.execute(file_uploads_q).fetchall())
+        user_cols = _cols(db.session.execute(users_q).fetchall())
+        event_cols = _cols(db.session.execute(events_q).fetchall())
+
+        # Keep this list minimal and explicit for safe startup compatibility.
+        # `verification_status` uses DEFAULT 'VERIFIED' for the ALTER so
+        # existing rows are grandfathered — the public feed shouldn't go
+        # dark on deploy. New rows go through the ORM and get the model's
+        # 'PENDING' default instead.
+        required_file_upload_columns = {
+            'transcription': 'TEXT',
+            'confidence_score': 'DOUBLE PRECISION DEFAULT 0.0' if dialect == 'postgresql' else 'REAL DEFAULT 0.0',
+            'severity': "VARCHAR(20) DEFAULT 'LOW'",
+            'exif_data': 'JSONB' if dialect == 'postgresql' else 'TEXT',
+            'analysis_status': "VARCHAR(20) DEFAULT 'PENDING'",
+            'verification_status': "VARCHAR(20) DEFAULT 'VERIFIED' NOT NULL",
+            'verification_note': 'TEXT',
+            'verified_at': 'TIMESTAMP' if dialect == 'postgresql' else 'DATETIME',
+            'verified_by': 'INTEGER',
+            # Idempotency key from Android local queue. UNIQUE inline so a
+            # duplicate relay can be caught at insert time even before a
+            # supporting index exists.
+            'local_id': 'VARCHAR(64) UNIQUE',
+            # Idempotency key for anonymous offline drafts — separate from
+            # local_id so the authed-flow uniqueness is not muddied. Lets
+            # the same offline draft be safely re-submitted across retries.
+            'anon_submission_id': 'VARCHAR(64) UNIQUE',
+            # Stage B: Event membership + on-device signature. event_id is a
+            # plain INTEGER here (the ORM defines the FK to events.id); the
+            # physical FK constraint is omitted on the backfill ALTER, matching
+            # verified_by. report_signature is the unsigned/web lane when null.
+            'event_id': 'INTEGER',
+            'report_signature': 'VARCHAR(256)',
+            # Editorial "hold this" safety flag; also a signed field (ADR-0008)
+            # read by the rung gate's safety override.
+            'is_sensitive': 'BOOLEAN DEFAULT FALSE' if dialect == 'postgresql' else 'BOOLEAN DEFAULT 0',
+            # Verbatim canonical signed message (ADR-0014) for later reader-side
+            # verification (ADR-0009).
+            'signed_message': 'TEXT',
+            # Media fingerprint lifted to a first-class column (ADR-0020 Phase 1)
+            # so the fake-independence detector can query it; backfilled NULL for
+            # legacy rows (recompute_event treats NULL media as its own origin).
+            'media_sha256': 'VARCHAR(64)',
+        }
+        # Events table: independent_source_count is derived by recompute_event
+        # (ADR-0020 Phase 1). Backfill 0 for legacy rows; _derive_status falls
+        # back to corroboration_count until each event is next recomputed.
+        required_event_columns = {
+            'independent_source_count': 'INTEGER DEFAULT 0 NOT NULL',
+        }
+        # Stage B: extend User into the identity + reputation table. `role`
+        # replaces the legacy is_moderator boolean (migrated below).
+        required_user_columns = {
+            'role': "VARCHAR(20) DEFAULT 'reporter' NOT NULL",
+            'public_key': 'VARCHAR(128) UNIQUE',
+            'display_handle': 'VARCHAR(50)',
+            'identity_type': "VARCHAR(20) DEFAULT 'registered' NOT NULL",
+            'trust_rung': 'INTEGER DEFAULT 1 NOT NULL',
+            'reports_count': 'INTEGER DEFAULT 0 NOT NULL',
+            'corroborated_count': 'INTEGER DEFAULT 0 NOT NULL',
+            'first_seen_at': 'TIMESTAMP' if dialect == 'postgresql' else 'DATETIME',
+            'last_active_at': 'TIMESTAMP' if dialect == 'postgresql' else 'DATETIME',
+        }
+
+        altered = False
+        for col_name, col_ddl in required_file_upload_columns.items():
+            if col_name not in file_upload_cols:
+                db.session.execute(text(f"ALTER TABLE file_uploads ADD COLUMN {col_name} {col_ddl}"))
+                altered = True
+                logger.info("Added missing column file_uploads.%s", col_name)
+
+        for col_name, col_ddl in required_user_columns.items():
+            if col_name not in user_cols:
+                db.session.execute(text(f"ALTER TABLE users ADD COLUMN {col_name} {col_ddl}"))
+                altered = True
+                logger.info("Added missing column users.%s", col_name)
+
+        for col_name, col_ddl in required_event_columns.items():
+            if col_name not in event_cols:
+                db.session.execute(text(f"ALTER TABLE events ADD COLUMN {col_name} {col_ddl}"))
+                altered = True
+                logger.info("Added missing column events.%s", col_name)
+
+        # The first time independent_source_count is added (ADR-0020 Phase 1),
+        # backfill it by recomputing every event. Without this, existing rows
+        # keep the ALTER's DEFAULT 0 — which under-reports corroboration in the
+        # reader UI and would drop a stored-CORROBORATED event to DEVELOPING on
+        # its next recompute. (`event_cols` is the pre-ALTER snapshot, so this
+        # runs only on the migrating startup.)
+        if 'independent_source_count' not in event_cols:
+            try:
+                from app.events.service import recompute_event
+                from app.models import Event
+                for _ev in Event.query.all():
+                    recompute_event(_ev)
+                altered = True
+                logger.info("Backfilled events.independent_source_count via recompute")
+            except Exception as _bf:
+                logger.warning("independent_source_count backfill skipped: %s", _bf)
+
+        # Migrate legacy is_moderator → role, only on the run that first adds
+        # `role` (so a later manual steward/moderator assignment isn't clobbered
+        # on every startup). 'role' not in user_cols == it was just added above.
+        if 'role' not in user_cols and 'is_moderator' in user_cols:
+            db.session.execute(text(
+                "UPDATE users SET role = 'moderator' WHERE is_moderator = "
+                + ("TRUE" if dialect == 'postgresql' else "1")
+            ))
+            altered = True
+            logger.info("Backfilled users.role from legacy is_moderator")
+
+        # Drop NOT NULL on email/password/username so a pseudonymous reporter
+        # can self-register with only a device keypair + handle (Stage C).
+        # PostgreSQL alters in place; SQLite needs a table rebuild (dev only).
+        if dialect == 'postgresql':
+            for _col in ('email', 'password', 'username'):
+                row = db.session.execute(text(
+                    "SELECT is_nullable FROM information_schema.columns "
+                    "WHERE table_name = 'users' AND column_name = :c"
+                ), {'c': _col}).fetchone()
+                if row and row[0] == 'NO':
+                    db.session.execute(text(f"ALTER TABLE users ALTER COLUMN {_col} DROP NOT NULL"))
+                    altered = True
+                    logger.info("Dropped NOT NULL on users.%s", _col)
+        elif dialect == 'sqlite':
+            urows = db.session.execute(text("PRAGMA table_info(users)")).fetchall()
+            if any(r[1] in ('email', 'password', 'username') and r[3] == 1 for r in urows):
+                logger.warning(
+                    "users.email/password/username are NOT NULL on this SQLite "
+                    "database. Pseudonymous registration requires a manual table "
+                    "rebuild — recreate the dev DB or run a custom migration."
+                )
+
+        # Drop NOT NULL on file_uploads.user_id so anonymous submissions
+        # are allowed. PostgreSQL supports this in place; SQLite needs a
+        # table rebuild (only matters in dev — dev DBs are usually wiped).
+        if dialect == 'postgresql':
+            nullable_row = db.session.execute(text(
+                "SELECT is_nullable FROM information_schema.columns "
+                "WHERE table_name = 'file_uploads' AND column_name = 'user_id'"
+            )).fetchone()
+            if nullable_row and nullable_row[0] == 'NO':
+                db.session.execute(text(
+                    "ALTER TABLE file_uploads ALTER COLUMN user_id DROP NOT NULL"
+                ))
+                altered = True
+                logger.info("Dropped NOT NULL on file_uploads.user_id (anonymous submissions)")
+        elif dialect == 'sqlite':
+            # PRAGMA table_info row format: (cid, name, type, notnull, dflt_value, pk)
+            rows = db.session.execute(text("PRAGMA table_info(file_uploads)")).fetchall()
+            user_id_row = next((r for r in rows if r[1] == 'user_id'), None)
+            if user_id_row and user_id_row[3] == 1:
+                logger.warning(
+                    "file_uploads.user_id is NOT NULL on this SQLite database. "
+                    "Anonymous submissions require a manual table rebuild — "
+                    "recreate the dev DB or run a custom migration."
+                )
+
+        if altered:
+            db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logger.warning("Schema compatibility check failed: %s", e)
 
 def populate_file_types():
-    if not FileType.query.first():
-        templates = [
-            FileType(type_name="Audio", allowed_extensions="m4a, mp3, wav"),
-            FileType(type_name="Image", allowed_extensions="jpg, png, jpeg, gif"),
-            FileType(type_name="Video", allowed_extensions="mp4, avi, mpeg, mov"),
-            FileType(type_name="Documents", allowed_extensions="docx, pdf, ppt"),
-            FileType(type_name="Data Files", allowed_extensions="csv")
-        ]
-        try:
-            db.session.bulk_save_objects(templates)
-            db.session.commit()
-            print("FileTypes populated successfully.")
-        except SQLAlchemyError as e:
-            print(f"Error populating FileType: {e}")
-            db.session.rollback()
+    """Populate FileType table"""
+    desired_types = {
+        "Audio": "m4a, mp3, wav, ogg",
+        "Image": "jpg, png, jpeg, gif, webp",
+        "Video": "mp4, avi, mpeg, mov, webm, ogv",
+        "Documents": "doc, docx, pdf, ppt, pptx, xls, xlsx",
+        "Data Files": "csv",
+    }
+
+    try:
+        existing_types = {ft.type_name: ft for ft in FileType.query.all()}
+
+        for type_name, allowed_extensions in desired_types.items():
+            existing = existing_types.get(type_name)
+            if existing is None:
+                db.session.add(FileType(type_name=type_name, allowed_extensions=allowed_extensions))
+            elif existing.allowed_extensions != allowed_extensions:
+                existing.allowed_extensions = allowed_extensions
+
+        db.session.commit()
+        logger.info("FileTypes synchronized successfully.")
+    except SQLAlchemyError as e:
+        logger.error("Error populating FileType: %s", e)
+        db.session.rollback()
 
 def populate_input_templates():
+    """Populate InputTemplate table"""
     if not InputTemplate.query.first():
         templates = [
             InputTemplate(template_type="Keyword Search", template_description="Searches by title, tags, or subject keywords"),
@@ -163,12 +423,13 @@ def populate_input_templates():
         try:
             db.session.bulk_save_objects(templates)
             db.session.commit()
-            print("InputTemplates populated successfully.")
+            logger.info("InputTemplates populated successfully.")
         except SQLAlchemyError as e:
-            print(f"Error populating InputTemplate: {e}")
+            logger.error("Error populating InputTemplate: %s", e)
             db.session.rollback()
 
 def populate_output_templates():
+    """Populate OutputTemplate table"""
     if not OutputTemplate.query.first():
         templates = [
             OutputTemplate(template_type="Summary View", description="Shows key details only"),
@@ -179,22 +440,21 @@ def populate_output_templates():
         try:
             db.session.bulk_save_objects(templates)
             db.session.commit()
-            print("OutputTemplates populated successfully.")
+            logger.info("OutputTemplates populated successfully.")
         except SQLAlchemyError as e:
-            print(f"Error populating OutputTemplate: {e}")
+            logger.error("Error populating OutputTemplate: %s", e)
             db.session.rollback()
 
 # WebSocket Event Handlers
 @socketio.on('connect')
 def handle_connect():
-    print('Client connected')
+    logger.debug('WebSocket client connected')
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    print('Client disconnected')
+    logger.debug('WebSocket client disconnected')
 
 @socketio.on('message')
 def handle_message(message):
-    print(f'Received message: {message}')
+    logger.debug('WebSocket message received: %s', message)
     socketio.send(f'Echo: {message}')
-

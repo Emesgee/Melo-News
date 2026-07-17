@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Melo-News App &amp; Infrastructure Overview</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2rem; background: #f9f9f9; color: #222; line-height: 1.5; max-width: 1000px; }
+        h1, h2, h3 { color: #2a4d69; }
+        .section { margin-bottom: 2rem; }
+        pre { background: #eee; padding: 1em; border-radius: 6px; overflow-x: auto; }
+        .diagram { background: #fff; border: 1px solid #ccc; padding: 1em; border-radius: 6px; margin: 1em 0; }
+        code { background: #e3e3e3; padding: 2px 4px; border-radius: 3px; }
+        .note { background: #fff8e1; border-left: 4px solid #f0ad4e; padding: 0.75em 1em; border-radius: 4px; margin: 1em 0; }
+        .gate { background: #fdecea; border-left: 4px solid #c0392b; padding: 0.75em 1em; border-radius: 4px; margin: 1em 0; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
+        th { background: #eef3f7; }
+        .tag { font-size: 0.8em; padding: 1px 6px; border-radius: 10px; color: #fff; }
+        .built { background: #15803d; }
+        .planned { background: #a16207; }
+    </style>
+    <script type="module">
+      import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+      mermaid.initialize({ startOnLoad: true });
+    </script>
+</head>
+<body>
+    <h1>Melo-News: Application &amp; Infrastructure Overview</h1>
+    <p><em>Reflects the current <code>citizen-journalism-trust-model</code> architecture
+    (2026-07-17). The previous "news aggregator" version is archived under
+    <code>docs/old-architecture/</code>. Canonical decisions: <code>docs/adr/</code>;
+    narrative: <code>docs/architecture.md</code>.</em></p>
+
+    <div class="note">
+      <b>What Melo-News is.</b> A <b>reader-side trust layer for conflict content</b>
+      (ADR-0019): it shows a lay reader which of tonight's many posts is
+      <b>corroborated</b>, by <b>how many independent sources</b>, as a non-binary
+      "basis of trust." It is <em>not</em> a scraper, an AI summariser, or a
+      single-item provenance tool — those cells are already owned by better-resourced
+      tools; stages 6→7 (corroboration → reader-legible trust) are the unclaimed one.
+    </div>
+
+    <div class="section">
+        <h2>1. Application structure</h2>
+        <ul>
+            <li><b>app/</b> – Flask backend (app-factory + blueprints)
+                <ul>
+                    <li><b>events/</b> – the trust engine: clustering, <code>recompute_event</code>, independence detector, corroboration graph (<code>archive.py</code>), snapshots</li>
+                    <li><b>story/</b> – report ingest + serialization</li>
+                    <li><b>moderation/</b> – verification queue &amp; status override</li>
+                    <li><b>auth/ · profile/ · identity/</b> – pseudonymous identity, JWT turnstile, trust ladder</li>
+                    <li><b>frontend/</b> – React 18 web reader + moderation surface</li>
+                    <li><b>drill/</b> – scripted pilot (T4P corroboration drill)</li>
+                </ul>
+            </li>
+            <li><b>modules/</b> – object storage abstraction (<code>s3_handler.py</code>, <code>azure_handler.py</code>, <code>object_storage.py</code>)</li>
+            <li><b>android/</b> – Kotlin signed-reporter client (Lane B): on-device signing, EXIF strip, offline queue, panic/decoy, mesh relay</li>
+            <li><b>docs/adr/</b> – Architecture Decision Records (the source of truth)</li>
+            <li><b>main.py · config.py</b> – entry point &amp; single-source config</li>
+            <li><b>Dockerfile · docker-compose.yaml · nginx.conf</b> – containerised deploy</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>2. The trust engine (the core)</h2>
+        <p>The <b>Event</b> (an incident) is the primary reader-facing unit (ADR-0004),
+        not a raw report. Reports (<code>FileUpload</code> rows) cluster into an Event by
+        geography + time; one incident = one Event = one map pin = one shareable page.
+        Two counts drive it:</p>
+        <ul>
+            <li><b>corroboration_count</b> – distinct verified, non-anonymous identities.</li>
+            <li><b>independent_source_count</b> – distinct identities <em>after collapsing
+            byte-identical media to one origin</em> (the <b>fake-independence detector</b>:
+            a union-find over people; a clip reshared under many pseudonyms is one origin,
+            not corroboration — UC3/UC8). This is the number the <b>CORROBORATED</b> gate and
+            the reader display trust. Promotion also needs a rung-2+ member (Sybil backstop,
+            ADR-0005).</li>
+        </ul>
+        <p>Status <code>DEVELOPING | CORROBORATED | DISPUTED | CLOSED</code> is derived by
+        <code>recompute_event()</code>. On entering an archival status it writes an
+        append-only, content-addressed <b>EventGraphSnapshot</b> (capture-before-deletion,
+        UC9). Text/timing coordination is surfaced as <b>advisory-only</b> signals (never
+        reduces the count).</p>
+    </div>
+
+    <div class="section">
+        <h2>3. Two input lanes, one Event (ADR-0019)</h2>
+        <table>
+            <tr><th>Lane</th><th>What</th><th>Trust tier</th><th>Status</th></tr>
+            <tr>
+                <td><b>Lane B</b></td>
+                <td>Signed client report — Android captures &amp; signs on-device (ECDSA P-256, AndroidKeyStore); web <code>/upload</code> is a login-required unsigned variant</td>
+                <td>"verified source" (premium)</td>
+                <td><span class="tag built">BUILT</span></td>
+            </tr>
+            <tr>
+                <td><b>Lane A</b></td>
+                <td>Already-public post (Telegram/X link or monitored channel) → geolocate + timestamp + content-match into an Event</td>
+                <td>"public source" (lower)</td>
+                <td><span class="tag planned">DEFERRED (Phase 2)</span></td>
+            </tr>
+        </table>
+        <p>A reader is meant to see <em>"N sources: X verified, Y public"</em> — honest about
+        which is which. Lane A is the mass-audience path but is gated behind the pilot's
+        belief-change result (ADR-0020).</p>
+    </div>
+
+    <div class="section">
+        <h2>4. High-level architecture</h2>
+        <div class="diagram">
+            <pre class="mermaid">
+flowchart TD
+    Readers([Readers — mass web audience])
+    subgraph Clients
+        Web["Web SPA (React 18)\nMap/List of Events · Event detail · Moderation"]
+        Android["Android client (Kotlin)\nSIGNED reporter lane (Lane B)\nsigning · panic/decoy · mesh · offline queue"]
+    end
+    subgraph Host [Hetzner host]
+        Nginx[nginx reverse proxy]
+        Backend["Flask backend (Docker)\nblueprints: auth · story · events · moderation ...\nTRUST ENGINE: cluster → recompute → independence → graph → snapshots"]
+        DB[(PostgreSQL\nusers · events · file_uploads · snapshots)]
+        Nginx --> Backend
+        Backend --> DB
+    end
+    S3[(Object storage\nHetzner S3 / Azure\nprivate bucket · presigned PUT/GET)]
+
+    Readers -- HTTPS --> Web
+    Web -- REST /api/* --> Nginx
+    Android -- HTTPS/API (signed) --> Nginx
+    Android -- presigned PUT (media) --> S3
+    Web -- presigned GET (media) --> S3
+    Backend -- issue presigned URLs --> S3
+            </pre>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>5. Clients (ADR-0007, ADR-0021)</h2>
+        <ul>
+            <li><b>Web is the reader + moderation surface</b> — the primary product, no install, where the belief question is tested. Reader browse is login-free; reporter/moderator actions require login.</li>
+            <li><b>Android is reporter-first</b> — the hardened signed capture path. It carries only a <b>thin, decoy-gated awareness layer</b> (own track record, compromise alert, a situational-awareness event map). It must not grow into a full reader browser — the reporter's phone is the highest-risk object under seizure, so it holds the minimum.</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>6. Storage &amp; infrastructure (ADR-0017)</h2>
+        <ul>
+            <li><b>Object storage</b> – clients upload media <b>directly</b> to a <b>private</b> S3-compatible bucket via presigned <code>PUT</code>; readers get short-lived presigned <code>GET</code> URLs. The server never proxies media bytes. <code>STORAGE_BACKEND</code> selects <code>s3</code> (Hetzner/MinIO) or <code>azure</code> (legacy).</li>
+            <li><b>Database</b> – PostgreSQL via SQLAlchemy (pooled, pre-ping/recycle).</li>
+            <li><b>Deploy</b> – containerised (<code>Dockerfile</code>, compose) behind <b>nginx</b> on a Hetzner host. Dev phone connectivity during the drill is over Tailscale.</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>7. Identity &amp; trust</h2>
+        <ul>
+            <li><b>Device keypair = pseudonym</b> (ADR-0003/0013): the ECDSA P-256 public key IS the identity (AndroidKeyStore, hardware-backed). No email/password for reporters.</li>
+            <li><b>JWT is only a turnstile</b> (ADR-0016); the signature is the real identity. Reader-side media verification rebuilds the canonical signed message (ADR-0009/0014).</li>
+            <li><b>Trust ladder</b> rung 1..3 (0 = anonymous, no user row). Earned only via corroborated history + time, or a steward vouch. Roles: reporter · moderator · steward.</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>8. Security posture</h2>
+        <div class="gate">
+            <b>Hard release gate (ADR-0011).</b> Real at-rest encryption, Keystore-backed
+            secrets, and signature-only auth are hard-blocking before any real at-risk
+            reporter uses the app. That layer is currently <b>stubbed</b> — the app must
+            <b>not</b> be presented as safe for real field journalists until ADR-0011 is done.
+            The current pilot runs on signed pseudonyms with a dummy cohort (the drill).
+        </div>
+        <ul>
+            <li>Anonymous public ingest is <b>disabled</b> for the pilot (easiest Sybil/spam vector; counts 0 toward corroboration anyway).</li>
+            <li>Web-account passwords are hashed (irrecoverable, only resettable).</li>
+            <li>Lane A readers install no capture client, so there is no on-device identity to seize — de-risking the mass case (ADR-0019); ADR-0011 still gates Lane B.</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>9. Build sequence (ADR-0020)</h2>
+        <ol>
+            <li><b>Phase 0 — the drill (current):</b> scripted T4P corroboration exercise, re-scoped to falsify the belief-change hypothesis. Gates everything after.</li>
+            <li><b>Phase 1 — no-regret core (BUILT, 135 tests green):</b> archive-grade data model, fake-independence detector, corroboration graph, durable snapshots, advisory signals.</li>
+            <li><b>Phase 2 — branch on the drill:</b> strong belief-change → build Lane A ingest + graded feed; weak/backfire → emphasise archive and/or debunk shapes.</li>
+            <li><b>Phase 3 — per-surface hardening:</b> ADR-0011 before any real Lane-B reporter; moderation-at-scale + takedown/jurisdiction before any public Lane-A launch.</li>
+        </ol>
+    </div>
+
+    <footer style="margin-top:3rem; color:#888; font-size:0.9em;">
+        <p>Regenerated 2026-07-17 · supersedes the archived DigitalOcean/Kafka/Telegram version in <code>docs/old-architecture/</code>.</p>
+    </footer>
+</body>
+</html>

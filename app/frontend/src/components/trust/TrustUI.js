@@ -1,0 +1,154 @@
+import React from 'react';
+
+// Shared reader-facing trust atoms (Stage E). Show the *basis* of trust, never
+// a binary "verified": event status, concrete corroboration (distinct vs
+// anonymous, shown separately), reporter standing, signature tamper-evidence,
+// and a confidence BAND labelled as an automated estimate.
+
+const PILL = {
+  padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600,
+  whiteSpace: 'nowrap', display: 'inline-block',
+};
+
+const EVENT_STATUS = {
+  CORROBORATED: { bg: 'var(--status-corroborated)', label: 'Corroborated' },
+  DISPUTED:     { bg: 'var(--status-disputed)', label: 'Disputed' },
+  DEVELOPING:   { bg: 'var(--status-developing)', label: 'Developing' },
+  CLOSED:       { bg: 'var(--status-closed)', label: 'Closed' },
+};
+const BAND_LABEL = { LOW: 'Low', MEDIUM: 'Medium', HIGH: 'High' };
+
+export const EventStatusBadge = ({ status }) => {
+  const s = EVENT_STATUS[status] || EVENT_STATUS.DEVELOPING;
+  // DISPUTED carries a leading ⚠ so the warning is a PRESENT, loud signal, not
+  // merely the absence of a corroboration ✓ (a skimmer misses what isn't there —
+  // red-team finding).
+  const label = status === 'DISPUTED' ? `⚠ ${s.label}` : s.label;
+  return <span style={{ ...PILL, background: s.bg, color: '#fff' }} title="Event status">{label}</span>;
+};
+
+export const ConfidenceBadge = ({ band }) => {
+  if (!band) return null;
+  return (
+    <span style={{ ...PILL, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)' }}
+          title="An automated estimate of report quality — secondary to, and weaker than, human corroboration">
+      auto-estimate: {BAND_LABEL[band] || band}
+    </span>
+  );
+};
+
+// Leads with INDEPENDENT accounts: reshares of the same media (one clip reposted
+// under many keys) collapse to a single origin, so this is the falsifiable
+// number (ADR-0019/UC8), not the raw account count. When more accounts posted
+// than there are independent ones, the gap is surfaced honestly — a detected
+// reshare — rather than hidden. supporting = anonymous reports (context only),
+// always shown separately. `independent` falls back to `counted` for older
+// payloads that don't carry it.
+//
+// Two honesty guards (docs/design/independence-detector-limits.md):
+//  - The label is "independent ACCOUNTS (deduplicated)", not "sources"/"witnesses".
+//    The number proves distinct accounts minus exact-byte reshares — NOT that N
+//    unrelated people witnessed it (text-only, re-encodes, and coordinated rings
+//    posting distinct media all defeat the dedup). Calling it "sources" overclaims.
+//  - The affirmative green ✓ is worn ONLY on a CORROBORATED event (an earned
+//    status). On DEVELOPING the event hasn't cleared the bar; on DISPUTED the
+//    accounts conflict. In both cases the same number shows in a neutral tone so a
+//    skimmer can't read an unearned endorsement (red-team finding).
+export const CorroborationCount = ({ counted = 0, independent = null, supporting = 0, status = null }) => {
+  const ind = independent == null ? counted : independent;
+  const reshared = Math.max(0, (counted || 0) - ind);
+  const affirmative = status === 'CORROBORATED';
+  const neutralPill = { ...PILL, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)' };
+  return (
+    <>
+      {ind > 0 && (
+        <span style={affirmative
+                ? { ...PILL, background: '#dcfce7', color: '#14532d' }
+                : neutralPill}
+              title={affirmative
+                ? "Independent accounts (deduplicated) — reshares of the same media count once, one actor's many keys count once. Distinct accounts, not verified witnesses."
+                : 'Independent accounts (deduplicated) — a count, not an endorsement; this event is not corroborated'}>
+          {affirmative ? '✓ ' : ''}{ind} independent account{ind === 1 ? '' : 's'}
+        </span>
+      )}
+      {reshared > 0 && (
+        <span style={{ ...PILL, background: '#fef3c7', color: '#92400e' }}
+              title={`${counted} accounts posted, but ${reshared} reposted the same media — counted once, not as independent corroboration`}>
+          ⤿ {counted} accounts · {reshared} reshared
+        </span>
+      )}
+      {supporting > 0 && (
+        <span style={{ ...PILL, background: '#e5e7eb', color: '#6b7280' }}
+              title="Anonymous reports — supporting context, not counted toward corroboration">
+          +{supporting} anonymous
+        </span>
+      )}
+    </>
+  );
+};
+
+export const ReporterChip = ({ reporter }) => {
+  if (!reporter) return null;
+  if (reporter.is_anonymous) {
+    return (
+      <span style={{ ...PILL, background: '#e5e7eb', color: '#6b7280' }} title="No account attached — unverifiable">
+        anonymous · unverifiable
+      </span>
+    );
+  }
+  // Put the EARNED, falsifiable fact on the visible face — "N of M reports
+  // corroborated" — not a conferred authority word ("Established reporter" read
+  // as an unearned masthead-style claim). The raw k-xxxx code stays in the
+  // tooltip (it reads as a bot serial number on the face).
+  //
+  // The ratio only carries SIGNAL once a reporter has a history: for a single
+  // report it is always "1 of 1" (or "0 of 1") and reads as circular on the very
+  // event that produced it, so single-report reporters show a plain "First
+  // report" instead, with the detail in the tooltip.
+  const corr = reporter.corroborated_count ?? 0;
+  const total = reporter.reports_count ?? 0;
+  const idNote = `Pseudonymous, identity protected${reporter.handle ? ` — ${reporter.handle}` : ''}`;
+
+  let standing, standingStyle, standingTitle;
+  if (total >= 2) {
+    standing = `${corr} of ${total} reports corroborated`;
+    standingStyle = { ...PILL, background: '#374151', color: '#fff' };
+    standingTitle = `${idNote} · trust rung ${reporter.rung}`;
+  } else if (total === 1) {
+    standing = 'First report';
+    standingStyle = { ...PILL, background: '#e5e7eb', color: '#6b7280' };
+    standingTitle = `${idNote} · trust rung ${reporter.rung} · first published report`
+      + (corr ? ' (in a corroborated event)' : '');
+  } else {
+    standing = 'New reporter · no track record yet';
+    standingStyle = { ...PILL, background: '#e5e7eb', color: '#6b7280' };
+    standingTitle = `${idNote} · no reports corroborated yet`;
+  }
+
+  return (
+    <>
+      <span style={standingStyle} title={standingTitle}>{standing}</span>
+      {reporter.is_signed && (
+        <span style={{ ...PILL, background: '#065f46', color: '#fff' }}
+              title="Cryptographically signed on the reporter's device — proves the report is really theirs and untampered. Not an endorsement by Melo.">
+          🔏 signed
+        </span>
+      )}
+    </>
+  );
+};
+
+// Report-level trust block (map popup / report views). `data` is a serialized
+// Story: { event: {status, corroboration_count, independent_source_count},
+// reporter, confidence_band }.
+export const TrustBlock = ({ data }) => {
+  if (!data) return null;
+  const ev = data.event;
+  return (
+    <div className="popup-trust" style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', margin: '8px 0' }}>
+      {ev && <EventStatusBadge status={ev.status} />}
+      {ev && <CorroborationCount counted={ev.corroboration_count} independent={ev.independent_source_count} status={ev.status} />}
+      <ReporterChip reporter={data.reporter} />
+    </div>
+  );
+};

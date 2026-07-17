@@ -1,37 +1,44 @@
 // src/pages/Login.js
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { loginUser, setAuthToken } from '../services/api'; // Import setAuthToken
+import { loginUser, setAccessToken } from '../services/api';
+import { useAuth } from '../utils/AuthContext';
 import './Login.css';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsLoading(true);
+    setMessage('');
     try {
-      const response = await loginUser({ email, password });
-      const token = response.data.access_token;
+      const response = await loginUser({ email: email.trim(), password });
 
-      // Store the token in localStorage
-      localStorage.setItem('token', token);
-        
+      // Keep header-token fallback for endpoints expecting Authorization header.
+      const accessToken = response?.data?.access_token;
+      if (accessToken) {
+        setAccessToken(accessToken);
+      }
 
-      // Set token for future requests
-      setAuthToken(token);
+      // Auth cookie is set automatically by the server
+      login();
 
       setMessage('Login successful');
-      navigate('/intro'); // Redirect to Intro page
+      setMessageType('success');
+      navigate('/'); // reader home (map); moderators open the queue from the account menu
     } catch (error) {
-      setMessage(error.response?.data?.message || 'Login failed');
+      setMessage(error.response?.data?.error || error.response?.data?.message || 'Login failed');
+      setMessageType('error');
+    } finally {
+      setIsLoading(false);
     }
-  };
-
-  const handleRegisterRedirect = () => {
-    navigate('/register'); // Redirect to Register page
   };
 
   return (
@@ -60,12 +67,15 @@ const Login = () => {
             autoComplete="current-password"
           />
         </div>
-        <button type="submit">Login</button>
+        <button type="submit" disabled={isLoading}>
+          {isLoading ? 'Logging in\u2026' : 'Login'}
+        </button>
       </form>
 
-      {message && <p>{message}</p>}
-      <p style={{ color: 'grey' }}>Don't have an account?</p>
-      <button onClick={handleRegisterRedirect}>Register</button>
+      {message && <p className={`message message--${messageType}`}>{message}</p>}
+      <p className="login-hint">Forgot your password? Contact your administrator.</p>
+      <p className="login-hint">Don&apos;t have an account?</p>
+      <button onClick={() => navigate('/register')}>Register</button>
     </div>
   );
 };

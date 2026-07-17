@@ -3,7 +3,7 @@ from flask import Blueprint, jsonify, request
 from ..models import  InputTemplate, OutputTemplate
 
 
-templates_bp = Blueprint('templates', __name__)
+templates_bp = Blueprint('templates', __name__, url_prefix='')
 
 # app/templates/routes.py
 @templates_bp.route('/templates', methods=['GET'])

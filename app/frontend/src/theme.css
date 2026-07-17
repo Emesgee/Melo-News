@@ -1,0 +1,202 @@
+/* theme.css — single source of design tokens + shared primitives.
+ *
+ * Palette and shape mirror the Android reporter app (deep-indigo primary,
+ * amber accent, light-grey canvas, Material-outlined inputs, ~4px radius,
+ * Roboto/system type). Every page/component references these variable NAMES,
+ * so retuning the app's look happens here, not in each stylesheet.
+ *
+ * Imported first (in index.js), so page CSS loaded later can still override
+ * a token locally if it must. Dark mode re-derives the same tokens under
+ * html[data-theme="dark"] (the DarkModeContext stamps that attribute).
+ */
+
+:root {
+  /* ── Brand (Android colors.xml) ─────────────────────────────── */
+  --primary-color: #1a237e;   /* deep indigo — colorPrimary */
+  --primary-dark:  #0d1257;   /* colorPrimaryDark */
+  --accent-color:  #ff6f00;   /* amber — colorAccent */
+  --secondary-color: #616161;
+
+  /* ── Text ───────────────────────────────────────────────────── */
+  --text-primary:   #1a1a1a;  /* near-black, Android default body */
+  --text-secondary: #666666;  /* Android helper text */
+  --text-light:     #9aa0a6;
+  --text-on-primary: #ffffff;
+
+  /* ── Surfaces (Android colorSurface / colorBackground) ──────── */
+  --bg-primary:   #ffffff;    /* surface / cards */
+  --bg-secondary: #f5f5f5;    /* canvas */
+  --bg-dark:      #0f172a;
+  --white:        #ffffff;
+  --border-color: #dcdcdc;
+
+  /* ── Severity (Android severity tints; low is GREEN) ────────── */
+  --severity-high:   #d32f2f;
+  --severity-medium: #f57c00;
+  --severity-low:    #388e3c;
+
+  /* ── Event status (reader trust display) ────────────────────── */
+  --status-corroborated: #15803d;
+  --status-disputed:     #b91c1c;
+  --status-developing:   #a16207;
+  --status-closed:       #6b7280;
+
+  /* ── Info-banner tints (Android 10%-opacity banners) ────────── */
+  --banner-privacy-bg:   rgba(56, 142, 60, 0.10);
+  --banner-privacy-fg:   #388e3c;
+  --banner-info-bg:      rgba(26, 35, 126, 0.08);
+  --banner-info-fg:      #1a237e;
+
+  /* ── Shape (Material: tight, squarish) ──────────────────────── */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
+  /* ── Elevation ──────────────────────────────────────────────── */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.06);
+  --shadow-md: 0 2px 6px -1px rgb(0 0 0 / 0.12);
+  --shadow-lg: 0 6px 16px -4px rgb(0 0 0 / 0.16);
+  --shadow-xl: 0 12px 28px -6px rgb(0 0 0 / 0.20);
+
+  /* ── Motion & type ──────────────────────────────────────────── */
+  --transition: all 0.2s ease;
+  --font-sans: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    system-ui, sans-serif;
+}
+
+/* Dark mode — same tokens, re-derived around the indigo brand.
+ * (Android has no dark theme; this is a web affordance kept on-brand.) */
+html[data-theme="dark"] {
+  --primary-color: #5c6bc0;   /* lighter indigo for contrast on dark */
+  --primary-dark:  #3949ab;
+  --accent-color:  #ffa726;
+
+  --text-primary:   #e8eaed;
+  --text-secondary: #9aa0a6;
+  --text-light:     #5f6368;
+  --text-on-primary: #ffffff;
+
+  --bg-primary:   #1e1e26;    /* surface */
+  --bg-secondary: #121212;    /* canvas */
+  --white:        #1e1e26;
+  --border-color: #34343f;
+
+  --banner-info-bg: rgba(92, 107, 192, 0.14);
+  --banner-info-fg: #aeb6e6;
+
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.4);
+  --shadow-md: 0 2px 6px -1px rgb(0 0 0 / 0.5);
+  --shadow-lg: 0 6px 16px -4px rgb(0 0 0 / 0.55);
+  --shadow-xl: 0 12px 28px -6px rgb(0 0 0 / 0.6);
+}
+
+/* Base type — match Android's system-Roboto default. */
+body {
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ────────────────────────────────────────────────────────────────
+ * Shared primitives — the three Android button tiers and the
+ * Material outlined field. Screens opt in via these classes during
+ * the per-page restyle (Phases 3–4); defining them here keeps every
+ * screen visually identical without re-deriving buttons per file.
+ * ──────────────────────────────────────────────────────────────── */
+
+.mn-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 40px;
+  padding: 0 16px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: var(--transition);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.mn-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Tier 1 — filled (primary action) */
+.mn-btn--filled {
+  background: var(--primary-color);
+  color: var(--text-on-primary);
+  box-shadow: var(--shadow-sm);
+}
+.mn-btn--filled:hover:not(:disabled) {
+  background: var(--primary-dark);
+  box-shadow: var(--shadow-md);
+}
+
+/* Tier 2 — outlined (secondary action) */
+.mn-btn--outlined {
+  background: transparent;
+  color: var(--primary-color);
+  box-shadow: inset 0 0 0 1px var(--border-color);
+}
+.mn-btn--outlined:hover:not(:disabled) {
+  box-shadow: inset 0 0 0 1px var(--primary-color);
+  background: var(--banner-info-bg);
+}
+
+/* Tier 3 — text (tertiary action) */
+.mn-btn--text {
+  background: transparent;
+  color: var(--primary-color);
+  padding: 0 8px;
+  box-shadow: none;
+}
+.mn-btn--text:hover:not(:disabled) { background: var(--banner-info-bg); }
+
+/* Full-width form buttons (Android submit is match_parent) */
+.mn-btn--block { width: 100%; }
+
+/* Material outlined field — label above, boxed input below */
+.mn-field { display: block; margin-bottom: 12px; }
+.mn-field-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.mn-input,
+.mn-field input,
+.mn-field textarea,
+.mn-field select {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+}
+.mn-field textarea { min-height: 88px; resize: vertical; line-height: 1.5; }
+.mn-input:focus,
+.mn-field input:focus,
+.mn-field textarea:focus,
+.mn-field select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 1px var(--primary-color);
+}
+
+/* Section heading scale (Android 20/14/12) */
+.mn-screen-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  margin: 0 0 16px;
+}

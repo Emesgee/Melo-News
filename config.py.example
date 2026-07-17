@@ -16,6 +16,10 @@ class Config:
     ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
     THAURA_AI_API_KEY = os.environ.get('THAURA_AI_API_KEY', '')
     
+    # Source toggles
+    # Set to false/0/no to run without any Telegram dependency
+    # TELEGRAM_ENABLED=true
+
     # Telegram Configuration
     TELEGRAM_CHANNELS = [
         "https://t.me/your_channel_1",

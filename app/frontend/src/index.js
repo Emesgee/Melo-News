@@ -1,11 +1,8 @@
 // src/index.js
 import React from 'react';
 import { createRoot } from 'react-dom/client';
+import './theme.css'; // design tokens + primitives — must load before App/page CSS
 import App from './App';
-
-// Debug: Check if environment variables are loaded
-console.log('[DEBUG] REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
-console.log('[DEBUG] All env vars:', process.env);
 
 const container = document.getElementById('root');
 const root = createRoot(container);
@@ -15,3 +12,19 @@ root.render(
     <App />
   </React.StrictMode>
 );
+
+if ('serviceWorker' in navigator) {
+  if (process.env.NODE_ENV === 'production') {
+    // Register service worker only in production to avoid stale dev builds.
+    window.addEventListener('load', () => {
+      navigator.serviceWorker
+        .register('/sw.js')
+        .catch(() => { /* SW registration failed */ });
+    });
+  } else {
+    // Clear old registrations in non-production so normal refresh always picks latest changes.
+    navigator.serviceWorker.getRegistrations()
+      .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
+      .catch(() => { /* Ignore SW cleanup failures */ });
+  }
+}
