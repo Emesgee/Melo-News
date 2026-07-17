@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Melo-News App & Infrastructure Overview</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2rem; background: #f9f9f9; color: #222; }
+        h1, h2, h3 { color: #2a4d69; }
+        .section { margin-bottom: 2rem; }
+        pre { background: #eee; padding: 1em; border-radius: 6px; overflow-x: auto; }
+        .diagram { background: #fff; border: 1px solid #ccc; padding: 1em; border-radius: 6px; margin: 1em 0; }
+        code { background: #e3e3e3; padding: 2px 4px; border-radius: 3px; }
+    </style>
+    <script type="module">
+      import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+      mermaid.initialize({ startOnLoad: true });
+    </script>
+</head>
+<body>
+    <h1>Melo-News: Application & Infrastructure Overview</h1>
+
+    <div class="section">
+        <h2>1. Application Structure</h2>
+        <p>The Melo-News project is organized as a modular Python application with supporting scripts, Docker configuration, and an Android client. Key directories and files include:</p>
+        <ul>
+            <li><b>app/</b> – Main backend application (APIs, models, analytics, auth, etc.)</li>
+            <li><b>modules/</b> – Core logic (database, geocoder, video handler, etc.)</li>
+            <li><b>scripts/</b> – Utility and data processing scripts</li>
+            <li><b>data/</b> – GeoJSON and other datasets</li>
+            <li><b>android/</b> – Android client source</li>
+            <li><b>Dockerfile, docker-compose.yaml</b> – Containerization and orchestration</li>
+            <li><b>requirements.txt</b> – Python dependencies</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>2. Infrastructure Overview</h2>
+        <p>The application is designed for deployment on cloud infrastructure (e.g., DigitalOcean) and local development. Key infrastructure components:</p>
+        <ul>
+            <li><b>Docker</b> – Containerizes the backend for consistent deployment</li>
+            <li><b>docker-compose</b> – Orchestrates multi-service setups (API, DB, etc.)</li>
+            <li><b>nginx</b> – Serves as a reverse proxy (see <code>nginx.conf</code>)</li>
+            <li><b>SSH tunnels</b> – Used for secure local access to remote services</li>
+            <li><b>DigitalOcean</b> – Typical cloud host for production</li>
+        </ul>
+        <div class="diagram">
+            <h3>High-Level Architecture</h3>
+            <pre class="mermaid">
+flowchart TD
+    subgraph Cloud [DigitalOcean Droplet]
+        Nginx[nginx Reverse Proxy]
+        Backend[Python Backend (Docker)]
+        DB[(Database)]
+        Nginx --> Backend
+        Backend --> DB
+    end
+    subgraph Local
+        Dev[Developer Machine]
+    end
+    Dev -- SSH Tunnel (API, 5000/80) --> Nginx
+    Dev -- SSH Tunnel (DB, optional) --> DB
+    subgraph Mobile
+        App[Android Client]
+    end
+    App -- HTTPS/API --> Nginx
+            </pre>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>3. Development & Deployment Notes</h2>
+        <ul>
+            <li>Local development uses <code>venv312</code> for Python environment management.</li>
+            <li>React frontend (if used) should proxy API requests via SSH tunnel to <code>127.0.0.1</code> (not <code>localhost</code> on Windows).</li>
+            <li>Deployment is managed via Docker Compose and DigitalOcean droplets.</li>
+            <li>See <b>DEPLOYMENT_GUIDE.md</b> and <b>INSTALLATION.md</b> for detailed steps.</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>4. Key Files & Directories</h2>
+        <ul>
+            <li><b>main.py</b> – Application entry point</li>
+            <li><b>config.py</b> – Configuration settings</li>
+            <li><b>nginx.conf</b> – Nginx reverse proxy configuration</li>
+            <li><b>docker-compose.yaml</b> – Service orchestration</li>
+            <li><b>app/ai_analyzer/</b> – AI/ML components</li>
+            <li><b>modules/</b> – Shared backend modules</li>
+        </ul>
+    </div>
+
+    <footer style="margin-top:3rem; color:#888; font-size:0.9em;">
+        <p>Generated on May 22, 2026</p>
+    </footer>
+</body>
+</html>
