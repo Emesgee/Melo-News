@@ -37,31 +37,38 @@ export const ConfidenceBadge = ({ band }) => {
   );
 };
 
-// Leads with INDEPENDENT sources: reshares of the same media (one clip reposted
+// Leads with INDEPENDENT accounts: reshares of the same media (one clip reposted
 // under many keys) collapse to a single origin, so this is the falsifiable
 // number (ADR-0019/UC8), not the raw account count. When more accounts posted
-// than there are independent sources, the gap is surfaced honestly — a detected
+// than there are independent ones, the gap is surfaced honestly — a detected
 // reshare — rather than hidden. supporting = anonymous reports (context only),
 // always shown separately. `independent` falls back to `counted` for older
 // payloads that don't carry it.
+//
+// Two honesty guards (docs/design/independence-detector-limits.md):
+//  - The label is "independent ACCOUNTS (deduplicated)", not "sources"/"witnesses".
+//    The number proves distinct accounts minus exact-byte reshares — NOT that N
+//    unrelated people witnessed it (text-only, re-encodes, and coordinated rings
+//    posting distinct media all defeat the dedup). Calling it "sources" overclaims.
+//  - The affirmative green ✓ is worn ONLY on a CORROBORATED event (an earned
+//    status). On DEVELOPING the event hasn't cleared the bar; on DISPUTED the
+//    accounts conflict. In both cases the same number shows in a neutral tone so a
+//    skimmer can't read an unearned endorsement (red-team finding).
 export const CorroborationCount = ({ counted = 0, independent = null, supporting = 0, status = null }) => {
   const ind = independent == null ? counted : independent;
   const reshared = Math.max(0, (counted || 0) - ind);
-  // On a DISPUTED event the sources CONFLICT — so the count must not wear the
-  // affirmative green ✓, which a skimmer reads as "verified/good" and which then
-  // cancels the dispute warning (red-team finding). Show the same number in a
-  // neutral tone, explicitly not an endorsement.
-  const disputed = status === 'DISPUTED';
+  const affirmative = status === 'CORROBORATED';
+  const neutralPill = { ...PILL, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)' };
   return (
     <>
       {ind > 0 && (
-        <span style={disputed
-                ? { ...PILL, background: 'var(--bg-secondary)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)' }
-                : { ...PILL, background: '#dcfce7', color: '#14532d' }}
-              title={disputed
-                ? 'Independent sources whose accounts conflict — a count, not an endorsement'
-                : "Independent sources — reshares of the same media count once, one actor's many keys count once"}>
-          {disputed ? '' : '✓ '}{ind} independent source{ind === 1 ? '' : 's'}
+        <span style={affirmative
+                ? { ...PILL, background: '#dcfce7', color: '#14532d' }
+                : neutralPill}
+              title={affirmative
+                ? "Independent accounts (deduplicated) — reshares of the same media count once, one actor's many keys count once. Distinct accounts, not verified witnesses."
+                : 'Independent accounts (deduplicated) — a count, not an endorsement; this event is not corroborated'}>
+          {affirmative ? '✓ ' : ''}{ind} independent account{ind === 1 ? '' : 's'}
         </span>
       )}
       {reshared > 0 && (
@@ -132,14 +139,15 @@ export const ReporterChip = ({ reporter }) => {
 };
 
 // Report-level trust block (map popup / report views). `data` is a serialized
-// Story: { event: {status, corroboration_count}, reporter, confidence_band }.
+// Story: { event: {status, corroboration_count, independent_source_count},
+// reporter, confidence_band }.
 export const TrustBlock = ({ data }) => {
   if (!data) return null;
   const ev = data.event;
   return (
     <div className="popup-trust" style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', margin: '8px 0' }}>
       {ev && <EventStatusBadge status={ev.status} />}
-      {ev && <CorroborationCount counted={ev.corroboration_count} status={ev.status} />}
+      {ev && <CorroborationCount counted={ev.corroboration_count} independent={ev.independent_source_count} status={ev.status} />}
       <ReporterChip reporter={data.reporter} />
     </div>
   );

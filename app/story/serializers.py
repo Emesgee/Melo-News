@@ -127,6 +127,15 @@ def _slim_event(upload):
         'id': ev.id,
         'status': ev.status_override or ev.status,
         'corroboration_count': ev.corroboration_count or 0,
+        # Independent-source count (distinct accounts AFTER collapsing byte-
+        # identical reshares, ADR-0020 Phase 1). Carried here so the report-level
+        # / map-popup TrustBlock shows the same falsifiable number the Event feed
+        # does, instead of the raw account count — the un-collapsed number was a
+        # detector-bypass on that surface (docs/design/independence-detector-
+        # limits.md). Falls back to counted for legacy rows not yet recomputed.
+        'independent_source_count': (ev.independent_source_count
+                                     if ev.independent_source_count is not None
+                                     else (ev.corroboration_count or 0)),
     }
 
 
