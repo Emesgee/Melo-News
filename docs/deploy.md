@@ -223,9 +223,10 @@ server does not lose media, but losing the bucket does.
 ## Known gaps (deliberate, not oversights)
 
 - **ADR-0011 security hardening is stubbed.** Hard gate before real reporters.
-- **Dev/prod parity drift.** Dev runs Postgres 13 + Python 3.14; prod runs
-  Postgres 15 + the image's Python 3.9. Closing this needs a deliberate
-  dump/restore and a base-image bump, not a silent change.
+- **Dev/prod parity drift (partly closed).** The image was bumped 3.9 -> 3.12
+  after the API crash-looped on PEP 604 syntax; dev is still 3.14. Postgres
+  remains split: dev 13, prod 15. Closing that needs a deliberate dump/restore,
+  not a silent image bump.
 - **No CI/CD.** Deploys are manual `git pull` + rebuild. The old GitHub-Actions
   DigitalOcean pipeline is archived in `docs/old-architecture/` and does not
   match this stack.

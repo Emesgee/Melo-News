@@ -1,4 +1,10 @@
-FROM python:3.9-slim
+# 3.12, not 3.9: the codebase uses PEP 604 unions (`str | None`, e.g.
+# app/file_upload/media_sanitizer.py), which are a SyntaxError-at-import on
+# <3.10 — the API crash-looped on 3.9 with "unsupported operand type(s) for |".
+# 3.9 is also past end-of-security-support (Oct 2025). 3.12 is chosen over
+# 3.13/3.14 because every pinned dependency (numpy 1.26, eventlet, opencv,
+# psycopg2-binary) has mature 3.12 wheels.
+FROM python:3.12-slim
 
 WORKDIR /app
 
