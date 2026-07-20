@@ -46,6 +46,7 @@ honest map of the gap between the design and the implementation.
 | [0019](0019-purpose-reader-side-trust-layer.md) | Melo's purpose is a reader-side trust layer over public conflict content; capture/signing demoted to an optional provenance tier | Proposed |
 | [0020](0020-strategy-sequencing-one-engine-three-shapes.md) | Strategy sequencing: one engine, three shapes (trust layer / debunk / archive), the drill is the branch point | Proposed |
 | [0021](0021-android-reporter-first-reader-on-web.md) | Android is reporter-first; the reader surface lives on the web; Android carries only a thin, decoy-gated awareness layer | Proposed |
+| [0022](0022-volunteer-carrier-network-sealed-relay-only.md) | Non-reporters may carry reporters' data only as sealed, transit-only middle relays — the current plaintext mesh must not ship to volunteers | Proposed |
 
 ## Writing a new one
 
