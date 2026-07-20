@@ -20,4 +20,17 @@ COPY . .
 
 EXPOSE 5000
 
-CMD ["python", "main.py"]
+# Production WSGI server. `python main.py` runs Flask/SocketIO's DEV server —
+# main.py prints a warning about exactly this. The app registers SocketIO
+# handlers, so gunicorn needs an async worker; eventlet is already pinned in
+# requirements.txt.
+#
+# -w 1 is required: Flask-SocketIO cannot span multiple workers without a
+# message queue to share connection state between them.
+#
+# main:app works because main.py builds `app = create_app()` at module scope and
+# runs db.create_all() on import, so schema setup happens when gunicorn loads it.
+CMD ["gunicorn", "--worker-class", "eventlet", "-w", "1", \
+     "--bind", "0.0.0.0:5000", "--timeout", "120", \
+     "--access-logfile", "-", "--error-logfile", "-", \
+     "main:app"]

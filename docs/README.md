@@ -22,6 +22,9 @@ Welcome to Melo-News documentation! This index will help you find what you need.
 - **[Architecture Decision Records](adr/)** — the canonical decisions; `architecture.md` is a map of these
 - **[API Reference](api-reference.md)** — REST API documentation ⚠️ _may be partly stale; the Events/trust endpoints in `architecture.md` §3 & §6 are authoritative_
 
+### Deployment
+- **[Deploy Runbook](deploy.md)** — provisioning a Hetzner (Falkenstein) box from nothing to TLS-served, step by step
+
 ### Pilot
 - **[Pilot / drill protocol](pilot/)** — the scripted T4P corroboration drill (Phase 0)
 

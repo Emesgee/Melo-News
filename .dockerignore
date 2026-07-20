@@ -1,0 +1,48 @@
+# Keep secrets, bulk, and dev-only artifacts out of the image.
+# Without this, `COPY . .` in app/DockerFile bakes .env (real credentials) into
+# an image layer, where it persists even if the file is deleted later.
+
+# --- Secrets (critical) ---
+.env
+.env.*
+!.env.production.example
+
+# --- VCS / CI ---
+.git
+.gitignore
+.github
+
+# --- Python dev artifacts ---
+__pycache__/
+*.py[cod]
+.venv/
+venv*/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+test-results.xml
+
+# --- Frontend ---
+# nginx bind-mounts app/frontend/build from the HOST; the API image needs
+# neither the React source nor its dependencies.
+node_modules/
+app/frontend/node_modules/
+app/frontend/build/
+app/frontend/src/
+app/frontend/public/
+
+# --- Android client (large, irrelevant to the server image) ---
+android/
+
+# --- Runtime data (bind-mounted at runtime, not baked in) ---
+uploads/
+exports/
+downloads/
+logs/
+ssl/
+certbot/
+*.log
+
+# --- Editor ---
+.vscode/
+.idea/

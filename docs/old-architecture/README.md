@@ -8,6 +8,18 @@
 > **Decision record for the change:** [`../adr/`](../adr/) — especially
 > ADR-0002, ADR-0004, ADR-0017, ADR-0019, ADR-0020, ADR-0021.
 
+## What's archived here
+
+| File | Superseded by |
+|---|---|
+| `architecture.md`, `infra_overview.html` | [`../architecture.md`](../architecture.md) |
+| `DEPLOYMENT_GUIDE.md`, `CI_CD_DEPLOYMENT_CHECKLIST.md` | [`../deploy.md`](../deploy.md) |
+
+The deployment docs described a **GitHub Actions → DigitalOcean** staging/production
+pipeline that does not match the current stack (a single Hetzner box running
+`docker-compose.prod.yml`). There is no CI/CD today; deploys are manual. They
+also reference `docker-compose.yaml` services (Kafka/Zookeeper) that no longer exist.
+
 ## What changed and why
 
 The archived docs (`architecture.md`, `infra_overview.html`) describe Melo-News
