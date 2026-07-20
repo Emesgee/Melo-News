@@ -15,9 +15,18 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        // Tailscale IP of Shadow PC — find it in the Tailscale app on Shadow.
-        // Replace 100.x.x.x with your actual Shadow PC Tailscale IP.
-        buildConfigField("String", "API_BASE_URL", "\"http://100.120.77.28:5000/\"")
+        // API endpoint. Defaults to the deployed drill server over HTTPS —
+        // required, not cosmetic: network_security_config.xml sets
+        // cleartextTrafficPermitted=false, so the app cannot talk to a plain
+        // HTTP host at this domain at all.
+        //
+        // Override for local development (e.g. a Tailscale-reachable dev box):
+        //   ./gradlew :app:assembleDebug -PmeloApiBaseUrl=http://100.120.77.28:5000/
+        // Any such host must also be listed in network_security_config.xml.
+        // NOTE: Retrofit requires the trailing slash.
+        val meloApiBaseUrl = (project.findProperty("meloApiBaseUrl") as String?)
+            ?: "https://drill.melonews.tech/"
+        buildConfigField("String", "API_BASE_URL", "\"$meloApiBaseUrl\"")
     }
 
     buildFeatures {

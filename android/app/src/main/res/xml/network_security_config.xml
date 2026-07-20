@@ -1,12 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Allow cleartext HTTP to the dev server (emulator / LAN only) -->
 <network-security-config>
+    <!-- Cleartext HTTP is permitted ONLY for local development targets
+         (emulator loopback / LAN / Tailscale dev box), reachable when building
+         with -PmeloApiBaseUrl. These are non-routable or private addresses, so
+         they are inert in a normal build: the app only ever connects to
+         BuildConfig.API_BASE_URL.
+
+         The deployed server (drill.melonews.tech) is deliberately NOT listed —
+         it falls through to base-config below and is therefore HTTPS-only. -->
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">10.0.2.2</domain>
         <domain includeSubdomains="true">100.120.77.28</domain>
         <domain includeSubdomains="true">localhost</domain>
         <domain includeSubdomains="true">192.168.0.0</domain>
     </domain-config>
-    <!-- All other traffic (Azure, production) must use HTTPS -->
+
+    <!-- Everything else, including the drill/production server, MUST use TLS.
+         Reporter credentials and report payloads transit this path.
+         TODO (ADR-0011 release gate): drop the cleartext exceptions above from
+         any build shipped to real reporters, and consider certificate pinning
+         for the production host. -->
     <base-config cleartextTrafficPermitted="false" />
 </network-security-config>
