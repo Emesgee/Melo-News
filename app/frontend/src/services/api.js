@@ -138,6 +138,16 @@ export const setUserRole = async (userId, role) => {
   return api.post(`moderation/users/${userId}/role`, { role });
 };
 
+// Audit trail. getModerationAudit is the steward oversight log (all actions);
+// getUploadHistory is the decision history for a single report.
+export const getModerationAudit = async (limit = 50) => {
+  return api.get('moderation/audit', { params: { limit } });
+};
+
+export const getUploadHistory = async (uploadId) => {
+  return api.get(`moderation/${uploadId}/history`);
+};
+
 // Financial data (P2-12) - uses free Yahoo Finance API proxy
 export const getMarketData = async () => {
   try {

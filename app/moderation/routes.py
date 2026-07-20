@@ -23,8 +23,9 @@ from functools import wraps
 from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
-from app.models import db, FileUpload, User, Event
+from app.models import db, FileUpload, User, Event, AuditLog
 from app.story.serializers import serialize_upload
+from app.moderation import audit
 
 moderation_bp = Blueprint('moderation', __name__, url_prefix='/api/moderation')
 
@@ -115,16 +116,29 @@ def queue():
 @moderation_bp.route('/<int:upload_id>/verify', methods=['POST'])
 @moderator_required
 def verify(upload_id):
-    """Approve a submission so it appears on the public feed."""
+    """Approve a submission so it appears on the public feed. Also the UNDO for a
+    mistaken reject: verifying a REJECTED report is a reversal, which requires a
+    reason and is logged as such."""
     upload = FileUpload.query.get_or_404(upload_id)
     data = request.get_json(silent=True) or {}
+
+    prev = upload.verification_status
+    note = (data.get('note') or '').strip()
+    # Reversing an existing decision must be explained; a first approval need not.
+    if prev != 'PENDING' and not note:
+        return jsonify({'error': 'note is required when reversing a decision'}), 422
 
     moderator_id = get_jwt_identity()
     upload.verification_status = 'VERIFIED'
     upload.verified_at = datetime.now(timezone.utc)
     upload.verified_by = moderator_id
-    note = (data.get('note') or '').strip()
     upload.verification_note = note or None
+
+    audit.record(
+        action='reverify' if prev != 'PENDING' else 'verify',
+        target_type='upload', target_id=upload.id, actor_id=moderator_id,
+        before=prev, after='VERIFIED', note=note or None,
+    )
 
     # A verification changes the Event's corroboration — recompute its status.
     _recompute_owning_event(upload)
@@ -150,11 +164,19 @@ def reject(upload_id):
     if not note:
         return jsonify({'error': 'note is required when rejecting'}), 422
 
+    prev = upload.verification_status
     moderator_id = get_jwt_identity()
     upload.verification_status = 'REJECTED'
     upload.verified_at = datetime.now(timezone.utc)
     upload.verified_by = moderator_id
     upload.verification_note = note
+
+    audit.record(
+        # Rejecting an already-VERIFIED report is a reversal of a publication.
+        action='reject',
+        target_type='upload', target_id=upload.id, actor_id=moderator_id,
+        before=prev, after='REJECTED', note=note,
+    )
 
     # A rejected member no longer counts toward corroboration — recompute.
     _recompute_owning_event(upload)
@@ -223,7 +245,11 @@ def set_role(user_id):
     user = db.session.get(User, user_id)
     if not user:
         return jsonify({'error': 'user not found'}), 404
+    prev = user.role
     user.role = role
+    audit.record(action='set_role', target_type='user', target_id=user.userid,
+                 actor_id=get_jwt_identity(), before=prev, after=role,
+                 note=(data.get('note') or '').strip() or None)
     db.session.commit()
     return jsonify({'userid': user.userid, 'role': user.role}), 200
 
@@ -264,7 +290,9 @@ def set_rung(user_id):
     user = db.session.get(User, user_id)
     if not user:
         return jsonify({'error': 'user not found'}), 404
-    _vouch_user_to_rung(user, rung)
+    audit.record(action='set_rung', target_type='user', target_id=user.userid,
+                 actor_id=get_jwt_identity(), before=user.trust_rung, after=rung)
+    _vouch_user_to_rung(user, rung)  # commits (audit row included)
     return jsonify({'userid': user.userid, 'trust_rung': user.trust_rung}), 200
 
 
@@ -282,6 +310,41 @@ def set_rung_by_handle(handle):
     user = User.query.filter_by(display_handle=handle).first()
     if not user:
         return jsonify({'error': 'pseudonym not found'}), 404
-    _vouch_user_to_rung(user, rung)
+    audit.record(action='set_rung', target_type='user', target_id=user.userid,
+                 actor_id=get_jwt_identity(), before=user.trust_rung, after=rung)
+    _vouch_user_to_rung(user, rung)  # commits (audit row included)
     return jsonify({'userid': user.userid, 'handle': user.display_handle,
                     'trust_rung': user.trust_rung}), 200
+
+
+@moderation_bp.route('/audit', methods=['GET'])
+@steward_required
+def audit_log():
+    """Recent moderator + steward actions — the steward oversight log.
+
+    Steward-gated: governance actions (who vouched whom, who minted a moderator)
+    are exactly what a steward needs to see and a moderator does not. Optional
+    ?target_type=&target_id= narrows to one report or identity; ?limit (<=200).
+    """
+    q = AuditLog.query
+    ttype = request.args.get('target_type')
+    tid = request.args.get('target_id', type=int)
+    if ttype:
+        q = q.filter(AuditLog.target_type == ttype)
+    if tid is not None:
+        q = q.filter(AuditLog.target_id == tid)
+    limit = min(max(request.args.get('limit', default=50, type=int), 1), 200)
+    rows = q.order_by(AuditLog.created_at.desc(), AuditLog.id.desc()).limit(limit).all()
+    return jsonify({'entries': [audit.serialize(r) for r in rows], 'count': len(rows)}), 200
+
+
+@moderation_bp.route('/<int:upload_id>/history', methods=['GET'])
+@moderator_required
+def upload_history(upload_id):
+    """Decision history for one report (moderator-visible): every verify/reject/
+    reversal, oldest first, so a reversed decision is legible in context."""
+    rows = (AuditLog.query
+            .filter(AuditLog.target_type == 'upload', AuditLog.target_id == upload_id)
+            .order_by(AuditLog.created_at.asc(), AuditLog.id.asc())
+            .all())
+    return jsonify({'entries': [audit.serialize(r) for r in rows], 'count': len(rows)}), 200

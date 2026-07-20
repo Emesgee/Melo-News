@@ -216,6 +216,35 @@ class EventGraphSnapshot(db.Model):
     created_at = db.Column(db.DateTime, default=_utcnow, index=True)
 
 
+# Append-only audit log of moderator + steward actions. Every verify/reject
+# (incl. reversals) and every rung/role change writes one row here, so a decision
+# is never silently overwritten -- the FileUpload/User carries the *current*
+# state, this table carries the *history* (who did what, when, from what to what,
+# and why). Two purposes: a reversal is recorded rather than erased (keeps faith
+# with the tamper-evident promise), and stewards get oversight of governance
+# actions ("who vouched this pseudonym to rung 2?"). New table -> created by
+# db.create_all(); no ensure_schema_compatibility entry needed.
+class AuditLog(db.Model):
+    __tablename__ = 'audit_log'
+
+    id = db.Column(db.Integer, primary_key=True)
+    # Who performed the action (a moderator or steward user id). Nullable so a
+    # system/script action can be recorded without a human actor.
+    actor_id = db.Column(db.Integer, db.ForeignKey('users.userid'), nullable=True, index=True)
+    # What happened: verify | reject | reverify | set_rung | set_role.
+    action = db.Column(db.String(30), nullable=False, index=True)
+    # What it was done to: 'upload' (a report) or 'user' (an identity).
+    target_type = db.Column(db.String(20), nullable=False, index=True)
+    target_id = db.Column(db.Integer, nullable=False, index=True)
+    # Prior and new value of the thing that changed (status, rung, role), as
+    # short strings -- enough to reconstruct the transition without a join.
+    before = db.Column(db.String(40), nullable=True)
+    after = db.Column(db.String(40), nullable=True)
+    # Free-text reason (required on a reject; optional elsewhere).
+    note = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=_utcnow, index=True)
+
+
 # FileType model
 class FileType(db.Model):
     __tablename__ = 'file_types'

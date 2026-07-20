@@ -9,6 +9,8 @@ import {
   getIdentities,
   setUserRung,
   setUserRole,
+  getModerationAudit,
+  getUploadHistory,
 } from '../services/api';
 
 const STATUSES = ['PENDING', 'VERIFIED', 'REJECTED'];
@@ -38,6 +40,62 @@ const fmtDate = (iso) =>
 
 const EVENT_TINT = { CORROBORATED: '#15803d', DISPUTED: '#b91c1c', DEVELOPING: '#a16207', CLOSED: '#4b5563' };
 const EVENT_LABEL = { CORROBORATED: 'Corroborated', DISPUTED: 'Disputed', DEVELOPING: 'Developing', CLOSED: 'Closed' };
+
+const fmtAction = (e) => {
+  const map = {
+    verify: 'Approved', reject: 'Rejected', reverify: 'Re-approved (reversed)',
+    set_rung: 'Rung', set_role: 'Role',
+  };
+  const label = map[e.action] || e.action;
+  const transition = (e.before != null && e.after != null && e.before !== e.after)
+    ? ` ${e.before} → ${e.after}` : '';
+  return `${label}${transition}`;
+};
+
+// Per-report decision history: every verify/reject/reversal, so a reversed
+// decision is legible in context rather than silently overwriting the last one.
+const DecisionHistory = ({ uploadId }) => {
+  const [open, setOpen] = useState(false);
+  const [entries, setEntries] = useState(null);
+
+  const toggle = async () => {
+    const next = !open;
+    setOpen(next);
+    if (next && entries === null) {
+      try {
+        const resp = await getUploadHistory(uploadId);
+        setEntries(resp.data?.entries || []);
+      } catch (_) {
+        setEntries([]);
+      }
+    }
+  };
+
+  return (
+    <div style={{ marginTop: 8 }}>
+      <button
+        onClick={toggle}
+        style={{ border: 'none', background: 'none', color: '#6b7280', fontSize: 12,
+                 cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+      >
+        {open ? 'Hide history' : 'Decision history'}
+      </button>
+      {open && (
+        <ul style={{ margin: '6px 0 0', paddingLeft: 16, fontSize: 12, color: '#4b5563' }}>
+          {entries === null && <li>Loading…</li>}
+          {entries !== null && entries.length === 0 && <li>No recorded decisions.</li>}
+          {entries?.map((e) => (
+            <li key={e.id} style={{ marginBottom: 3 }}>
+              <strong>{fmtAction(e)}</strong> · {e.actor} ·{' '}
+              {e.created_at ? new Date(e.created_at).toLocaleString() : ''}
+              {e.note ? <div style={{ color: '#6b7280' }}>“{e.note}”</div> : null}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
 
 const ReviewCard = ({ story, onVerify, onReject, busy }) => {
   const loc = story.location || {};
@@ -128,24 +186,41 @@ const ReviewCard = ({ story, onVerify, onReject, busy }) => {
             </div>
           )}
 
-          {verifStatus === 'PENDING' && (
-            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-              <button
-                style={{ ...btn, background: '#10b981', color: '#fff' }}
-                onClick={() => onVerify(story)}
-                disabled={busy}
-              >
-                ✓ Approve
+          <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+            {verifStatus === 'PENDING' && (
+              <>
+                <button style={{ ...btn, background: '#10b981', color: '#fff' }}
+                        onClick={() => onVerify(story)} disabled={busy}>
+                  ✓ Approve
+                </button>
+                <button style={{ ...btn, background: '#ef4444', color: '#fff' }}
+                        onClick={() => onReject(story)} disabled={busy}>
+                  ✗ Reject
+                </button>
+              </>
+            )}
+            {/* Undo a mistaken decision. Reversing is deliberately a distinct,
+                muted "reverse" action (not a second Approve/Reject) so it reads
+                as correcting an error, and it is recorded in the history. */}
+            {verifStatus === 'REJECTED' && (
+              <button style={{ ...btn, background: '#fff', color: '#065f46',
+                               border: '1px solid #10b981' }}
+                      onClick={() => onVerify(story)} disabled={busy}
+                      title="Reverse this rejection — a reason is required">
+                ↺ Reverse rejection (approve)
               </button>
-              <button
-                style={{ ...btn, background: '#ef4444', color: '#fff' }}
-                onClick={() => onReject(story)}
-                disabled={busy}
-              >
-                ✗ Reject
+            )}
+            {verifStatus === 'VERIFIED' && (
+              <button style={{ ...btn, background: '#fff', color: '#991b1b',
+                               border: '1px solid #ef4444' }}
+                      onClick={() => onReject(story)} disabled={busy}
+                      title="Reverse this approval — a reason is required">
+                ↺ Reverse approval (reject)
               </button>
-            </div>
-          )}
+            )}
+          </div>
+
+          <DecisionHistory uploadId={story.source_record_id} />
         </div>
       </div>
     </article>
@@ -306,6 +381,70 @@ const StewardPanel = ({ addToast }) => {
   );
 };
 
+// Steward oversight: the global feed of who did what — verify/reject/reversals
+// and every rung/role change. This is the "who vouched the Sybil?" answer, and
+// the reason a single unchecked steward is a risk worth watching (ADR-0005).
+const StewardActivityLog = () => {
+  const [open, setOpen] = useState(false);
+  const [entries, setEntries] = useState(null);
+
+  const load = useCallback(async () => {
+    try {
+      const resp = await getModerationAudit(80);
+      setEntries(resp.data?.entries || []);
+    } catch (_) {
+      setEntries([]);
+    }
+  }, []);
+
+  useEffect(() => { if (open && entries === null) load(); }, [open, entries, load]);
+
+  const TARGET = { upload: 'report', user: 'identity' };
+  const cell = { padding: '5px 8px', borderBottom: '1px solid #eee', fontSize: 12, verticalAlign: 'top' };
+
+  return (
+    <section style={{ border: '1px solid #e5e7eb', borderRadius: 8, marginBottom: 20 }}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        style={{ width: '100%', textAlign: 'left', padding: '10px 12px', border: 'none',
+                 background: '#f9fafb', cursor: 'pointer', fontWeight: 600, fontSize: 14,
+                 borderRadius: 8 }}
+      >
+        {open ? '▾' : '▸'} Steward · activity log
+      </button>
+      {open && (
+        <div style={{ padding: 12, overflowX: 'auto' }}>
+          {entries === null && <div style={{ color: '#6b7280' }}>Loading…</div>}
+          {entries !== null && entries.length === 0 && (
+            <div style={{ color: '#6b7280' }}>No actions recorded yet.</div>
+          )}
+          {entries !== null && entries.length > 0 && (
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 560 }}>
+              <thead>
+                <tr style={{ textAlign: 'left', color: '#6b7280', fontSize: 11 }}>
+                  <th style={cell}>When</th><th style={cell}>Actor</th>
+                  <th style={cell}>Action</th><th style={cell}>Target</th><th style={cell}>Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                {entries.map((e) => (
+                  <tr key={e.id}>
+                    <td style={cell}>{e.created_at ? new Date(e.created_at).toLocaleString() : ''}</td>
+                    <td style={cell}>{e.actor}</td>
+                    <td style={cell}><strong>{fmtAction(e)}</strong></td>
+                    <td style={cell}>{TARGET[e.target_type] || e.target_type} #{e.target_id}</td>
+                    <td style={cell}>{e.note || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+    </section>
+  );
+};
+
 const Moderation = () => {
   const navigate = useNavigate();
   const { isLoggedIn, isModerator, authLoading, user } = useAuth();
@@ -348,10 +487,23 @@ const Moderation = () => {
   }, [authLoading, isLoggedIn, status, navigate, load]);
 
   const handleVerify = async (story) => {
+    const current = story.workflow?.verification_status || 'PENDING';
+    let note = '';
+    // Re-approving a previously REJECTED report reverses a decision; the server
+    // requires a reason, so ask for one and keep the audit trail meaningful.
+    if (current !== 'PENDING') {
+      note = window.prompt('Reason for reversing this rejection (required):') || '';
+      if (!note.trim()) return;
+    }
     setBusyId(story.source_record_id);
     try {
-      await verifyUpload(story.source_record_id);
-      addToast('Story approved and now visible on the public feed.', 'success');
+      await verifyUpload(story.source_record_id, note.trim());
+      addToast(
+        current === 'PENDING'
+          ? 'Story approved and now visible on the public feed.'
+          : 'Rejection reversed — story is now approved.',
+        'success',
+      );
       setItems((prev) => prev.filter((s) => s.source_record_id !== story.source_record_id));
     } catch (err) {
       addToast(err.response?.data?.error || 'Approve failed.', 'error');
@@ -399,6 +551,7 @@ const Moderation = () => {
       </header>
 
       {isSteward && <StewardPanel addToast={addToast} />}
+      {isSteward && <StewardActivityLog />}
 
       <div style={tabRow}>
         {STATUSES.map((s) => (
