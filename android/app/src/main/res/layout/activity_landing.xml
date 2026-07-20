@@ -16,6 +16,7 @@
         android:layout_marginBottom="8dp" />
 
     <TextView
+        android:id="@+id/txtLandingSubtitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="How would you like to report?"
@@ -23,30 +24,45 @@
         android:gravity="center"
         android:layout_marginBottom="40dp" />
 
-    <!-- Primary: Submit Anonymously -->
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/btnAnonymous"
+    <!-- Anonymous block: button + caption + divider, grouped so a single
+         visibility toggle hides the whole option cleanly. Gated on
+         BuildConfig.ANONYMOUS_ENABLED — the server returns 403 for
+         /anonymous-ingest unless ANONYMOUS_INGEST_ENABLED is set (ADR-0007),
+         and a control that silently discards someone's report is a worse
+         failure than no control at all. -->
+    <LinearLayout
+        android:id="@+id/anonymousBlock"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Submit Anonymously"
-        android:textSize="16sp"
-        android:layout_marginBottom="6dp" />
+        android:orientation="vertical">
 
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="No account, no history. The safest option in a hostile environment."
-        android:textSize="12sp"
-        android:textColor="#666666"
-        android:gravity="center"
-        android:layout_marginBottom="32dp" />
+        <!-- Primary: Submit Anonymously -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnAnonymous"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Submit Anonymously"
+            android:textSize="16sp"
+            android:layout_marginBottom="6dp" />
 
-    <!-- Divider -->
-    <View
-        android:layout_width="60dp"
-        android:layout_height="1dp"
-        android:background="#CCCCCC"
-        android:layout_marginBottom="16dp" />
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="No account, no history. The safest option in a hostile environment."
+            android:textSize="12sp"
+            android:textColor="#666666"
+            android:gravity="center"
+            android:layout_marginBottom="32dp" />
+
+        <!-- Divider -->
+        <View
+            android:layout_width="60dp"
+            android:layout_height="1dp"
+            android:background="#CCCCCC"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="16dp" />
+
+    </LinearLayout>
 
     <!-- Secondary: Sign In -->
     <com.google.android.material.button.MaterialButton

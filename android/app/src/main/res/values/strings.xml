@@ -30,4 +30,8 @@
     <string name="register_done_msg">Your reporter pseudonym is:\n\n%1$s\n\nGive this to the steward so they can approve you (vouch to rung 2). Until then your reports wait for review.</string>
     <string name="register_failed">Registration failed: %1$s</string>
     <string name="device_registered">Registered · %1$s</string>
+    <!-- Shown on the landing screen when anonymous submission is disabled
+         (BuildConfig.ANONYMOUS_ENABLED = false), so the subtitle isn't a
+         question with only one possible answer. -->
+    <string name="landing_subtitle_account_only">Sign in to file a report.</string>
 </resources>

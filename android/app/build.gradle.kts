@@ -27,6 +27,18 @@ android {
         val meloApiBaseUrl = (project.findProperty("meloApiBaseUrl") as String?)
             ?: "https://drill.melonews.tech/"
         buildConfigField("String", "API_BASE_URL", "\"$meloApiBaseUrl\"")
+
+        // Anonymous submission is DISABLED to match the server, which returns
+        // 403 from /api/stories/anonymous-ingest unless ANONYMOUS_INGEST_ENABLED
+        // is set (ADR-0007: unauthenticated public ingest is the easiest
+        // Sybil/spam vector, and anonymous reports count 0 toward corroboration).
+        // Showing the option while the server refuses it means a reporter's
+        // submission is silently discarded — the worst failure mode for a tool
+        // whose premise is trustworthiness.
+        // Re-enable ONLY together with the server flag:
+        //   ./gradlew :app:assembleDebug -PmeloAnonymousEnabled=true
+        val meloAnonymousEnabled = (project.findProperty("meloAnonymousEnabled") as String?) ?: "false"
+        buildConfigField("boolean", "ANONYMOUS_ENABLED", meloAnonymousEnabled)
     }
 
     buildFeatures {
