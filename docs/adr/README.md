@@ -47,6 +47,7 @@ honest map of the gap between the design and the implementation.
 | [0020](0020-strategy-sequencing-one-engine-three-shapes.md) | Strategy sequencing: one engine, three shapes (trust layer / debunk / archive), the drill is the branch point | Proposed |
 | [0021](0021-android-reporter-first-reader-on-web.md) | Android is reporter-first; the reader surface lives on the web; Android carries only a thin, decoy-gated awareness layer | Proposed |
 | [0022](0022-volunteer-carrier-network-sealed-relay-only.md) | Non-reporters may carry reporters' data only as sealed, transit-only middle relays — the current plaintext mesh must not ship to volunteers | Proposed |
+| [0023](0023-steward-quorum-for-high-impact-governance.md) | High-impact steward actions (mint privileged roles, vouch to rung 2/3) require an M-of-N quorum; the audit log is the substrate, not the safeguard | Proposed |
 
 ## Writing a new one
 
