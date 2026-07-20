@@ -34,11 +34,13 @@ Pillow>=10.0,<13.0
 fuzzywuzzy>=0.18,<1.0
 python-Levenshtein>=0.21,<1.0
 
-# NLP
-spacy==3.8.7
-thinc>=8.3.6,<8.4.0
-blis>=0.7.11
-selenium>=4.20.0
+# NOTE: spacy/thinc/blis and selenium were removed here. spaCy was never
+# imported by any code on this branch (leftover from the pre-pivot NLP
+# pipeline) and its transitive `blis` pin could not resolve against
+# thinc 8.3.6 under --only-binary, breaking the Docker build outright.
+# selenium was the Telegram scraper's driver, removed with the scrapers
+# (ADR-0002). Dropping both also removes a large build-time cost:
+# no blis compilation and no en_core_web_sm model download.
 azure-storage-blob>=12.21.0
 azure-ai-vision-imageanalysis>=1.0.0
 azure-cognitiveservices-speech>=1.38.0
