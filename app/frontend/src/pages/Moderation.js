@@ -6,6 +6,9 @@ import {
   getModerationQueue,
   verifyUpload,
   rejectUpload,
+  getIdentities,
+  setUserRung,
+  setUserRole,
 } from '../services/api';
 
 const STATUSES = ['PENDING', 'VERIFIED', 'REJECTED'];
@@ -149,10 +152,165 @@ const ReviewCard = ({ story, onVerify, onReject, busy }) => {
   );
 };
 
+// Steward-only governance panel: set trust rungs and editorial roles.
+//
+// Why this matters operationally: an Event cannot auto-reach CORROBORATED
+// without at least one rung-2+ member (ADR-0005 Sybil backstop), so vouching a
+// reporter is what lets a cohort's reports actually corroborate (ADR-0016).
+// Rung 1 reports are pre-moderated; rung 2+ auto-publish, subject to the safety
+// override — so a promotion is a real editorial decision, not a formality.
+const StewardPanel = ({ addToast }) => {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState(null);
+  const [error, setError] = useState('');
+  const [open, setOpen] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const resp = await getIdentities();
+      setUsers(resp.data?.users || []);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Could not load identities.');
+      setUsers([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { if (open) load(); }, [open, load]);
+
+  const applyRung = async (u, rung) => {
+    setBusyId(u.userid);
+    try {
+      await setUserRung(u.userid, rung);
+      addToast(`${u.handle || u.username || `#${u.userid}`} → rung ${rung}`, 'success');
+      await load();
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Could not set rung.', 'error');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const applyRole = async (u, role) => {
+    setBusyId(u.userid);
+    try {
+      await setUserRole(u.userid, role);
+      addToast(`${u.handle || u.username || `#${u.userid}`} → ${role}`, 'success');
+      await load();
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Could not set role.', 'error');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const cell = { padding: '6px 8px', borderBottom: '1px solid #e5e7eb', fontSize: 13 };
+  const chip = { padding: '2px 7px', borderRadius: 999, fontSize: 11, fontWeight: 600 };
+
+  return (
+    <section style={{ border: '1px solid #e5e7eb', borderRadius: 8, marginBottom: 20 }}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          width: '100%', textAlign: 'left', padding: '10px 12px', border: 'none',
+          background: '#f9fafb', cursor: 'pointer', fontWeight: 600, fontSize: 14,
+          borderRadius: 8,
+        }}
+      >
+        {open ? '▾' : '▸'} Steward · identities &amp; trust rungs
+      </button>
+
+      {open && (
+        <div style={{ padding: 12, overflowX: 'auto' }}>
+          {loading && <div style={{ color: '#6b7280' }}>Loading…</div>}
+          {error && <div style={{ color: '#b91c1c' }}>{error}</div>}
+
+          {!loading && !error && (
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 620 }}>
+              <thead>
+                <tr style={{ textAlign: 'left', color: '#6b7280', fontSize: 12 }}>
+                  <th style={cell}>Identity</th>
+                  <th style={cell}>Track record</th>
+                  <th style={cell}>Rung</th>
+                  <th style={cell}>Role</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((u) => (
+                  <tr key={u.userid} style={{ opacity: busyId === u.userid ? 0.5 : 1 }}>
+                    <td style={cell}>
+                      <div style={{ fontWeight: 600 }}>
+                        {u.handle || u.username || `#${u.userid}`}
+                      </div>
+                      <div style={{ color: '#6b7280', fontSize: 11 }}>
+                        #{u.userid} · {u.identity_type}
+                      </div>
+                    </td>
+                    <td style={cell}>
+                      <span style={{ ...chip, background: '#f3f4f6', color: '#374151' }}>
+                        {u.corroborated_count} of {u.reports_count} corroborated
+                      </span>
+                    </td>
+                    <td style={cell}>
+                      {[1, 2, 3].map((r) => (
+                        <button
+                          key={r}
+                          disabled={busyId === u.userid || u.trust_rung === r}
+                          onClick={() => applyRung(u, r)}
+                          title={
+                            r === 1 ? 'Rung 1 — reports are pre-moderated'
+                              : r === 2 ? 'Rung 2 — auto-publish, and can carry an Event to CORROBORATED'
+                                : 'Rung 3 — established'
+                          }
+                          style={{
+                            marginRight: 4, padding: '3px 9px', borderRadius: 4, fontSize: 12,
+                            cursor: u.trust_rung === r ? 'default' : 'pointer',
+                            border: '1px solid ' + (u.trust_rung === r ? '#111827' : '#d1d5db'),
+                            background: u.trust_rung === r ? '#111827' : '#fff',
+                            color: u.trust_rung === r ? '#fff' : '#374151',
+                          }}
+                        >
+                          {r}
+                        </button>
+                      ))}
+                    </td>
+                    <td style={cell}>
+                      <select
+                        value={u.role}
+                        disabled={busyId === u.userid}
+                        onChange={(e) => applyRole(u, e.target.value)}
+                        style={{ fontSize: 12, padding: '3px 6px' }}
+                      >
+                        <option value="reporter">reporter</option>
+                        <option value="moderator">moderator</option>
+                        <option value="steward">steward</option>
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          <p style={{ color: '#6b7280', fontSize: 12, marginTop: 10, marginBottom: 0 }}>
+            Rung 1 reports are held for review; rung 2+ auto-publish unless the safety
+            override applies (HIGH severity, sensitive, or first media on a new event).
+            An Event needs a rung-2+ member before it can reach CORROBORATED.
+          </p>
+        </div>
+      )}
+    </section>
+  );
+};
+
 const Moderation = () => {
   const navigate = useNavigate();
-  const { isLoggedIn, isModerator, authLoading } = useAuth();
+  const { isLoggedIn, isModerator, authLoading, user } = useAuth();
   const { addToast } = useToast();
+  const isSteward = user?.role === 'steward';
 
   const [status, setStatus] = useState('PENDING');
   const [items, setItems] = useState([]);
@@ -239,6 +397,8 @@ const Moderation = () => {
           {items.length} shown {total > items.length ? `of ${total}` : ''}
         </span>
       </header>
+
+      {isSteward && <StewardPanel addToast={addToast} />}
 
       <div style={tabRow}>
         {STATUSES.map((s) => (

@@ -181,6 +181,32 @@ def _recompute_owning_event(upload):
         recompute_event(event)
 
 
+@moderation_bp.route('/users', methods=['GET'])
+@steward_required
+def list_users():
+    """Identities a steward can act on (ADR-0016 rung bootstrap).
+
+    Steward-gated, not moderator-gated: this is the roster behind role/rung
+    changes, and it exposes the pseudonym<->rung mapping for every reporter.
+    Never returns email or password — a moderation roster has no need for
+    contact details, and pseudonymous reporters have none anyway (ADR-0003).
+    """
+    users = User.query.order_by(User.userid).all()
+    return jsonify({
+        'users': [{
+            'userid': u.userid,
+            'username': u.username,
+            'handle': u.display_handle,
+            'identity_type': getattr(u, 'identity_type', 'registered'),
+            'role': getattr(u, 'role', 'reporter'),
+            'trust_rung': getattr(u, 'trust_rung', 1),
+            'reports_count': getattr(u, 'reports_count', 0),
+            'corroborated_count': getattr(u, 'corroborated_count', 0),
+        } for u in users],
+        'count': len(users),
+    }), 200
+
+
 @moderation_bp.route('/users/<int:user_id>/role', methods=['POST'])
 @steward_required
 def set_role(user_id):

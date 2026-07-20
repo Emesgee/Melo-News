@@ -121,6 +121,23 @@ export const rejectUpload = async (id, note) => {
   return api.post(`moderation/${id}/reject`, { note });
 };
 
+// --- Steward governance (steward role required) ---
+// Rung/role changes are the ADR-0016 bootstrap: an Event cannot auto-reach
+// CORROBORATED without a rung-2+ member, so vouching is what lets a drill
+// cohort's reports actually corroborate.
+
+export const getIdentities = async () => {
+  return api.get('moderation/users');
+};
+
+export const setUserRung = async (userId, rung) => {
+  return api.post(`moderation/users/${userId}/rung`, { rung });
+};
+
+export const setUserRole = async (userId, role) => {
+  return api.post(`moderation/users/${userId}/role`, { role });
+};
+
 // Financial data (P2-12) - uses free Yahoo Finance API proxy
 export const getMarketData = async () => {
   try {
