@@ -1,3 +1,6 @@
 # https://www.robotstxt.org/robotstxt.html
+# DRILL INSTANCE — carries synthetic test data. Disallow all crawling so
+# fabricated demo incidents are never indexed as apparent real news.
+# Revert to "Disallow:" (allow all) for the real launch.
 User-agent: *
-Disallow:
+Disallow: /

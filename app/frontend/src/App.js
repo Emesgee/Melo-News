@@ -43,6 +43,39 @@ function App({ isLoggedIn: isLoggedInProp }) {
   );
 }
 
+// Drill banner: makes it unmistakable to any viewer that this deployment carries
+// SYNTHETIC test data (fabricated demo incidents). Gated on a build flag so it
+// shows on the drill build and is absent from the real launch — set
+// REACT_APP_DRILL_BANNER=1 at build time. Dismissible per-session so it does not
+// nag a briefed tester, but it re-appears on reload.
+const DrillBanner = () => {
+  const [hidden, setHidden] = React.useState(
+    () => typeof sessionStorage !== 'undefined' && sessionStorage.getItem('drillBannerHidden') === '1',
+  );
+  if (process.env.REACT_APP_DRILL_BANNER !== '1' || hidden) return null;
+  return (
+    <div role="alert" style={{
+      background: '#7f1d1d', color: '#fff', padding: '7px 14px', fontSize: 13,
+      display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'center',
+      textAlign: 'center', lineHeight: 1.35,
+    }}>
+      <strong>DRILL</strong>
+      <span>
+        Test instance — every incident shown is <strong>synthetic demo data</strong>,
+        not a real event.
+      </span>
+      <button
+        onClick={() => { try { sessionStorage.setItem('drillBannerHidden', '1'); } catch (_) {} setHidden(true); }}
+        aria-label="Dismiss drill notice"
+        style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', border: 'none',
+                 borderRadius: 4, cursor: 'pointer', padding: '2px 8px', fontSize: 12 }}
+      >
+        Dismiss
+      </button>
+    </div>
+  );
+};
+
 const AppContent = () => {
   const { addToast } = useToast();
   const interceptorsSetup = useRef(false);
@@ -102,6 +135,8 @@ const AppContent = () => {
       <a href="#main-content" className="skip-nav">
         Skip to main content
       </a>
+
+      <DrillBanner />
 
       {/* Fixed top bar */}
       <header className="topbar-fixed">
